@@ -266,3 +266,6 @@ textarea:focus { outline: none; border-color: #2563eb; }
 .audit-json pre { margin: 0.3rem 0 0; font-size: 0.75rem; white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow: auto; }
 .filter-bar .inline-check { white-space: nowrap; margin: 0; }
 .filter-bar .inline-check input { flex: none; }
+
+/* Links styled as buttons */
+a.btn { display: inline-block; text-decoration: none; }
