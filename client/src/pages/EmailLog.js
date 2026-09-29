@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import Toast from '../components/Toast';
 import Navbar from '../components/Navbar';
 import Pager from '../components/Pager';
+import MultiSelect from '../components/MultiSelect';
+import DateRangeFilter from '../components/DateRangeFilter';
 import api, { downloadFile, errorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import useDebounce from '../hooks/useDebounce';
@@ -11,7 +14,9 @@ const TYPES = [
   'LANDLORD_STATUS_PASSIVE', 'BUILDING_STATUS_PASSIVE', 'LEASE_COMMENCEMENT_REMINDER',
   'RENT_COMMENCEMENT_REMINDER', 'LEASE_END_REMINDER', 'PASSWORD_RESET',
 ];
-const EMPTY_FILTERS = { search: '', notificationType: '', status: '', dateFrom: '', dateTo: '' };
+// Multi-select filters hold arrays of values (empty = all)
+const EMPTY_FILTERS = { search: '', notificationType: [], status: [], dateFrom: '', dateTo: '' };
+const STATUSES = [{ value: 'Sent', label: 'Sent' }, { value: 'Failed', label: 'Failed' }, { value: 'DryRun', label: 'Dry run (not sent)' }];
 const label = (t) => t.toLowerCase().replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 
 export default function EmailLog() {
@@ -80,7 +85,7 @@ export default function EmailLog() {
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
-        {notice && <div className="alert alert-success">{notice}</div>}
+        <Toast message={notice} onClose={() => setNotice('')} />
 
         {user?.isAdmin && (
           <div className="upload-panel run-panel">
@@ -95,18 +100,13 @@ export default function EmailLog() {
 
         <div className="filter-bar">
           <input type="search" placeholder="Search SD Code, recipient or subject" value={filters.search} onChange={(e) => setFilter({ search: e.target.value })} />
-          <select value={filters.notificationType} onChange={(e) => setFilter({ notificationType: e.target.value })}>
-            <option value="">All notification types</option>
-            {TYPES.map((t) => <option key={t} value={t}>{label(t)}</option>)}
-          </select>
-          <select value={filters.status} onChange={(e) => setFilter({ status: e.target.value })}>
-            <option value="">All statuses</option>
-            <option>Sent</option>
-            <option>Failed</option>
-            <option value="DryRun">Dry run (not sent)</option>
-          </select>
-          <input className="short" type="text" placeholder="From DD/MM/YYYY" value={filters.dateFrom} onChange={(e) => setFilter({ dateFrom: e.target.value })} />
-          <input className="short" type="text" placeholder="To DD/MM/YYYY" value={filters.dateTo} onChange={(e) => setFilter({ dateTo: e.target.value })} />
+          <MultiSelect
+            allLabel="All notification types" noun="types"
+            options={TYPES.map((t) => ({ value: t, label: label(t) }))}
+            value={filters.notificationType} onChange={(v) => setFilter({ notificationType: v })}
+          />
+          <MultiSelect allLabel="All statuses" noun="statuses" options={STATUSES} value={filters.status} onChange={(v) => setFilter({ status: v })} />
+          <DateRangeFilter label="Sent" from={filters.dateFrom} to={filters.dateTo} onChange={({ from, to }) => setFilter({ dateFrom: from, dateTo: to })} />
           <button type="button" className="btn btn-secondary" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); }}>Clear</button>
         </div>
 

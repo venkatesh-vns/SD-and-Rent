@@ -57,7 +57,7 @@ sd-maintenance-app/
 │   └── server.js           # starts app.js + the reminder scheduler
 │
 ├── database/
-│   ├── migrations/         # 001_initial, 002_foundation, ... 005_sd_transactions, 006_notifications_reports (npm run migrate)
+│   ├── migrations/         # 001_initial, 002_foundation, ... 005_sd_transactions, 006_notifications_reports, 007_notification_templates, 008_mail_settings (npm run migrate)
 │   └── seed.sql            # Sample cost centers
 │
 └── README.md
@@ -190,6 +190,13 @@ rights until they are assigned in the User Rights Master.
 | GET    | `/api/logs/audit`                | Audit log (`?search=&tableName=&action=&dateFrom=&dateTo=`) | Audit Log: View |
 | GET    | `/api/logs/audit/export`         | Audit log to Excel                 | Audit Log: View       |
 | POST   | `/api/notifications/run-reminders` | Run date reminders now (`{ asOf?: 'DD/MM/YYYY' }`) | Administrator |
+| GET    | `/api/notification-templates`    | Email templates with settings and placeholders | Email Notification Master: View |
+| POST   | `/api/notification-templates/:type/preview` | Render unsaved edits with sample data | Email Notification Master: View |
+| PUT    | `/api/notification-templates/:type` | Save a template                  | Email Notification Master: Edit |
+| POST   | `/api/notification-templates/:type/reset` | Restore the default template | Email Notification Master: Edit |
+| GET    | `/api/mail-settings`            | Mail server and sender settings (no password) | Administrator |
+| PUT    | `/api/mail-settings`            | Save mail server settings          | Administrator         |
+| POST   | `/api/mail-settings/test`       | Check connection and send a test email | Administrator     |
 | GET    | `/api/lookups/cost-centers`      | Cost center dropdown list          | Login                 |
 | GET    | `/api/lookups/locations/:level`  | Location dropdown list (`?parentId=`) | Login            |
 | GET    | `/api/user-rights/users`          | Users to assign rights to          | User Rights: View     |
@@ -215,6 +222,18 @@ npm start
 ```
 
 The app opens at `http://localhost:3000`.
+
+### Branding
+
+| File | Used for |
+|---|---|
+| `client/src/assets/indiqube-logo.png` | Full logo above the sign-in form (transparent background) |
+| `client/src/assets/indiqube-mark.png` | Square symbol on a white tile: menu bar and login brand panel |
+| `client/public/favicon.png` | Browser tab icon |
+| `client/src/assets/indiqube-logo-original.png` | The logo as supplied, kept for reference |
+
+Replace these files (same names) to update the branding. Colours and other design
+values are the variables at the top of `client/src/styles.css`.
 
 ---
 
@@ -288,14 +307,30 @@ are unique within their Level 1; Level 3 names within their Level 2.
 
 ## 6a. Email Notifications
 
-All SD notifications go to the addresses in `NOTIFY_TO` (comma-separated),
-and every email is recorded in `email_log` (Administration > Email Log).
+Each notification is managed on **Masters > Email Notification Master**:
+switch it on or off, set To / CC addresses (blank To = the `NOTIFY_TO`
+mailbox from the server `.env`), set the trigger days for the date reminders
+(0-365), and edit the subject and body using placeholders such as
+`{{sd_code}}`, `{{landlord_name}}` or `{{due_date}}`. A live preview shows
+the finished email with sample data, and **Restore default** puts back the
+original wording. Access follows User Rights (View to see and preview, Edit to
+change), and every change is written to the Audit Log. Every email sent is
+recorded in `email_log` (Administration > Email Log).
+
+The same screen has a **Mail Server (SMTP)** tab for administrators only:
+sender name and email, default recipients, SMTP server, port, security,
+username and password, plus **Send test email** (checks the connection and
+login, then sends a short message). Blank fields use the `server/.env`
+values. The SMTP password is stored encrypted (AES-256-GCM, key from
+`SETTINGS_SECRET`, else `JWT_SECRET`), is never sent to the browser, and
+must be re-entered if that key changes. Saved settings apply from the next
+email without a restart.
 
 | Notification | When |
 |---|---|
 | Landlord Status changed to Passive | Straight after an SD Master save or upload changes it Active -> Passive |
 | Building Status changed to Passive | Same, for Building Status |
-| Lease Commencement reminder | Daily job, when the date is within `NOTIFY_DAYS_BEFORE` (15) days |
+| Lease Commencement reminder | Daily job, when the date is within the template's trigger days (default 15) |
 | Rent Commencement reminder | Same |
 | Lease End reminder | Same |
 

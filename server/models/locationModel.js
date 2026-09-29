@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { listOf, idsOf } = require('../utils/filters');
 
 // One definition per level of the Location Master hierarchy.
 // `parents` lists the parent id columns a record of this level carries.
@@ -22,7 +23,7 @@ function baseSelect(level) {
           JOIN location_l2 p2 ON p2.l2_id = t.l2_id`;
 }
 
-// Filters: search (code or name), status, l1Id, l2Id
+// Filters: search (code or name); status, l1Id, l2Id accept one or more values
 async function getAll(level, { search, status, l1Id, l2Id } = {}) {
   const def = LEVELS[level];
   const where = [];
@@ -31,17 +32,17 @@ async function getAll(level, { search, status, l1Id, l2Id } = {}) {
     params.push(`%${search}%`);
     where.push(`(t.${def.code} ILIKE $${params.length} OR t.${def.name} ILIKE $${params.length})`);
   }
-  if (status) {
-    params.push(status);
-    where.push(`t.status = $${params.length}`);
+  if (listOf(status).length) {
+    params.push(listOf(status));
+    where.push(`t.status = ANY($${params.length})`);
   }
-  if (l1Id && def.parents.includes('l1_id')) {
-    params.push(l1Id);
-    where.push(`t.l1_id = $${params.length}`);
+  if (idsOf(l1Id).length && def.parents.includes('l1_id')) {
+    params.push(idsOf(l1Id));
+    where.push(`t.l1_id = ANY($${params.length}::int[])`);
   }
-  if (l2Id && def.parents.includes('l2_id')) {
-    params.push(l2Id);
-    where.push(`t.l2_id = $${params.length}`);
+  if (idsOf(l2Id).length && def.parents.includes('l2_id')) {
+    params.push(idsOf(l2Id));
+    where.push(`t.l2_id = ANY($${params.length}::int[])`);
   }
   const order = level === 1 ? 't.l1_name' : level === 2 ? 'p1.l1_name, t.l2_name' : 'p1.l1_name, p2.l2_name, t.l3_name';
   const result = await pool.query(

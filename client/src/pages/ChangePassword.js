@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Toast from '../components/Toast';
 import Navbar from '../components/Navbar';
 import api, { errorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -62,7 +63,7 @@ export default function ChangePassword() {
       <div className="page-container narrow">
         <h1>Change Password</h1>
         <form className="card" onSubmit={handleSubmit}>
-          {message && <div className="alert alert-success">{message}</div>}
+          <Toast message={message} onClose={() => setMessage('')} duration={6000} />
           {error && <div className="alert alert-error">{error}</div>}
           {field('currentPassword', 'Current Password', 'current-password')}
           {field('newPassword', 'New Password', 'new-password')}

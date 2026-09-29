@@ -55,7 +55,7 @@ export default function SdPicker({ onSelect, placeholder = 'Search SD Code, Leas
             <li key={sd.sd_id}>
               <button type="button" onClick={() => choose(sd)}>
                 <strong>{sd.sd_code}</strong>
-                <span>{[sd.lease_id, sd.agreement_no, sd.landlord_name, `Floor ${sd.floor}`, sd.cost_center_code].filter(Boolean).join(' · ')}</span>
+                <span>{[sd.lease_id, sd.agreement_no, sd.landlord_name, `Floor ${sd.floor}`, sd.cost_center_name].filter(Boolean).join(' · ')}</span>
                 {(sd.landlord_status !== 'Active' || sd.building_status !== 'Active') && <em>Passive</em>}
               </button>
             </li>

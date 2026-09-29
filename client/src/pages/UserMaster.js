@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import Toast from '../components/Toast';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
@@ -24,7 +25,7 @@ export default function UserMaster() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [filters, setFilters] = useState({ search: '', status: '' });
+  const [filters, setFilters] = useState({ search: '', status: [] });
   const [modal, setModal] = useState(null); // 'edit' | 'add' | 'password'
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState({ userName: '', userEmail: '', password: '', status: 'Active' });
@@ -114,12 +115,9 @@ export default function UserMaster() {
         </div>
 
         {error && !modal && <div className="alert alert-error">{error}</div>}
-        {notice && (
-          <div className="alert alert-success" onClick={() => setNotice('')}>
-            {notice}{' '}
-            {notice.includes('User Rights') && can(SCREENS.USER_RIGHTS, 'edit') && <Link to="/user-rights">Open User Rights</Link>}
-          </div>
-        )}
+        <Toast message={notice} onClose={() => setNotice('')} duration={notice.includes('User Rights') ? 7000 : 4000}>
+          {notice.includes('User Rights') && can(SCREENS.USER_RIGHTS, 'edit') && <Link to="/user-rights">Open User Rights</Link>}
+        </Toast>
 
         {can(SCREENS.USER, 'upload') && (
           <ExcelUpload endpoint="/users" templateName="User_Template.xlsx" onUploaded={fetchUsers} />

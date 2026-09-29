@@ -16,3 +16,12 @@ export function formatAmount(value) {
   if (value === null || value === undefined || value === '') return '';
   return Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+// Whole days from today to a 'YYYY-MM-DD' date (negative once it has passed)
+export function daysUntil(iso) {
+  if (!iso) return null;
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  const now = new Date();
+  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((Date.UTC(y, m - 1, d) - today) / 864e5);
+}

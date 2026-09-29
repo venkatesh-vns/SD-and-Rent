@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { listOf } = require('../utils/filters');
 
 // Shared paging: returns { rows, total }; pageSize 0 = all rows (export)
 async function paged(select, from, where, params, order, { page = 1, pageSize = 50 } = {}) {
@@ -24,18 +25,20 @@ function builder() {
   return { where, params, add };
 }
 
-// Filters: search (SD Code, recipient, subject), notificationType, status, dateFrom/dateTo ('YYYY-MM-DD')
+// Filters: search (SD Code, recipient, subject), notificationType and status
+// (one or more each), dateFrom/dateTo ('YYYY-MM-DD')
 async function getEmailLog(f = {}, paging) {
   const { where, params, add } = builder();
   if (f.search) add('(e.sd_code ILIKE ? OR e.recipient ILIKE ? OR e.subject ILIKE ?)', `%${f.search}%`);
-  if (f.notificationType) add('e.notification_type = ?', f.notificationType);
-  if (f.status) add('e.status = ?', f.status);
+  if (listOf(f.notificationType).length) add('e.notification_type = ANY(?)', listOf(f.notificationType));
+  if (listOf(f.status).length) add('e.status = ANY(?)', listOf(f.status));
   if (f.dateFrom) add('e.sent_at >= ?::date', f.dateFrom);
   if (f.dateTo) add("e.sent_at < ?::date + 1", f.dateTo);
   return paged('SELECT e.*', 'FROM email_log e', where, params, 'e.sent_at DESC, e.email_log_id DESC', paging);
 }
 
-// Filters: search (who, details, record id), tableName, action, dateFrom/dateTo
+// Filters: search (who, details, record id), tableName and action (one or
+// more each), dateFrom/dateTo
 async function getAuditLog(f = {}, paging) {
   const { where, params, add } = builder();
   if (f.search) {
@@ -45,8 +48,8 @@ async function getAuditLog(f = {}, paging) {
     const idMatch = /^\d+$/.test(f.search.trim()) ? ` OR a.record_id = ${Number(f.search.trim())}` : '';
     where.push(`(a.action_by ILIKE ${p} OR a.details ILIKE ${p} OR a.new_values::text ILIKE ${p} OR a.old_values::text ILIKE ${p}${idMatch})`);
   }
-  if (f.tableName) add('a.table_name = ?', f.tableName);
-  if (f.action) add('a.action = ?', f.action);
+  if (listOf(f.tableName).length) add('a.table_name = ANY(?)', listOf(f.tableName));
+  if (listOf(f.action).length) add('a.action = ANY(?)', listOf(f.action));
   if (f.dateFrom) add('a.action_date >= ?::date', f.dateFrom);
   if (f.dateTo) add('a.action_date < ?::date + 1', f.dateTo);
   return paged('SELECT a.*', 'FROM audit_log a', where, params, 'a.action_date DESC, a.audit_id DESC', paging);

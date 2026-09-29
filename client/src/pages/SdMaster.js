@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import Toast from '../components/Toast';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
+import MultiSelect from '../components/MultiSelect';
+import DateRangeFilter from '../components/DateRangeFilter';
 import Modal from '../components/Modal';
 import ExcelUpload from '../components/ExcelUpload';
 import Pager from '../components/Pager';
@@ -9,22 +12,37 @@ import api, { downloadFile, errorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { SCREENS } from '../config/screens';
 import useDebounce from '../hooks/useDebounce';
-import { formatAmount, formatDate, formatDateTime } from '../utils/format';
+import { formatAmount, formatDate, formatDateTime, daysUntil } from '../utils/format';
+import { AMOUNTS, amountClass } from '../config/amounts';
 
 const PAGE_SIZE = 50;
 
 const columns = [
   { key: 'sdCode', label: 'SD Code' },
-  { key: 'leaseAgreement', label: 'Lease ID / Agreement No.' },
+  { key: 'leaseId', label: 'Lease ID' },
+  { key: 'agreementNo', label: 'Agreement No.' },
   { key: 'costCenter', label: 'Cost Center' },
-  { key: 'location', label: 'Location' },
+  { key: 'l1', label: 'Location Level 1' },
+  { key: 'l2', label: 'Location Level 2' },
+  { key: 'l3', label: 'Location Level 3' },
   { key: 'floor', label: 'Floor' },
-  { key: 'landlordName', label: 'Landlord' },
+  { key: 'landlordName', label: 'Landlord Name' },
   { key: 'landlordStatus', label: 'Landlord Status', badge: true },
   { key: 'buildingStatus', label: 'Building Status', badge: true },
-  { key: 'agreementValue', label: 'Agreement Value', align: 'right' },
+  { key: 'agreementValue', label: 'Agreement Value', align: 'right', tone: 'agreement' },
+  { key: 'sdBalance', label: AMOUNTS.balance.label, align: 'right', tone: 'balance' },
+  { key: 'repayable', label: AMOUNTS.repayable.label, align: 'right', tone: 'repayable' },
   { key: 'leaseEnd', label: 'Lease End' },
 ];
+
+// Lease End with a warning when it has passed or is within 90 days
+function leaseEndCell(iso) {
+  if (!iso) return '—';
+  const days = daysUntil(iso);
+  if (days < 0) return <span className="date-flag expired">{formatDate(iso)}<small>Expired</small></span>;
+  if (days <= 90) return <span className="date-flag soon">{formatDate(iso)}<small>{days === 0 ? 'Today' : `in ${days} days`}</small></span>;
+  return formatDate(iso);
+}
 
 const EMPTY_FORM = {
   leaseId: '', agreementNo: '', costCenterId: '', l1Id: '', l2Id: '', l3Id: '',
@@ -32,21 +50,36 @@ const EMPTY_FORM = {
   leaseCommencementDate: '', rentCommencementDate: '', leaseEndDate: '',
 };
 
-const EMPTY_FILTERS = { search: '', costCenterId: '', l1Id: '', l2Id: '', landlordStatus: '', buildingStatus: '' };
+// Multi-select filters hold arrays of values (empty = all)
+const EMPTY_FILTERS = {
+  search: '', costCenterId: [], l1Id: [], l2Id: [], landlordStatus: [], buildingStatus: [], leaseEndFrom: '', leaseEndTo: '',
+};
+const SD_STATUSES = ['Active', 'Passive'];
 
 function toRow(r) {
   return {
     id: r.sd_id,
     sdCode: r.sd_code,
-    leaseAgreement: [r.lease_id, r.agreement_no].filter(Boolean).join(' / ') || '—',
-    costCenter: r.cost_center_code,
-    location: `${r.l1_name} › ${r.l2_name} › ${r.l3_name}`,
+    leaseId: r.lease_id || '—',
+    agreementNo: r.agreement_no || '—',
+    costCenter: r.cost_center_name,
+    l1: r.l1_name,
+    l2: r.l2_name,
+    l3: r.l3_name,
     floor: r.floor,
     landlordName: r.landlord_name || '—',
     landlordStatus: r.landlord_status,
     buildingStatus: r.building_status,
     agreementValue: formatAmount(r.agreement_value),
-    leaseEnd: formatDate(r.lease_end_date) || '—',
+    sdBalance: formatAmount(r.sd_balance),
+    repayable: formatAmount(r.sd_balance_repayable),
+    leaseEnd: leaseEndCell(r.lease_end_date),
+    cellClass: {
+      sdCode: 'code-cell',
+      agreementValue: `${amountClass('agreement', r.agreement_value)} amount-plain`,
+      sdBalance: amountClass('balance', r.sd_balance),
+      repayable: amountClass('repayable', r.sd_balance_repayable),
+    },
     raw: r,
   };
 }
@@ -72,7 +105,8 @@ function toForm(r) {
 
 // Active options, plus the record's current value even if since made Inactive
 const selectable = (list, currentId) => list.filter((o) => o.status === 'Active' || String(o.id) === String(currentId));
-const optionLabel = (o) => `${o.code} - ${o.name}${o.status !== 'Active' ? ' (Inactive)' : ''}`;
+// Dropdowns show names only (no codes); Inactive values are marked
+const optionLabel = (o) => `${o.name}${o.status !== 'Active' ? ' (Inactive)' : ''}`;
 
 // Loads a location level's list whenever its parent changes
 function useLocations(level, parentId) {
@@ -108,8 +142,17 @@ export default function SdMaster() {
   const search = useDebounce(filters.search);
 
   const l1List = useLocations(1);
-  const filterL2 = useLocations(2, filters.l1Id);
+  const filterL2 = useLocations(2, filters.l1Id.join(','));
   const formL2 = useLocations(2, form.l1Id);
+
+  // Drop Level 2 picks that no longer belong to the chosen Level 1s
+  useEffect(() => {
+    setFilters((f) => {
+      const valid = new Set(filterL2.map((l) => String(l.id)));
+      const kept = f.l2Id.filter((id) => valid.has(String(id)));
+      return kept.length === f.l2Id.length ? f : { ...f, l2Id: kept };
+    });
+  }, [filterL2]);
   const formL3 = useLocations(3, form.l2Id);
 
   const query = { ...filters, search };
@@ -217,7 +260,7 @@ export default function SdMaster() {
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
-        {notice && <div className="alert alert-success">{notice}</div>}
+        <Toast message={notice} onClose={() => setNotice('')} />
 
         {can(SCREENS.SD_MASTER, 'upload') && (
           <>
@@ -234,28 +277,32 @@ export default function SdMaster() {
             type="search" placeholder="Search SD Code, Lease ID, Agreement No., Landlord, Floor"
             value={filters.search} onChange={(e) => setFilter({ search: e.target.value })}
           />
-          <select value={filters.costCenterId} onChange={(e) => setFilter({ costCenterId: e.target.value })}>
-            <option value="">All cost centers</option>
-            {costCenters.map((c) => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
-          </select>
-          <select value={filters.l1Id} onChange={(e) => setFilter({ l1Id: e.target.value, l2Id: '' })}>
-            <option value="">All Level 1</option>
-            {l1List.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-          <select value={filters.l2Id} disabled={!filters.l1Id} onChange={(e) => setFilter({ l2Id: e.target.value })}>
-            <option value="">{filters.l1Id ? 'All Level 2' : 'Level 2'}</option>
-            {filterL2.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-          <select value={filters.landlordStatus} onChange={(e) => setFilter({ landlordStatus: e.target.value })}>
-            <option value="">Landlord: all</option>
-            <option value="Active">Landlord: Active</option>
-            <option value="Passive">Landlord: Passive</option>
-          </select>
-          <select value={filters.buildingStatus} onChange={(e) => setFilter({ buildingStatus: e.target.value })}>
-            <option value="">Building: all</option>
-            <option value="Active">Building: Active</option>
-            <option value="Passive">Building: Passive</option>
-          </select>
+          <MultiSelect
+            allLabel="All cost centers" noun="cost centers"
+            options={costCenters.map((c) => ({ value: c.id, label: c.name }))}
+            value={filters.costCenterId} onChange={(v) => setFilter({ costCenterId: v })}
+          />
+          <MultiSelect
+            allLabel="All Level 1" noun="Level 1"
+            options={l1List.map((l) => ({ value: l.id, label: l.name }))}
+            value={filters.l1Id} onChange={(v) => setFilter({ l1Id: v })}
+          />
+          <MultiSelect
+            allLabel={filters.l1Id.length ? 'All Level 2' : 'Level 2'} noun="Level 2" disabled={!filters.l1Id.length}
+            options={filterL2.map((l) => ({ value: l.id, label: l.name }))}
+            value={filters.l2Id} onChange={(v) => setFilter({ l2Id: v })}
+          />
+          <MultiSelect
+            allLabel="Landlord: all" noun="statuses"
+            options={SD_STATUSES.map((s) => ({ value: s, label: `Landlord: ${s}` }))}
+            value={filters.landlordStatus} onChange={(v) => setFilter({ landlordStatus: v })}
+          />
+          <MultiSelect
+            allLabel="Building: all" noun="statuses"
+            options={SD_STATUSES.map((s) => ({ value: s, label: `Building: ${s}` }))}
+            value={filters.buildingStatus} onChange={(v) => setFilter({ buildingStatus: v })}
+          />
+          <DateRangeFilter label="Lease End" from={filters.leaseEndFrom} to={filters.leaseEndTo} onChange={({ from, to }) => setFilter({ leaseEndFrom: from, leaseEndTo: to })} />
           <button type="button" className="btn btn-secondary" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); }}>Clear</button>
           <button type="button" className="btn btn-secondary" onClick={handleExport}>Export to Excel</button>
         </div>
@@ -268,8 +315,9 @@ export default function SdMaster() {
               onEdit={openModal}
               editLabel={can(SCREENS.SD_MASTER, 'edit') ? 'Edit' : 'View'}
               onDelete={can(SCREENS.SD_MASTER, 'delete') ? handleDelete : null}
+              freeze
               extraActions={can(SCREENS.SD_TRANSACTION, 'view') ? (row) => (
-                <button className="btn btn-small btn-secondary" onClick={() => navigate(`/sd-transactions?sd=${row.id}`)}>Transactions</button>
+                <button className="btn btn-small btn-outline" onClick={() => navigate(`/sd-transactions?sd=${row.id}`)}>Transactions</button>
               ) : null}
             />
             <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
@@ -293,7 +341,7 @@ export default function SdMaster() {
                     <input type="text" value={editing ? editing.sd_code : 'Auto-generated on save'} disabled />
                   </div>
                   <div>
-                    <label htmlFor="floor">Floor *</label>
+                    <label htmlFor="floor">Floor <span className="req" aria-hidden="true">*</span></label>
                     <input id="floor" type="text" maxLength={50} required value={form.floor} onChange={set('floor')} />
                   </div>
                   <div>
@@ -306,7 +354,7 @@ export default function SdMaster() {
                   </div>
 
                   <div className="span-2">
-                    <label htmlFor="costCenterId">Cost Center *</label>
+                    <label htmlFor="costCenterId">Cost Center <span className="req" aria-hidden="true">*</span></label>
                     <select id="costCenterId" required value={form.costCenterId} onChange={set('costCenterId')}>
                       <option value="">Select Cost Center</option>
                       {selectable(costCenters, editing?.cost_center_id).map((c) => <option key={c.id} value={c.id}>{optionLabel(c)}</option>)}
@@ -316,21 +364,21 @@ export default function SdMaster() {
 
                 <div className="form-grid three">
                   <div>
-                    <label htmlFor="l1Id">Location Level 1 *</label>
+                    <label htmlFor="l1Id">Location Level 1 <span className="req" aria-hidden="true">*</span></label>
                     <select id="l1Id" required value={form.l1Id} onChange={(e) => setForm({ ...form, l1Id: e.target.value, l2Id: '', l3Id: '' })}>
                       <option value="">Select Level 1</option>
                       {selectable(l1List, editing?.l1_id).map((l) => <option key={l.id} value={l.id}>{optionLabel(l)}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="l2Id">Location Level 2 *</label>
+                    <label htmlFor="l2Id">Location Level 2 <span className="req" aria-hidden="true">*</span></label>
                     <select id="l2Id" required disabled={!form.l1Id} value={form.l2Id} onChange={(e) => setForm({ ...form, l2Id: e.target.value, l3Id: '' })}>
                       <option value="">{form.l1Id ? 'Select Level 2' : 'Select Level 1 first'}</option>
                       {selectable(formL2, editing?.l2_id).map((l) => <option key={l.id} value={l.id}>{optionLabel(l)}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="l3Id">Location Level 3 *</label>
+                    <label htmlFor="l3Id">Location Level 3 <span className="req" aria-hidden="true">*</span></label>
                     <select id="l3Id" required disabled={!form.l2Id} value={form.l3Id} onChange={set('l3Id')}>
                       <option value="">{form.l2Id ? 'Select Level 3' : 'Select Level 2 first'}</option>
                       {selectable(formL3, editing?.l3_id).map((l) => <option key={l.id} value={l.id}>{optionLabel(l)}</option>)}
@@ -343,22 +391,25 @@ export default function SdMaster() {
                     <label htmlFor="landlordName">Landlord Name</label>
                     <input id="landlordName" type="text" maxLength={200} value={form.landlordName} onChange={set('landlordName')} />
                   </div>
-                  <div>
-                    <label htmlFor="agreementValue">Agreement Value *</label>
-                    <input
-                      id="agreementValue" type="text" inputMode="decimal" required placeholder="0.00"
-                      value={form.agreementValue} onChange={set('agreementValue')}
-                    />
+                  <div className="money-field tone-agreement">
+                    <label htmlFor="agreementValue">Agreement Value <span className="req" aria-hidden="true">*</span></label>
+                    <div className="money-input">
+                      <span aria-hidden="true">₹</span>
+                      <input
+                        id="agreementValue" type="text" inputMode="decimal" required placeholder="Amount in ₹"
+                        value={form.agreementValue} onChange={set('agreementValue')}
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label htmlFor="landlordStatus">Landlord Status *</label>
+                    <label htmlFor="landlordStatus">Landlord Status <span className="req" aria-hidden="true">*</span></label>
                     <select id="landlordStatus" value={form.landlordStatus} onChange={set('landlordStatus')}>
                       <option value="Active">Active</option>
                       <option value="Passive">Passive</option>
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="buildingStatus">Building Status *</label>
+                    <label htmlFor="buildingStatus">Building Status <span className="req" aria-hidden="true">*</span></label>
                     <select id="buildingStatus" value={form.buildingStatus} onChange={set('buildingStatus')}>
                       <option value="Active">Active</option>
                       <option value="Passive">Passive</option>

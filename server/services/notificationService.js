@@ -1,13 +1,17 @@
 // SD email notifications:
 //   * Landlord / Building Status changed Active -> Passive (sent after the save)
 //   * Lease Commencement, Rent Commencement and Lease End reminders, sent by a
-//     daily job for dates up to NOTIFY_DAYS_BEFORE (default 15) days ahead
-// Recipients: NOTIFY_TO. Every email is recorded in email_log.
+//     daily job for dates up to each template's trigger days ahead
+// On/off, recipients, CC, trigger days and wording come from the Email
+// Notification Master (notification_templates). Blank recipients fall back
+// to the Mail Server default recipients (else NOTIFY_TO). Every email is
+// recorded in email_log.
 const { pool } = require('../config/db');
-const { sendMail, escapeHtml, notifyRecipients } = require('../utils/emailService');
+const { sendMail, defaultRecipients } = require('../utils/emailService');
 const { formatDMY } = require('../utils/dates');
+const templateModel = require('../models/notificationTemplateModel');
+const { DEFINITIONS, DEFAULT_DAYS_BEFORE, sdVars, render, parseEmails } = require('./notificationTemplates');
 
-const DAYS_BEFORE = Number(process.env.NOTIFY_DAYS_BEFORE) || 15;
 const REMINDER_LOCK_ID = 7401501; // pg advisory lock: one reminder run at a time across servers
 
 const REMINDERS = [
@@ -16,33 +20,10 @@ const REMINDERS = [
   { type: 'LEASE_END_REMINDER', column: 'lease_end_date', label: 'Lease End Date' },
 ];
 
-// Key facts of an SD record as an HTML table
-function sdTable(sd) {
-  const rows = [
-    ['SD Code', sd.sd_code],
-    ['Lease ID', sd.lease_id],
-    ['Agreement No.', sd.agreement_no],
-    ['Cost Center', `${sd.cost_center_code} - ${sd.cost_center_name}`],
-    ['Location', `${sd.l1_name} > ${sd.l2_name} > ${sd.l3_name}`],
-    ['Floor', sd.floor],
-    ['Landlord', sd.landlord_name],
-    ['Landlord Status', sd.landlord_status],
-    ['Building Status', sd.building_status],
-    ['Lease Commencement Date', formatDMY(sd.lease_commencement_date)],
-    ['Rent Commencement Date', formatDMY(sd.rent_commencement_date)],
-    ['Lease End Date', formatDMY(sd.lease_end_date)],
-  ];
-  return `<table cellpadding="4" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px">
-    ${rows.map(([k, v]) => `<tr><td style="color:#555">${k}</td><td><strong>${escapeHtml(v || '-')}</strong></td></tr>`).join('')}
-  </table>`;
-}
-
-function wrap(intro, sd) {
-  return `<div style="font-family:Arial,sans-serif;font-size:14px">
-    <p>${intro}</p>
-    ${sdTable(sd)}
-    <p style="color:#777;font-size:12px">Automated message from the SD Maintenance Application.</p>
-  </div>`;
+// To / CC lists for a template (blank To = the default recipients)
+async function recipientsOf(tpl) {
+  const to = parseEmails(tpl.to_recipients);
+  return { to: to.length ? to : await defaultRecipients(), cc: parseEmails(tpl.cc_recipients) };
 }
 
 /**
@@ -54,19 +35,23 @@ function wrap(intro, sd) {
 async function notifyStatusChanges(sd, changes, changedBy) {
   for (const c of changes) {
     if (c.oldStatus !== 'Active' || c.newStatus !== 'Passive') continue;
-    const subject = `SD ${sd.sd_code}: ${c.statusType} Status changed to Passive`;
+    const type = `${c.statusType.toUpperCase()}_STATUS_PASSIVE`;
     try {
+      const tpl = await templateModel.get(type);
+      if (!tpl || !tpl.is_enabled) continue;
+      const { subject, html } = render(tpl, {
+        ...sdVars(sd),
+        status_type: c.statusType,
+        changed_by: changedBy,
+        changed_on: new Date().toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }),
+      });
       await sendMail({
-        to: notifyRecipients(),
+        ...(await recipientsOf(tpl)),
         subject,
-        notificationType: `${c.statusType.toUpperCase()}_STATUS_PASSIVE`,
+        html,
+        notificationType: type,
         sdCode: sd.sd_code,
         triggerEvent: `${c.statusType} Status Active -> Passive by ${changedBy}`,
-        html: wrap(
-          `${escapeHtml(c.statusType)} Status of <strong>${escapeHtml(sd.sd_code)}</strong> was changed from Active to Passive by ${escapeHtml(changedBy)}.
-           Existing transactions remain visible; no new transactions can be recorded for this SD Code.`,
-          sd
-        ),
       });
     } catch (err) {
       console.error(`Status notification for ${sd.sd_code} failed:`, err.message);
@@ -75,10 +60,11 @@ async function notifyStatusChanges(sd, changes, changedBy) {
 }
 
 /**
- * Sends reminders for dates from `asOf` up to DAYS_BEFORE days after it.
- * Each SD Code + reminder type + date is emailed once: a later run skips it
- * once it was Sent (or DryRun); a Failed one is retried on the next run.
- * Only SD Codes with Landlord and Building Status Active are included.
+ * Sends reminders for dates from `asOf` up to each template's trigger days
+ * after it. Each SD Code + reminder type + date is emailed once: a later run
+ * skips it once it was Sent (or DryRun); a Failed one is retried on the next
+ * run. Disabled templates are skipped. Only SD Codes with Landlord and
+ * Building Status Active are included.
  * asOf: 'YYYY-MM-DD' (defaults to today on the database server).
  * Returns { asOf, checked, sent, failed, skipped }.
  */
@@ -92,6 +78,10 @@ async function runDateReminders(asOf = null) {
     const summary = { asOf: day, checked: 0, sent: 0, failed: 0, skipped: false };
 
     for (const r of REMINDERS) {
+      const tpl = await templateModel.get(r.type, client);
+      if (!tpl || !tpl.is_enabled) continue;
+      const daysBefore = tpl.days_before ?? DEFAULT_DAYS_BEFORE;
+
       const due = await client.query(
         `SELECT s.*, cc.cost_center_code, cc.cost_center_name, l1.l1_name, l2.l2_name, l3.l3_name,
                 s.${r.column}::text AS due_date
@@ -108,25 +98,28 @@ async function runDateReminders(asOf = null) {
                AND e.trigger_event = $4 || ' ' || to_char(s.${r.column}, 'DD/MM/YYYY')
                AND e.status IN ('Sent', 'DryRun'))
          ORDER BY s.${r.column}, s.sd_code`,
-        [day, DAYS_BEFORE, r.type, r.label]
+        [day, daysBefore, r.type, r.label]
       );
 
       for (const sd of due.rows) {
         summary.checked++;
         const dateText = formatDMY(sd.due_date);
         const daysLeft = Math.round((Date.parse(sd.due_date) - Date.parse(day)) / 864e5);
-        const when = daysLeft === 0 ? 'today' : `in ${daysLeft} day(s)`;
+        const { subject, html } = render(tpl, {
+          ...sdVars(sd),
+          event_label: DEFINITIONS[r.type].dateLabel,
+          due_date: dateText,
+          days_left: String(daysLeft),
+          days_left_text: daysLeft === 0 ? 'today' : `in ${daysLeft} day(s)`,
+        });
         try {
           await sendMail({
-            to: notifyRecipients(),
-            subject: `Reminder: ${sd.sd_code} ${r.label} on ${dateText}`,
+            ...(await recipientsOf(tpl)),
+            subject,
+            html,
             notificationType: r.type,
             sdCode: sd.sd_code,
             triggerEvent: `${r.label} ${dateText}`,
-            html: wrap(
-              `${escapeHtml(r.label)} for <strong>${escapeHtml(sd.sd_code)}</strong> is on <strong>${dateText}</strong> (${when}).`,
-              sd
-            ),
           });
           summary.sent++;
         } catch (err) {
@@ -173,7 +166,7 @@ function startReminderScheduler() {
 
   scheduleNext();
   setTimeout(() => run('start-up catch-up'), 60 * 1000);
-  console.log(`Reminder scheduler: daily at ${String(hour).padStart(2, '0')}:${String(minute || 0).padStart(2, '0')}, ${DAYS_BEFORE} days ahead.`);
+  console.log(`Reminder scheduler: daily at ${String(hour).padStart(2, '0')}:${String(minute || 0).padStart(2, '0')}; trigger days per template (Email Notification Master).`);
 }
 
-module.exports = { REMINDERS, DAYS_BEFORE, notifyStatusChanges, runDateReminders, startReminderScheduler };
+module.exports = { REMINDERS, notifyStatusChanges, runDateReminders, startReminderScheduler };

@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback, Fragment } from 'react';
 import Navbar from '../components/Navbar';
 import Pager from '../components/Pager';
+import MultiSelect from '../components/MultiSelect';
+import DateRangeFilter from '../components/DateRangeFilter';
 import api, { downloadFile, errorMessage } from '../services/api';
 import useDebounce from '../hooks/useDebounce';
 import { formatDateTime } from '../utils/format';
@@ -12,7 +14,8 @@ const TABLES = [
   ['sd_master', 'SD Master'], ['sd_transactions', 'SD Transactions'],
 ];
 const ACTIONS = ['INSERT', 'UPDATE', 'DELETE', 'UPLOAD', 'STATUS_CHANGE', 'RIGHTS_CHANGE', 'LOGIN', 'LOGOUT', 'PASSWORD_CHANGE', 'PASSWORD_RESET'];
-const EMPTY_FILTERS = { search: '', tableName: '', action: '', dateFrom: '', dateTo: '' };
+// Multi-select filters hold arrays of values (empty = all)
+const EMPTY_FILTERS = { search: '', tableName: [], action: [], dateFrom: '', dateTo: '' };
 const TABLE_LABEL = Object.fromEntries(TABLES);
 const HIDDEN = new Set(['created_date', 'modified_date', 'created_by', 'modified_by', 'uploaded_by', 'uploaded_date']);
 
@@ -72,16 +75,13 @@ export default function AuditLog() {
 
         <div className="filter-bar">
           <input type="search" placeholder="Search user, details, values or record ID" value={filters.search} onChange={(e) => setFilter({ search: e.target.value })} />
-          <select value={filters.tableName} onChange={(e) => setFilter({ tableName: e.target.value })}>
-            <option value="">All records</option>
-            {TABLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-          <select value={filters.action} onChange={(e) => setFilter({ action: e.target.value })}>
-            <option value="">All actions</option>
-            {ACTIONS.map((a) => <option key={a}>{a}</option>)}
-          </select>
-          <input className="short" type="text" placeholder="From DD/MM/YYYY" value={filters.dateFrom} onChange={(e) => setFilter({ dateFrom: e.target.value })} />
-          <input className="short" type="text" placeholder="To DD/MM/YYYY" value={filters.dateTo} onChange={(e) => setFilter({ dateTo: e.target.value })} />
+          <MultiSelect
+            allLabel="All records" noun="record types"
+            options={TABLES.map(([v, l]) => ({ value: v, label: l }))}
+            value={filters.tableName} onChange={(v) => setFilter({ tableName: v })}
+          />
+          <MultiSelect allLabel="All actions" noun="actions" options={ACTIONS} value={filters.action} onChange={(v) => setFilter({ action: v })} />
+          <DateRangeFilter label="Date" from={filters.dateFrom} to={filters.dateTo} onChange={({ from, to }) => setFilter({ dateFrom: from, dateTo: to })} />
           <button type="button" className="btn btn-secondary" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); }}>Clear</button>
         </div>
 

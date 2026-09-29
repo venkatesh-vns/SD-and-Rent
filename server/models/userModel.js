@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { listOf } = require('../utils/filters');
 
 // Columns safe to return to the client (never password_hash / token_version)
 const PUBLIC_COLUMNS = `user_id, user_name, user_email, status, is_admin, created_date, modified_date,
@@ -20,7 +21,7 @@ async function findById(userId, db = pool) {
   return result.rows[0];
 }
 
-// Optional filters: search (name or email, partial match), status
+// Optional filters: search (name or email, partial match), status (one or more)
 async function getAll({ search, status } = {}) {
   const where = [];
   const params = [];
@@ -28,9 +29,9 @@ async function getAll({ search, status } = {}) {
     params.push(`%${search}%`);
     where.push(`(user_name ILIKE $${params.length} OR user_email ILIKE $${params.length})`);
   }
-  if (status) {
-    params.push(status);
-    where.push(`status = $${params.length}`);
+  if (listOf(status).length) {
+    params.push(listOf(status));
+    where.push(`status = ANY($${params.length})`);
   }
   const result = await pool.query(
     `SELECT ${PUBLIC_COLUMNS} FROM users

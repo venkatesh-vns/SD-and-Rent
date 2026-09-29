@@ -1,6 +1,7 @@
 const { pool } = require('../config/db');
+const { listOf } = require('../utils/filters');
 
-// Optional filters: search (code or name, partial match), status
+// Optional filters: search (code or name, partial match), status (one or more)
 async function getAll({ search, status } = {}) {
   const where = [];
   const params = [];
@@ -8,9 +9,9 @@ async function getAll({ search, status } = {}) {
     params.push(`%${search}%`);
     where.push(`(cost_center_code ILIKE $${params.length} OR cost_center_name ILIKE $${params.length})`);
   }
-  if (status) {
-    params.push(status);
-    where.push(`status = $${params.length}`);
+  if (listOf(status).length) {
+    params.push(listOf(status));
+    where.push(`status = ANY($${params.length})`);
   }
   const result = await pool.query(
     `SELECT * FROM cost_centers

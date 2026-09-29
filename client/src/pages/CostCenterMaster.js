@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import Toast from '../components/Toast';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
@@ -26,7 +27,7 @@ export default function CostCenterMaster() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [filters, setFilters] = useState({ search: '', status: '' });
+  const [filters, setFilters] = useState({ search: '', status: [] });
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [form, setForm] = useState({ name: '', status: 'Active' });
@@ -110,7 +111,7 @@ export default function CostCenterMaster() {
         </div>
 
         {error && !showModal && <div className="alert alert-error">{error}</div>}
-        {notice && <div className="alert alert-success" onClick={() => setNotice('')}>{notice}</div>}
+        <Toast message={notice} onClose={() => setNotice('')} />
 
         {can(SCREENS.COST_CENTER, 'upload') && (
           <ExcelUpload endpoint="/cost-centers" templateName="CostCenter_Template.xlsx" onUploaded={fetchData} />

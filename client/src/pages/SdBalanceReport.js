@@ -2,27 +2,36 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Pager from '../components/Pager';
+import MultiSelect from '../components/MultiSelect';
+import DateRangeFilter from '../components/DateRangeFilter';
 import api, { downloadFile, errorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { SCREENS } from '../config/screens';
 import useDebounce from '../hooks/useDebounce';
 import { formatAmount, formatDate } from '../utils/format';
+import AmountTiles from '../components/AmountTiles';
+import { AMOUNTS, amountClass } from '../config/amounts';
 
 const PAGE_SIZE = 50;
+// Multi-select filters hold arrays of values (empty = all)
 const EMPTY_FILTERS = {
-  search: '', costCenterId: '', l1Id: '', landlordStatus: '', buildingStatus: '',
+  search: '', costCenterId: [], l1Id: [], l2Id: [], landlordStatus: [], buildingStatus: [],
   leaseEndFrom: '', leaseEndTo: '', balanceDue: '', repayableDue: '',
 };
 
+// Report column -> kind of amount (colour and meaning in config/amounts.js)
 const MONEY = [
-  ['agreement_value', 'Agreement Value'],
-  ['total_paid', 'Paid'],
-  ['total_transfer', 'Transfer'],
-  ['total_adjustment', 'Adjustment'],
-  ['total_refund', 'Refund'],
-  ['sd_balance', 'SD Balance'],
-  ['sd_balance_repayable', 'Repayable'],
+  ['agreement_value', 'agreement'],
+  ['total_paid', 'paid'],
+  ['total_transfer', 'transfer'],
+  ['total_adjustment', 'adjustment'],
+  ['total_refund', 'refund'],
+  ['sd_balance', 'balance'],
+  ['sd_balance_repayable', 'repayable'],
 ];
+
+// Tile values from the report totals
+const tileValues = (t) => Object.fromEntries(MONEY.map(([col, kind]) => [kind, t[col]]));
 
 export default function SdBalanceReport() {
   const { can } = useAuth();
@@ -35,6 +44,7 @@ export default function SdBalanceReport() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [costCenters, setCostCenters] = useState([]);
   const [l1List, setL1List] = useState([]);
+  const [l2List, setL2List] = useState([]);
   const search = useDebounce(filters.search);
   const query = { ...filters, search };
 
@@ -60,6 +70,20 @@ export default function SdBalanceReport() {
     api.get('/lookups/locations/1').then((res) => setL1List(res.data.data)).catch(() => {});
   }, []);
 
+  // Level 2 choices follow the chosen Level 1s; picks outside them are dropped
+  const l1Key = filters.l1Id.join(',');
+  useEffect(() => {
+    if (!l1Key) { setL2List([]); return; }
+    api.get('/lookups/locations/2', { params: { parentId: l1Key } }).then((res) => setL2List(res.data.data)).catch(() => setL2List([]));
+  }, [l1Key]);
+  useEffect(() => {
+    setFilters((f) => {
+      const valid = new Set(l2List.map((l) => String(l.id)));
+      const kept = f.l2Id.filter((id) => valid.has(String(id)));
+      return kept.length === f.l2Id.length ? f : { ...f, l2Id: kept };
+    });
+  }, [l2List]);
+
   const setFilter = (patch) => {
     setFilters((f) => ({ ...f, ...patch }));
     setPage(1);
@@ -84,28 +108,34 @@ export default function SdBalanceReport() {
 
         <div className="filter-bar">
           <input type="search" placeholder="Search SD Code, Lease ID, Agreement No., Landlord, Floor" value={filters.search} onChange={(e) => setFilter({ search: e.target.value })} />
-          <select value={filters.costCenterId} onChange={(e) => setFilter({ costCenterId: e.target.value })}>
-            <option value="">All cost centers</option>
-            {costCenters.map((c) => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
-          </select>
-          <select value={filters.l1Id} onChange={(e) => setFilter({ l1Id: e.target.value })}>
-            <option value="">All Level 1</option>
-            {l1List.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-          <select value={filters.landlordStatus} onChange={(e) => setFilter({ landlordStatus: e.target.value })}>
-            <option value="">Landlord: all</option>
-            <option value="Active">Landlord: Active</option>
-            <option value="Passive">Landlord: Passive</option>
-          </select>
-          <select value={filters.buildingStatus} onChange={(e) => setFilter({ buildingStatus: e.target.value })}>
-            <option value="">Building: all</option>
-            <option value="Active">Building: Active</option>
-            <option value="Passive">Building: Passive</option>
-          </select>
+          <MultiSelect
+            allLabel="All cost centers" noun="cost centers"
+            options={costCenters.map((c) => ({ value: c.id, label: c.name }))}
+            value={filters.costCenterId} onChange={(v) => setFilter({ costCenterId: v })}
+          />
+          <MultiSelect
+            allLabel="All Level 1" noun="Level 1"
+            options={l1List.map((l) => ({ value: l.id, label: l.name }))}
+            value={filters.l1Id} onChange={(v) => setFilter({ l1Id: v })}
+          />
+          <MultiSelect
+            allLabel={filters.l1Id.length ? 'All Level 2' : 'Level 2'} noun="Level 2" disabled={!filters.l1Id.length}
+            options={l2List.map((l) => ({ value: l.id, label: l.name }))}
+            value={filters.l2Id} onChange={(v) => setFilter({ l2Id: v })}
+          />
+          <MultiSelect
+            allLabel="Landlord: all" noun="statuses"
+            options={['Active', 'Passive'].map((s) => ({ value: s, label: `Landlord: ${s}` }))}
+            value={filters.landlordStatus} onChange={(v) => setFilter({ landlordStatus: v })}
+          />
+          <MultiSelect
+            allLabel="Building: all" noun="statuses"
+            options={['Active', 'Passive'].map((s) => ({ value: s, label: `Building: ${s}` }))}
+            value={filters.buildingStatus} onChange={(v) => setFilter({ buildingStatus: v })}
+          />
         </div>
         <div className="filter-bar">
-          <input className="short" type="text" placeholder="Lease end from DD/MM/YYYY" value={filters.leaseEndFrom} onChange={(e) => setFilter({ leaseEndFrom: e.target.value })} />
-          <input className="short" type="text" placeholder="Lease end to DD/MM/YYYY" value={filters.leaseEndTo} onChange={(e) => setFilter({ leaseEndTo: e.target.value })} />
+          <DateRangeFilter label="Lease End" from={filters.leaseEndFrom} to={filters.leaseEndTo} onChange={({ from, to }) => setFilter({ leaseEndFrom: from, leaseEndTo: to })} />
           <label className="inline-check">
             <input type="checkbox" checked={filters.balanceDue === 'true'} onChange={(e) => setFilter({ balanceDue: e.target.checked ? 'true' : '' })} />
             SD Balance &gt; 0
@@ -118,11 +148,8 @@ export default function SdBalanceReport() {
         </div>
 
         {totals && (
-          <div className="sd-tiles report-totals">
-            <div><span>SD Codes</span><strong>{totals.count}</strong></div>
-            {MONEY.map(([key, label]) => (
-              <div key={key} className={key.startsWith('sd_') ? 'key' : undefined}><span>{label}</span><strong>{formatAmount(totals[key])}</strong></div>
-            ))}
+          <div className="report-totals">
+            <AmountTiles values={tileValues(totals)} lead={{ label: 'SD Codes', value: totals.count, hint: 'Matching the filters' }} />
           </div>
         )}
 
@@ -131,10 +158,19 @@ export default function SdBalanceReport() {
             <div className="table-wrap">
               <table className="data-table compact">
                 <thead>
+                  <tr className="group-row">
+                    <th colSpan={7}>SD details</th>
+                    <th className="tone-agreement">Agreed</th>
+                    <th colSpan={4}>Payments and movements</th>
+                    <th colSpan={2} className="tone-fill-head">Balances</th>
+                    <th />
+                  </tr>
                   <tr>
                     <th>SD Code</th><th>Lease / Agreement</th><th>Cost Center</th><th>Location</th><th>Landlord</th>
                     <th>Status</th><th>Lease End</th>
-                    {MONEY.map(([key, label]) => <th key={key} className="num">{label}</th>)}
+                    {MONEY.map(([col, kind]) => (
+                      <th key={col} className={`num tone-head tone-${AMOUNTS[kind].tone}`} title={AMOUNTS[kind].hint}>{AMOUNTS[kind].label}</th>
+                    ))}
                     <th className="num">Txns</th>
                   </tr>
                 </thead>
@@ -143,8 +179,11 @@ export default function SdBalanceReport() {
                     <tr key={r.sd_id}>
                       <td>{canTxn ? <Link to={`/sd-transactions?sd=${r.sd_id}`}>{r.sd_code}</Link> : r.sd_code}</td>
                       <td>{[r.lease_id, r.agreement_no].filter(Boolean).join(' / ') || '—'}</td>
-                      <td>{r.cost_center_code}</td>
-                      <td>{r.l1_name} › {r.l2_name} › {r.l3_name} · Fl {r.floor}</td>
+                      <td>{r.cost_center_name}</td>
+                      <td>
+                        <strong>{r.l3_name}</strong>
+                        <div className="hint">{r.l1_name} › {r.l2_name} · Floor {r.floor}</div>
+                      </td>
                       <td>{r.landlord_name || '—'}</td>
                       <td>
                         {r.landlord_status === 'Active' && r.building_status === 'Active'
@@ -152,7 +191,7 @@ export default function SdBalanceReport() {
                           : <span className="badge badge-passive">Passive</span>}
                       </td>
                       <td>{formatDate(r.lease_end_date) || '—'}</td>
-                      {MONEY.map(([key]) => <td key={key} className="num">{formatAmount(r[key])}</td>)}
+                      {MONEY.map(([col, kind]) => <td key={col} className={amountClass(kind, r[col])}>{formatAmount(r[col])}</td>)}
                       <td className="num">{r.txn_count}</td>
                     </tr>
                   ))}

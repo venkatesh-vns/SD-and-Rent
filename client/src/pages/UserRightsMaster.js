@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import Toast from '../components/Toast';
 import Navbar from '../components/Navbar';
 import api, { errorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -97,7 +98,7 @@ export default function UserRightsMaster() {
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
-        {notice && <div className="alert alert-success">{notice}</div>}
+        <Toast message={notice} onClose={() => setNotice('')} />
 
         <div className="rights-layout">
           <aside className="rights-users">

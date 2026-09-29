@@ -2,6 +2,18 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "api",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd server && npm run dev"],
+      "port": 5000
+    },
+    {
+      "name": "client",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd client && set BROWSER=none&& npm start"],
+      "port": 3000
+    },
+    {
       "name": "client-test",
       "runtimeExecutable": "cmd",
       "runtimeArgs": ["/c", "cd client && set PORT=3055&& set BROWSER=none&& set REACT_APP_API_URL=http://localhost:5055/api&& npm start"],

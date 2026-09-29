@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import AuthLayout from '../components/AuthLayout';
 
 export default function ForgotPassword() {
   const [userEmail, setUserEmail] = useState('');
@@ -24,8 +25,8 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit}>
+    <AuthLayout>
+      <form className="auth-form" onSubmit={handleSubmit}>
         <h2>Forgot Password</h2>
         <p className="auth-subtitle">
           Enter your registered email address and we'll send you a reset link.
@@ -49,6 +50,6 @@ export default function ForgotPassword() {
 
         <Link to="/login" className="auth-link">Back to Login</Link>
       </form>
-    </div>
+    </AuthLayout>
   );
 }

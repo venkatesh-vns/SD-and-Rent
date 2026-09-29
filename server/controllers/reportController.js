@@ -37,7 +37,7 @@ async function sdBalanceExport(req, res, next) {
   try {
     const { rows, totals } = await reportModel.sdBalance(withDates(req.query, ['leaseEndFrom', 'leaseEndTo']), { pageSize: 0 });
     const data = rows.map((r) => [
-      r.sd_code, r.lease_id, r.agreement_no, r.cost_center_code, r.l1_name, r.l2_name, r.l3_name, r.floor,
+      r.sd_code, r.lease_id, r.agreement_no, r.cost_center_name, r.l1_name, r.l2_name, r.l3_name, r.floor,
       r.landlord_name, r.landlord_status, r.building_status,
       formatDMY(r.lease_commencement_date), formatDMY(r.rent_commencement_date), formatDMY(r.lease_end_date),
       num(r.agreement_value), num(r.total_paid), num(r.total_transfer), num(r.total_adjustment), num(r.total_refund),

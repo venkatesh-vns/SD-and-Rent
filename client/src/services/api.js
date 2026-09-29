@@ -2,6 +2,18 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  // Multi-select filters are arrays: send them as one comma-separated value
+  // (?sdType=Paid,Refund) and leave out empty filters.
+  paramsSerializer: {
+    serialize: (params) => {
+      const q = new URLSearchParams();
+      Object.entries(params || {}).forEach(([k, v]) => {
+        const value = Array.isArray(v) ? v.join(',') : v;
+        if (value !== undefined && value !== null && value !== '') q.append(k, value);
+      });
+      return q.toString();
+    },
+  },
 });
 
 // Attach JWT token to every outgoing request

@@ -98,6 +98,7 @@ describe('SD Master and transactions', () => {
       const rows = await readXlsx(exp.buffer);
       assert.equal(rows.length, 1);
       assert.equal(rows[0]['Lease Commencement Date'], '01/04/2024');
+      assert.equal(rows[0]['Cost Center'], 'Test CC', 'cost center shown by name');
     });
   });
 
@@ -176,6 +177,24 @@ describe('SD Master and transactions', () => {
       assert.equal(rows.length, 5);
       assert.equal(rows[0]['SD Transaction Date'], '01/04/2024');
       assert.equal(rows[0]['SD Balance Repayable (running)'], 600000);
+    });
+
+    it('multi-select filters match any of the chosen values', async () => {
+      const count = async (qs) => (await ctx.api('GET', `/sd-transactions?${qs}`)).body.total;
+      const landlord = await count('sdType=Landlord%20SD');
+      const cam = await count('sdType=CAM%20SD');
+      assert.ok(landlord > 0 && cam > 0);
+      assert.equal(await count('sdType=Landlord%20SD,CAM%20SD'), landlord + cam, 'comma-separated');
+      assert.equal(await count('sdType=Landlord%20SD&sdType=CAM%20SD'), landlord + cam, 'repeated parameter');
+      assert.equal(await count('fy=2024-2025,2099-2100'), await count('fy=2024-2025'));
+
+      const sdTotal = async (qs) => (await ctx.api('GET', `/sd-master?${qs}`)).body.total;
+      const all = await sdTotal('');
+      assert.equal(await sdTotal('landlordStatus=Active,Passive'), all);
+      assert.equal(await sdTotal(`costCenterId=${m.cc.cost_center_id},999999`), await sdTotal(`costCenterId=${m.cc.cost_center_id}`));
+      assert.equal(await sdTotal('costCenterId=abc'), all, 'non-numeric ids are ignored');
+      const report = (await ctx.api('GET', '/reports/sd-balance?buildingStatus=Active,Passive')).body.totals.count;
+      assert.equal(report, all);
     });
   });
 });

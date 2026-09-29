@@ -6,18 +6,6 @@ require('dotenv').config();
 // 'DryRun' without contacting the SMTP server (test / UAT environments).
 const DRY_RUN = process.env.EMAIL_DRY_RUN === 'true';
 
-const transporter = DRY_RUN
-  ? nodemailer.createTransport({ jsonTransport: true })
-  : nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT, 10) || 587,
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD,
-    },
-  });
-
 // Escapes text placed inside email HTML
 function escapeHtml(value) {
   return String(value ?? '')
@@ -25,9 +13,25 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// Recipients of SD notifications (NOTIFY_TO, comma-separated)
-function notifyRecipients() {
-  return String(process.env.NOTIFY_TO || '').split(',').map((s) => s.trim()).filter(Boolean);
+// Loaded lazily: mailSettings reads the database and must not load at require time
+const mailSettings = () => require('../services/mailSettings');
+
+// Addresses used when a notification's To is blank (Mail Server settings, else NOTIFY_TO)
+async function defaultRecipients() {
+  return mailSettings().defaultRecipients();
+}
+
+// Transport for the given settings (from mailSettings.getEffective())
+function createTransport(s) {
+  if (DRY_RUN) return nodemailer.createTransport({ jsonTransport: true });
+  return nodemailer.createTransport({
+    host: s.host,
+    port: s.port,
+    secure: Boolean(s.secure),
+    auth: s.user ? { user: s.user, pass: s.password } : undefined,
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+  });
 }
 
 async function logEmail({ sdCode, notificationType, to, subject, triggerEvent, status, errorMessage }) {
@@ -45,20 +49,34 @@ async function logEmail({ sdCode, notificationType, to, subject, triggerEvent, s
 
 /**
  * Sends one email and records it in email_log (Sent, Failed or DryRun).
- * `to` may be a string or an array. Re-throws send failures so the caller
- * can report them.
+ * `to` and `cc` may be strings or arrays. `settings` overrides the saved mail
+ * server settings (used by "Send test email"). Re-throws send failures so the
+ * caller can report them.
  */
-async function sendMail({ to, subject, html, notificationType, sdCode = null, triggerEvent = null }) {
-  const recipient = Array.isArray(to) ? to.join(', ') : to;
+async function sendMail({ to, cc = [], subject, html, notificationType, sdCode = null, triggerEvent = null, settings = null }) {
+  const toList = Array.isArray(to) ? to.join(', ') : to;
+  const ccList = Array.isArray(cc) ? cc.join(', ') : cc;
+  // email_log keeps one recipient column: "to" plus any CC
+  const logged = [toList || '(none)', ccList && `cc: ${ccList}`].filter(Boolean).join('; ');
   try {
-    if (!recipient) throw new Error('No recipient configured (set NOTIFY_TO in the server .env).');
-    const info = await transporter.sendMail({ from: process.env.SMTP_FROM, to: recipient, subject, html });
-    await logEmail({ sdCode, notificationType, to: recipient, subject, triggerEvent, status: DRY_RUN ? 'DryRun' : 'Sent' });
+    if (!toList) throw new Error('No recipient configured. Set To on the template or Default recipients on the Mail Server tab.');
+    const s = settings || await mailSettings().getEffective();
+    if (!DRY_RUN && !s.host) throw new Error('No SMTP server configured. Fill in the Mail Server tab of the Email Notification Master.');
+    if (!s.from && !DRY_RUN) throw new Error('No sender email configured. Fill in the Mail Server tab of the Email Notification Master.');
+    const info = await createTransport(s).sendMail({ from: s.from || undefined, to: toList, cc: ccList || undefined, subject, html });
+    await logEmail({ sdCode, notificationType, to: logged, subject, triggerEvent, status: DRY_RUN ? 'DryRun' : 'Sent' });
     return info;
   } catch (err) {
-    await logEmail({ sdCode, notificationType, to: recipient || '(none)', subject, triggerEvent, status: 'Failed', errorMessage: err.message });
+    await logEmail({ sdCode, notificationType, to: logged, subject, triggerEvent, status: 'Failed', errorMessage: err.message });
     throw err;
   }
+}
+
+// Checks that the SMTP server accepts the connection and login (no email sent)
+async function verifyConnection(settings) {
+  if (DRY_RUN) return true;
+  await createTransport(settings).verify();
+  return true;
 }
 
 async function sendPasswordResetEmail(toEmail, userName, resetLink) {
@@ -80,4 +98,4 @@ async function sendPasswordResetEmail(toEmail, userName, resetLink) {
   });
 }
 
-module.exports = { sendMail, sendPasswordResetEmail, escapeHtml, notifyRecipients, DRY_RUN };
+module.exports = { sendMail, sendPasswordResetEmail, verifyConnection, escapeHtml, defaultRecipients, DRY_RUN };

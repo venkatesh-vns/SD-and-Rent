@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { listOf, idsOf } = require('../utils/filters');
 
 const AMOUNT_FIELDS = ['paid_amount', 'transfer_amount', 'adjustment_amount', 'refund_amount'];
 
@@ -8,7 +9,7 @@ const FIELDS = ['sd_id', 'sd_type', 'fy', 'txn_date', 'agreement_status', ...AMO
 const SELECT = `
   SELECT l.*,
          s.lease_id, s.agreement_no, s.landlord_name, s.floor,
-         cc.cost_center_code, l1.l1_name, l2.l2_name, l3.l3_name
+         cc.cost_center_code, cc.cost_center_name, l1.l1_name, l2.l2_name, l3.l3_name
   FROM v_sd_ledger l
   JOIN sd_master s ON s.sd_id = l.sd_id
   JOIN cost_centers cc ON cc.cost_center_id = s.cost_center_id
@@ -17,7 +18,7 @@ const SELECT = `
   JOIN location_l3 l3 ON l3.l3_id = s.l3_id`;
 
 // Filters: sdId, search (Txn No, SD Code, Remarks), sdType, fy,
-// agreementStatus, costCenterId, dateFrom/dateTo ('YYYY-MM-DD')
+// agreementStatus, costCenterId (one or more each), dateFrom/dateTo ('YYYY-MM-DD')
 function filterClause(f) {
   const where = [];
   const params = [];
@@ -31,10 +32,10 @@ function filterClause(f) {
     const p = `$${params.length}`;
     where.push(`(l.txn_no ILIKE ${p} OR l.sd_code ILIKE ${p} OR l.remarks ILIKE ${p})`);
   }
-  if (f.sdType) add('l.sd_type = ?', f.sdType);
-  if (f.fy) add('l.fy = ?', f.fy);
-  if (f.agreementStatus) add('l.agreement_status = ?', f.agreementStatus);
-  if (f.costCenterId) add('s.cost_center_id = ?', f.costCenterId);
+  if (listOf(f.sdType).length) add('l.sd_type = ANY(?)', listOf(f.sdType));
+  if (listOf(f.fy).length) add('l.fy = ANY(?)', listOf(f.fy));
+  if (listOf(f.agreementStatus).length) add('l.agreement_status = ANY(?)', listOf(f.agreementStatus));
+  if (idsOf(f.costCenterId).length) add('s.cost_center_id = ANY(?::int[])', idsOf(f.costCenterId));
   if (f.dateFrom) add('l.txn_date >= ?', f.dateFrom);
   if (f.dateTo) add('l.txn_date <= ?', f.dateTo);
   return { sql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
@@ -122,7 +123,7 @@ async function lockSd(sdId, db) {
 async function searchSd(q, limit = 20) {
   const result = await pool.query(
     `SELECT s.sd_id, s.sd_code, s.lease_id, s.agreement_no, s.landlord_name, s.floor,
-            s.landlord_status, s.building_status, cc.cost_center_code
+            s.landlord_status, s.building_status, cc.cost_center_code, cc.cost_center_name
      FROM sd_master s JOIN cost_centers cc ON cc.cost_center_id = s.cost_center_id
      WHERE s.sd_code ILIKE $1 OR s.lease_id ILIKE $1 OR s.agreement_no ILIKE $1 OR s.landlord_name ILIKE $1
      ORDER BY s.sd_code LIMIT $2`,

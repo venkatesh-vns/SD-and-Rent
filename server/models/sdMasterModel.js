@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { listOf, idsOf } = require('../utils/filters');
 
 // Editable columns, in the order create/update write them
 const FIELDS = [
@@ -18,7 +19,16 @@ const SELECT = `
   JOIN location_l2 l2 ON l2.l2_id = s.l2_id
   JOIN location_l3 l3 ON l3.l3_id = s.l3_id`;
 
-// Builds the WHERE clause shared by the list and the export
+// The list also shows each record's balances (from v_sd_balance)
+const LIST_SELECT = SELECT.replace(
+  'FROM sd_master s',
+  `, b.total_paid, b.sd_balance, b.sd_balance_repayable, b.txn_count
+  FROM sd_master s
+  JOIN v_sd_balance b ON b.sd_id = s.sd_id`
+);
+
+// Builds the WHERE clause shared by the list and the export. The id and
+// status filters accept one or more values (a record matches any of them).
 function filterClause({ search, costCenterId, l1Id, l2Id, l3Id, landlordStatus, buildingStatus, leaseEndFrom, leaseEndTo }) {
   const where = [];
   const params = [];
@@ -32,12 +42,14 @@ function filterClause({ search, costCenterId, l1Id, l2Id, l3Id, landlordStatus, 
     where.push(`(s.sd_code ILIKE ${p} OR s.lease_id ILIKE ${p} OR s.agreement_no ILIKE ${p}
                  OR s.landlord_name ILIKE ${p} OR s.floor ILIKE ${p})`);
   }
-  if (costCenterId) add('s.cost_center_id = ?', costCenterId);
-  if (l1Id) add('s.l1_id = ?', l1Id);
-  if (l2Id) add('s.l2_id = ?', l2Id);
-  if (l3Id) add('s.l3_id = ?', l3Id);
-  if (landlordStatus) add('s.landlord_status = ?', landlordStatus);
-  if (buildingStatus) add('s.building_status = ?', buildingStatus);
+  const ids = (col, v) => { if (idsOf(v).length) add(`${col} = ANY(?::int[])`, idsOf(v)); };
+  const any = (col, v) => { if (listOf(v).length) add(`${col} = ANY(?)`, listOf(v)); };
+  ids('s.cost_center_id', costCenterId);
+  ids('s.l1_id', l1Id);
+  ids('s.l2_id', l2Id);
+  ids('s.l3_id', l3Id);
+  any('s.landlord_status', landlordStatus);
+  any('s.building_status', buildingStatus);
   if (leaseEndFrom) add('s.lease_end_date >= ?', leaseEndFrom);
   if (leaseEndTo) add('s.lease_end_date <= ?', leaseEndTo);
   return { sql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
@@ -52,7 +64,7 @@ async function getAll(filters = {}, { page = 1, pageSize = 50 } = {}) {
     params.push(pageSize, (Math.max(page, 1) - 1) * pageSize);
     paging = `LIMIT $${params.length - 1} OFFSET $${params.length}`;
   }
-  const rows = (await pool.query(`${SELECT} ${sql} ORDER BY s.sd_id DESC ${paging}`, params)).rows;
+  const rows = (await pool.query(`${LIST_SELECT} ${sql} ORDER BY s.sd_id DESC ${paging}`, params)).rows;
   return { rows, total };
 }
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
+import AuthLayout from '../components/AuthLayout';
 import { PASSWORD_HINT, passwordPolicyError } from '../utils/password';
 
 export default function ResetPassword() {
@@ -40,8 +41,8 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="auth-page">
-      <form className="auth-card" onSubmit={handleSubmit}>
+    <AuthLayout>
+      <form className="auth-form" onSubmit={handleSubmit}>
         <h2>Reset Password</h2>
 
         {message && <div className="alert alert-success">{message}</div>}
@@ -71,6 +72,6 @@ export default function ResetPassword() {
 
         <Link to="/login" className="auth-link">Back to Login</Link>
       </form>
-    </div>
+    </AuthLayout>
   );
 }

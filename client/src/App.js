@@ -19,6 +19,7 @@ import SdTransactions from './pages/SdTransactions';
 import SdBalanceReport from './pages/SdBalanceReport';
 import EmailLog from './pages/EmailLog';
 import AuditLog from './pages/AuditLog';
+import EmailTemplates from './pages/EmailTemplates';
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
           <Route path="/reports/sd-balance" element={<ProtectedRoute screen={SCREENS.SD_REPORT}><SdBalanceReport /></ProtectedRoute>} />
           <Route path="/email-log" element={<ProtectedRoute screen={SCREENS.EMAIL_LOG}><EmailLog /></ProtectedRoute>} />
           <Route path="/audit-log" element={<ProtectedRoute screen={SCREENS.AUDIT_LOG}><AuditLog /></ProtectedRoute>} />
+          <Route path="/email-templates" element={<ProtectedRoute screen={SCREENS.NOTIFICATION}><EmailTemplates /></ProtectedRoute>} />
           <Route path="/user-rights" element={<ProtectedRoute screen={SCREENS.USER_RIGHTS}><UserRightsMaster /></ProtectedRoute>} />
 
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

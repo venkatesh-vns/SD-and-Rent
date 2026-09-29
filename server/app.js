@@ -18,6 +18,8 @@ const sdMasterRoutes = require('./routes/sdMasterRoutes');
 const lookupRoutes = require('./routes/lookupRoutes');
 const sdTransactionRoutes = require('./routes/sdTransactionRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const notificationTemplateRoutes = require('./routes/notificationTemplateRoutes');
+const mailSettingsRoutes = require('./routes/mailSettingsRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -71,6 +73,8 @@ app.use('/api/locations', locationRoutes);
 app.use('/api/sd-master', sdMasterRoutes);
 app.use('/api/lookups', lookupRoutes);
 app.use('/api/sd-transactions', sdTransactionRoutes);
+app.use('/api/notification-templates', notificationTemplateRoutes);
+app.use('/api/mail-settings', mailSettingsRoutes);
 app.use('/api', reportRoutes); // /api/reports, /api/logs, /api/notifications
 
 

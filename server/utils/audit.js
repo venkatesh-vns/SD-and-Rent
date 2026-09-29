@@ -1,7 +1,7 @@
 const { pool } = require('../config/db');
 
 // Columns that must never be copied into the audit trail
-const HIDDEN_FIELDS = ['password_hash', 'token_version'];
+const HIDDEN_FIELDS = ['password_hash', 'token_version', 'smtp_password_enc'];
 
 function clean(values) {
   if (!values) return null;

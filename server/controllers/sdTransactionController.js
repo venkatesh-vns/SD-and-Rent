@@ -205,7 +205,7 @@ async function exportAll(req, res, next) {
         r.txn_no, r.sd_code, r.sd_type, r.fy, formatDMY(r.txn_date), r.agreement_status,
         ...AMOUNT_FIELDS.map((f) => Number(r[f])), r.remarks,
         Number(r.agreement_value), Number(r.running_sd_balance), Number(r.running_repayable),
-        r.cost_center_code, `${r.l1_name} > ${r.l2_name} > ${r.l3_name}`,
+        r.cost_center_name, `${r.l1_name} > ${r.l2_name} > ${r.l3_name}`,
         r.created_by, r.created_date, r.modified_by, r.modified_date,
       ])
     );

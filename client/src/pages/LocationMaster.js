@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import Toast from '../components/Toast';
 import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 import ExcelUpload from '../components/ExcelUpload';
 import FilterBar from '../components/FilterBar';
+import MultiSelect from '../components/MultiSelect';
 import api, { downloadFile, errorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { SCREENS } from '../config/screens';
@@ -62,7 +64,7 @@ export default function LocationMaster() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [filters, setFilters] = useState({ search: '', status: '', l1Id: '', l2Id: '' });
+  const [filters, setFilters] = useState({ search: '', status: [], l1Id: [], l2Id: [] });
   const [allL1, setAllL1] = useState([]);
   const [filterL2, setFilterL2] = useState([]); // Level 2 options for the Level 3 filter
   const [formL2, setFormL2] = useState([]); // Level 2 options for the Level 3 form
@@ -98,11 +100,16 @@ export default function LocationMaster() {
 
   // Level 3 filter: Level 2 choices follow the chosen Level 1
   useEffect(() => {
-    if (level !== 3 || !filters.l1Id) {
+    if (level !== 3 || !filters.l1Id.length) {
       setFilterL2([]);
       return;
     }
-    api.get('/locations/2', { params: { l1Id: filters.l1Id } }).then((res) => setFilterL2(res.data.data)).catch(() => setFilterL2([]));
+    api.get('/locations/2', { params: { l1Id: filters.l1Id } }).then((res) => {
+      setFilterL2(res.data.data);
+      // Drop Level 2 picks that no longer belong to the chosen Level 1s
+      const valid = new Set(res.data.data.map((p) => String(p.l2_id)));
+      setFilters((f) => (f.l2Id.every((id) => valid.has(String(id))) ? f : { ...f, l2Id: f.l2Id.filter((id) => valid.has(String(id))) }));
+    }).catch(() => setFilterL2([]));
   }, [level, filters.l1Id]);
 
   // Level 3 form: Level 2 choices follow the chosen Level 1
@@ -116,7 +123,7 @@ export default function LocationMaster() {
 
   const switchLevel = (next) => {
     setParams({ level: String(next) });
-    setFilters({ search: '', status: '', l1Id: '', l2Id: '' });
+    setFilters({ search: '', status: [], l1Id: [], l2Id: [] });
     setError('');
     setNotice('');
   };
@@ -124,7 +131,7 @@ export default function LocationMaster() {
   const openModal = (row = null) => {
     setForm(row
       ? { name: row.name, status: row.status, l1Id: row.l1Id || '', l2Id: row.l2Id || '' }
-      : { name: '', status: 'Active', l1Id: filters.l1Id || '', l2Id: filters.l2Id || '' });
+      : { name: '', status: 'Active', l1Id: filters.l1Id.length === 1 ? filters.l1Id[0] : '', l2Id: filters.l2Id.length === 1 ? filters.l2Id[0] : '' });
     setError('');
     setModal({ editing: row });
   };
@@ -194,7 +201,7 @@ export default function LocationMaster() {
         </div>
 
         {error && !modal && <div className="alert alert-error">{error}</div>}
-        {notice && <div className="alert alert-success">{notice}</div>}
+        <Toast message={notice} onClose={() => setNotice('')} />
 
         {can(SCREENS.LOCATION, 'upload') && (
           <ExcelUpload
@@ -207,15 +214,17 @@ export default function LocationMaster() {
 
         {level >= 2 && (
           <div className="filter-bar">
-            <select value={filters.l1Id} onChange={(e) => setFilters({ ...filters, l1Id: e.target.value, l2Id: '' })}>
-              <option value="">All Level 1</option>
-              {allL1.map((p) => <option key={p.l1_id} value={p.l1_id}>{p.l1_name}</option>)}
-            </select>
+            <MultiSelect
+              allLabel="All Level 1" noun="Level 1"
+              options={allL1.map((p) => ({ value: p.l1_id, label: p.l1_name }))}
+              value={filters.l1Id} onChange={(v) => setFilters({ ...filters, l1Id: v })}
+            />
             {level === 3 && (
-              <select value={filters.l2Id} disabled={!filters.l1Id} onChange={(e) => setFilters({ ...filters, l2Id: e.target.value })}>
-                <option value="">{filters.l1Id ? 'All Level 2' : 'Choose Level 1 first'}</option>
-                {filterL2.map((p) => <option key={p.l2_id} value={p.l2_id}>{p.l2_name}</option>)}
-              </select>
+              <MultiSelect
+                allLabel={filters.l1Id.length ? 'All Level 2' : 'Choose Level 1 first'} noun="Level 2" disabled={!filters.l1Id.length}
+                options={filterL2.map((p) => ({ value: p.l2_id, label: p.l2_name }))}
+                value={filters.l2Id} onChange={(v) => setFilters({ ...filters, l2Id: v })}
+              />
             )}
           </div>
         )}

@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const costCenterModel = require('../models/costCenterModel');
 const locationModel = require('../models/locationModel');
+const { pool } = require('../config/db');
 const { authenticateToken } = require('../middleware/authMiddleware');
 const { httpError } = require('../utils/httpError');
 
@@ -13,7 +14,7 @@ router.use(authenticateToken);
 // GET /api/lookups/cost-centers
 router.get('/cost-centers', async (req, res, next) => {
   try {
-    const rows = await costCenterModel.getAll();
+    const rows = (await costCenterModel.getAll()).sort((a, b) => a.cost_center_name.localeCompare(b.cost_center_name));
     res.json({
       success: true,
       data: rows.map((r) => ({ id: r.cost_center_id, code: r.cost_center_code, name: r.cost_center_name, status: r.status })),
@@ -23,7 +24,18 @@ router.get('/cost-centers', async (req, res, next) => {
   }
 });
 
-// GET /api/lookups/locations/:level?parentId=   (parent = Level 1 for level 2, Level 2 for level 3)
+// GET /api/lookups/fys - financial years used by SD transactions, newest first
+router.get('/fys', async (req, res, next) => {
+  try {
+    const rows = (await pool.query('SELECT DISTINCT fy FROM sd_transactions WHERE fy IS NOT NULL ORDER BY fy DESC')).rows;
+    res.json({ success: true, data: rows.map((r) => r.fy) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/lookups/locations/:level?parentId=   (parent = Level 1 for level 2, Level 2 for level 3;
+// several parents may be given as a comma-separated list)
 router.get('/locations/:level', async (req, res, next) => {
   try {
     const level = Number(req.params.level);

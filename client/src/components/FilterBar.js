@@ -1,6 +1,10 @@
 import React from 'react';
+import MultiSelect from './MultiSelect';
 
-// Search box + Active/Inactive filter + optional Export button
+const STATUSES = ['Active', 'Inactive'];
+
+// Search box + Active/Inactive filter (one or both) + optional Export button.
+// status is an array of the chosen statuses (empty = all).
 export default function FilterBar({ search, status, onChange, onExport, placeholder }) {
   return (
     <div className="filter-bar">
@@ -10,11 +14,7 @@ export default function FilterBar({ search, status, onChange, onExport, placehol
         placeholder={placeholder || 'Search...'}
         onChange={(e) => onChange({ search: e.target.value, status })}
       />
-      <select value={status} onChange={(e) => onChange({ search, status: e.target.value })}>
-        <option value="">All statuses</option>
-        <option value="Active">Active</option>
-        <option value="Inactive">Inactive</option>
-      </select>
+      <MultiSelect allLabel="All statuses" noun="statuses" options={STATUSES} value={status} onChange={(v) => onChange({ search, status: v })} />
       {onExport && <button type="button" className="btn btn-secondary" onClick={onExport}>Export to Excel</button>}
     </div>
   );

@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import Toast from '../components/Toast';
 import { useSearchParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
+import MultiSelect from '../components/MultiSelect';
+import DateRangeFilter from '../components/DateRangeFilter';
 import Modal from '../components/Modal';
 import ExcelUpload from '../components/ExcelUpload';
 import Pager from '../components/Pager';
@@ -11,6 +14,8 @@ import { useAuth } from '../context/AuthContext';
 import { SCREENS } from '../config/screens';
 import useDebounce from '../hooks/useDebounce';
 import { formatAmount, formatDate } from '../utils/format';
+import AmountTiles from '../components/AmountTiles';
+import { amountClass } from '../config/amounts';
 
 const PAGE_SIZE = 50;
 
@@ -30,7 +35,8 @@ const EMPTY_FORM = {
   paidAmount: '', transferAmount: '', adjustmentAmount: '', refundAmount: '', remarks: '',
 };
 
-const EMPTY_FILTERS = { search: '', sdType: '', fy: '', agreementStatus: '', dateFrom: '', dateTo: '' };
+// Multi-select filters hold arrays of values (empty = all)
+const EMPTY_FILTERS = { search: '', sdType: [], fy: [], agreementStatus: [], dateFrom: '', dateTo: '' };
 
 // Indian financial year (April-March) for a DD/MM/YYYY date, e.g. '2024-2025'
 function fyFor(dmy) {
@@ -57,6 +63,7 @@ export default function SdTransactions() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [fyList, setFyList] = useState([]);
   const [modal, setModal] = useState(null); // null | { editing: txn | null, sd }
   const [form, setForm] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState([]);
@@ -96,6 +103,14 @@ export default function SdTransactions() {
         refund: blankZero(t.refund_amount),
         balance: formatAmount(t.running_sd_balance),
         repayable: formatAmount(t.running_repayable),
+        cellClass: {
+          paid: amountClass('paid', t.paid_amount),
+          transfer: amountClass('transfer', t.transfer_amount),
+          adjustment: amountClass('adjustment', t.adjustment_amount),
+          refund: amountClass('refund', t.refund_amount),
+          balance: amountClass('balance', t.running_sd_balance),
+          repayable: amountClass('repayable', t.running_repayable),
+        },
         remarks: t.remarks,
         raw: t,
       })));
@@ -110,6 +125,10 @@ export default function SdTransactions() {
 
   useEffect(() => { fetchSummary(); }, [fetchSummary]);
   useEffect(() => { fetchRows(); }, [fetchRows]);
+  // Financial years in use (refreshed with the list, so a new FY appears after a save)
+  useEffect(() => {
+    api.get('/lookups/fys').then((res) => setFyList(res.data.data)).catch(() => setFyList([]));
+  }, [rows]);
 
   const refresh = () => {
     fetchRows();
@@ -203,12 +222,12 @@ export default function SdTransactions() {
     { key: 'fy', label: 'FY' },
     { key: 'sdType', label: 'SD Type' },
     { key: 'agreementStatus', label: 'Agreement Status' },
-    { key: 'paid', label: 'Paid', align: 'right' },
-    { key: 'transfer', label: 'Transfer', align: 'right' },
-    { key: 'adjustment', label: 'Adjustment', align: 'right' },
-    { key: 'refund', label: 'Refund', align: 'right' },
-    { key: 'balance', label: 'SD Balance', align: 'right' },
-    { key: 'repayable', label: 'Repayable', align: 'right' },
+    { key: 'paid', label: 'Paid', align: 'right', tone: 'paid' },
+    { key: 'transfer', label: 'Transfer', align: 'right', tone: 'out' },
+    { key: 'adjustment', label: 'Adjustment', align: 'right', tone: 'out' },
+    { key: 'refund', label: 'Refund', align: 'right', tone: 'out' },
+    { key: 'balance', label: 'SD Balance', align: 'right', tone: 'balance' },
+    { key: 'repayable', label: 'Repayable', align: 'right', tone: 'repayable' },
     { key: 'remarks', label: 'Remarks' },
   ];
 
@@ -222,7 +241,7 @@ export default function SdTransactions() {
       <div className="page-container wide">
         <div className="page-header">
           <h1>SD Transaction</h1>
-          {can(SCREENS.SD_TRANSACTION, 'add') && (
+          {can(SCREENS.SD_TRANSACTION, 'add') && !sd && (
             <button
               className="btn btn-primary"
               disabled={passive}
@@ -235,7 +254,7 @@ export default function SdTransactions() {
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
-        {notice && <div className="alert alert-success">{notice}</div>}
+        <Toast message={notice} onClose={() => setNotice('')} />
 
         <div className="sd-select-row">
           <SdPicker onSelect={selectSd} placeholder={sd ? 'Switch to another SD Code' : undefined} />
@@ -243,36 +262,58 @@ export default function SdTransactions() {
         </div>
 
         {sd && b && (
-          <div className="sd-summary card">
-            <div className="sd-summary-head">
+          // Key SD details stay pinned under the menu bar while the transactions scroll
+          <section className="sd-sticky" aria-label={`Selected SD record ${sd.sd_code}`}>
+            <div className="sd-sticky-id">
+              <span>SD Code</span>
+              <strong>{sd.sd_code}</strong>
+              <small>{[sd.lease_id, sd.agreement_no].filter(Boolean).join(' · ') || 'No Lease ID / Agreement No.'}</small>
+            </div>
+            <dl className="sd-sticky-fields">
+              <div><dt>Cost Center</dt><dd>{sd.cost_center_name}</dd></div>
+              <div><dt>Location Level 1</dt><dd>{sd.l1_name}</dd></div>
+              <div><dt>Location Level 2</dt><dd>{sd.l2_name}</dd></div>
+              <div><dt>Location Level 3</dt><dd>{sd.l3_name}</dd></div>
+              <div><dt>Floor</dt><dd>{sd.floor}</dd></div>
+              <div><dt>Landlord Name</dt><dd>{sd.landlord_name || '—'}</dd></div>
               <div>
-                <h2>{sd.sd_code}</h2>
-                <p className="hint">
-                  {[sd.lease_id && `Lease ${sd.lease_id}`, sd.agreement_no && `Agreement ${sd.agreement_no}`, `Floor ${sd.floor}`].filter(Boolean).join(' · ')}
-                </p>
+                <dt>Status</dt>
+                <dd className="sd-sticky-badges">
+                  <span className={`badge badge-${sd.landlord_status.toLowerCase()}`}>Landlord {sd.landlord_status}</span>
+                  <span className={`badge badge-${sd.building_status.toLowerCase()}`}>Building {sd.building_status}</span>
+                </dd>
               </div>
-              <div className="sd-summary-status">
-                <span className={`badge badge-${sd.landlord_status.toLowerCase()}`}>Landlord {sd.landlord_status}</span>
-                <span className={`badge badge-${sd.building_status.toLowerCase()}`}>Building {sd.building_status}</span>
-                {can(SCREENS.SD_MASTER, 'view') && <Link to={`/sd-master?search=${sd.sd_code}`}>Open in SD Master</Link>}
-              </div>
-            </div>
-            <dl className="sd-facts">
-              <div><dt>Cost Center</dt><dd>{sd.cost_center_code} - {sd.cost_center_name}</dd></div>
-              <div><dt>Location</dt><dd>{sd.l1_name} › {sd.l2_name} › {sd.l3_name}</dd></div>
-              <div><dt>Landlord</dt><dd>{sd.landlord_name || '—'}</dd></div>
-              <div><dt>Lease</dt><dd>{formatDate(sd.lease_commencement_date) || '—'} to {formatDate(sd.lease_end_date) || '—'}</dd></div>
-              <div><dt>Rent Commencement</dt><dd>{formatDate(sd.rent_commencement_date) || '—'}</dd></div>
+              <div className="tone-balance"><dt>SD Balance</dt><dd className="sd-sticky-amount">{formatAmount(b.sd_balance)}</dd></div>
+              <div className="tone-repayable"><dt>Repayable</dt><dd className="sd-sticky-amount">{formatAmount(b.sd_balance_repayable)}</dd></div>
             </dl>
-            <div className="sd-tiles">
-              <div><span>Agreement Value</span><strong>{formatAmount(b.agreement_value)}</strong></div>
-              <div><span>Total Paid</span><strong>{formatAmount(b.total_paid)}</strong></div>
-              <div><span>Transfer</span><strong>{formatAmount(b.total_transfer)}</strong></div>
-              <div><span>Adjustment</span><strong>{formatAmount(b.total_adjustment)}</strong></div>
-              <div><span>Refund</span><strong>{formatAmount(b.total_refund)}</strong></div>
-              <div className="key"><span>SD Balance</span><strong>{formatAmount(b.sd_balance)}</strong></div>
-              <div className="key"><span>SD Balance Repayable</span><strong>{formatAmount(b.sd_balance_repayable)}</strong></div>
+            <div className="sd-sticky-actions">
+              {can(SCREENS.SD_TRANSACTION, 'add') && (
+                <button className="btn btn-primary btn-small" disabled={passive} onClick={() => openModal()}
+                  title={passive ? 'This SD Code is Passive and cannot take new transactions.' : undefined}>
+                  + Add Transaction
+                </button>
+              )}
+              {can(SCREENS.SD_MASTER, 'view') && (
+                <Link className="btn btn-secondary btn-small" to={`/sd-master?search=${sd.sd_code}`}>Open in SD Master</Link>
+              )}
             </div>
+          </section>
+        )}
+
+        {sd && b && (
+          <div className="sd-summary card">
+            <dl className="sd-facts">
+              <div><dt>Lease Commencement</dt><dd>{formatDate(sd.lease_commencement_date) || '—'}</dd></div>
+              <div><dt>Rent Commencement</dt><dd>{formatDate(sd.rent_commencement_date) || '—'}</dd></div>
+              <div><dt>Lease End</dt><dd>{formatDate(sd.lease_end_date) || '—'}</dd></div>
+              <div><dt>Agreement Value</dt><dd>{formatAmount(b.agreement_value)}</dd></div>
+              <div><dt>Transactions</dt><dd>{b.txn_count}</dd></div>
+            </dl>
+            <AmountTiles values={{
+              agreement: b.agreement_value, paid: b.total_paid, transfer: b.total_transfer,
+              adjustment: b.total_adjustment, refund: b.total_refund,
+              balance: b.sd_balance, repayable: b.sd_balance_repayable,
+            }} />
             {passive && <p className="hint">This SD Code is Passive: existing transactions stay visible, but no new ones can be added.</p>}
           </div>
         )}
@@ -289,17 +330,10 @@ export default function SdTransactions() {
 
         <div className="filter-bar">
           <input type="search" placeholder="Search Txn No., SD Code or Remarks" value={filters.search} onChange={(e) => setFilter({ search: e.target.value })} />
-          <select value={filters.sdType} onChange={(e) => setFilter({ sdType: e.target.value })}>
-            <option value="">All SD Types</option>
-            {SD_TYPES.map((t) => <option key={t}>{t}</option>)}
-          </select>
-          <input className="short" type="text" placeholder="FY e.g. 2024-2025" value={filters.fy} onChange={(e) => setFilter({ fy: e.target.value })} />
-          <select value={filters.agreementStatus} onChange={(e) => setFilter({ agreementStatus: e.target.value })}>
-            <option value="">All Agreement Status</option>
-            {AGREEMENT_STATUSES.map((t) => <option key={t}>{t}</option>)}
-          </select>
-          <input className="short" type="text" placeholder="From DD/MM/YYYY" value={filters.dateFrom} onChange={(e) => setFilter({ dateFrom: e.target.value })} />
-          <input className="short" type="text" placeholder="To DD/MM/YYYY" value={filters.dateTo} onChange={(e) => setFilter({ dateTo: e.target.value })} />
+          <MultiSelect allLabel="All SD Types" noun="SD Types" options={SD_TYPES} value={filters.sdType} onChange={(v) => setFilter({ sdType: v })} />
+          <MultiSelect allLabel="All FY" noun="FYs" options={fyList} value={filters.fy} onChange={(v) => setFilter({ fy: v })} />
+          <MultiSelect allLabel="All Agreement Status" noun="statuses" options={AGREEMENT_STATUSES} value={filters.agreementStatus} onChange={(v) => setFilter({ agreementStatus: v })} />
+          <DateRangeFilter label="Txn Date" from={filters.dateFrom} to={filters.dateTo} onChange={({ from, to }) => setFilter({ dateFrom: from, dateTo: to })} />
           <button type="button" className="btn btn-secondary" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); }}>Clear</button>
           <button type="button" className="btn btn-secondary" onClick={handleExport}>Export to Excel</button>
         </div>
@@ -316,6 +350,7 @@ export default function SdTransactions() {
               rows={rows}
               onEdit={canEdit ? (row) => openModal(row) : null}
               onDelete={can(SCREENS.SD_TRANSACTION, 'delete') ? handleDelete : null}
+              freeze
             />
             <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
           </>
@@ -331,7 +366,7 @@ export default function SdTransactions() {
                 </div>
               )}
 
-              <label>SD Code *</label>
+              <label>SD Code <span className="req" aria-hidden="true">*</span></label>
               {modal.sd ? (
                 <div className="picked-sd">
                   <strong>{modal.sd.sd_code}</strong>
@@ -341,42 +376,53 @@ export default function SdTransactions() {
                 <SdPicker autoFocus onSelect={(picked) => setModal({ ...modal, sd: picked })} />
               )}
 
+              <h4 className="form-section">Transaction details</h4>
               <div className="form-grid">
                 <div>
-                  <label htmlFor="txnDate">SD Transaction Date *</label>
+                  <label htmlFor="txnDate">SD Transaction Date <span className="req" aria-hidden="true">*</span></label>
                   <input id="txnDate" type="text" required placeholder="DD/MM/YYYY" maxLength={10} value={form.txnDate} onChange={setDate} />
                 </div>
                 <div>
-                  <label htmlFor="fy">FY *</label>
-                  <input id="fy" type="text" required placeholder="2024-2025" maxLength={9} value={form.fy} onChange={set('fy')} />
+                  <label htmlFor="fy">FY <span className="req" aria-hidden="true">*</span></label>
+                  <input id="fy" type="text" required placeholder="e.g. 2024-2025" maxLength={9} value={form.fy} onChange={set('fy')} />
                 </div>
                 <div>
-                  <label htmlFor="sdType">SD Type *</label>
+                  <label htmlFor="sdType">SD Type <span className="req" aria-hidden="true">*</span></label>
                   <select id="sdType" required value={form.sdType} onChange={set('sdType')}>
                     <option value="">Select SD Type</option>
                     {SD_TYPES.map((t) => <option key={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="agreementStatus">Agreement Status *</label>
+                  <label htmlFor="agreementStatus">Agreement Status <span className="req" aria-hidden="true">*</span></label>
                   <select id="agreementStatus" required value={form.agreementStatus} onChange={set('agreementStatus')}>
                     <option value="">Select Agreement Status</option>
                     {AGREEMENT_STATUSES.map((t) => <option key={t}>{t}</option>)}
                   </select>
                 </div>
+              </div>
+
+              <h4 className="form-section">Amounts <small>enter at least one</small></h4>
+              <div className="form-grid">
                 {AMOUNTS.map(([key, , label]) => (
-                  <div key={key}>
+                  <div key={key} className={`money-field tone-${key === 'paidAmount' ? 'paid' : 'out'}`}>
                     <label htmlFor={key}>{label}</label>
-                    <input id={key} type="text" inputMode="decimal" placeholder="0.00" value={form[key]} onChange={set(key)} />
+                    <div className="money-input">
+                      <span aria-hidden="true">₹</span>
+                      <input id={key} type="text" inputMode="decimal" placeholder="Amount in ₹" value={form[key]} onChange={set(key)} />
+                    </div>
                   </div>
                 ))}
+              </div>
+
+              <div className="form-grid">
                 <div className="span-2">
                   <label htmlFor="remarks">Remarks</label>
                   <textarea id="remarks" rows={3} maxLength={1000} value={form.remarks} onChange={set('remarks')}
                     placeholder="e.g. transferred to SD000123" />
                 </div>
               </div>
-              <p className="hint">Enter at least one amount. SD Balance and Repayable are calculated automatically.</p>
+              <p className="hint">SD Balance and Repayable are calculated automatically from the amounts.</p>
 
               <button type="submit" className="btn btn-primary btn-block" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
             </form>

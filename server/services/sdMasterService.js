@@ -87,7 +87,7 @@ async function validateRecord(rec, raw = {}, before = null) {
     const cc = await costCenterModel.findById(rec.cost_center_id);
     if (!cc) fail('cost_center_id', 'Cost Center not found.');
     else if (cc.status !== 'Active' && cc.cost_center_id !== before?.cost_center_id) {
-      fail('cost_center_id', `Cost Center ${cc.cost_center_code} is Inactive.`, cc.cost_center_code);
+      fail('cost_center_id', `Cost Center ${cc.cost_center_name} is Inactive.`, cc.cost_center_name);
     }
   }
 

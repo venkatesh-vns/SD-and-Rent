@@ -156,7 +156,7 @@ async function downloadTemplate(req, res, next) {
 // Values in template column order, so an export can be edited and uploaded back
 function toExcelRow(r) {
   return [
-    r.sd_code, r.lease_id, r.agreement_no, r.cost_center_code, r.l1_name, r.l2_name, r.l3_name,
+    r.sd_code, r.lease_id, r.agreement_no, r.cost_center_name, r.l1_name, r.l2_name, r.l3_name,
     r.landlord_name, r.landlord_status, r.building_status, r.floor, Number(r.agreement_value),
     formatDMY(r.lease_commencement_date), formatDMY(r.rent_commencement_date), formatDMY(r.lease_end_date),
   ];
