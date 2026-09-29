@@ -126,7 +126,7 @@ function useLocations(level, parentId) {
 export default function SdMaster() {
   const { can } = useAuth();
   const navigate = useNavigate();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -247,6 +247,23 @@ export default function SdMaster() {
       />
     </div>
   );
+
+  // Quick actions from the SD Dashboard: ?action=add opens the Add form,
+  // ?action=upload brings the Excel upload panel into view
+  useEffect(() => {
+    const action = params.get('action');
+    if (!action) return;
+    if (action === 'add' && can(SCREENS.SD_MASTER, 'add')) openModal();
+    if (action === 'upload') {
+      const panel = document.querySelector('.upload-panel');
+      if (panel) {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        panel.classList.add('flash');
+        setTimeout(() => panel.classList.remove('flash'), 1800);
+      }
+    }
+    setParams((p) => { p.delete('action'); return p; }, { replace: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div>

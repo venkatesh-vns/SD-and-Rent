@@ -10,6 +10,7 @@ export const SCREENS = {
   EMAIL_LOG: 'EMAIL_LOG',
   AUDIT_LOG: 'AUDIT_LOG',
   NOTIFICATION: 'NOTIFICATION',
+  SD_DASHBOARD: 'SD_DASHBOARD',
 };
 
 // Screens that are built, in menu order. Add an entry here as each module
@@ -37,6 +38,7 @@ export const MENU = [
   {
     group: 'Reports',
     items: [
+      { screen: SCREENS.SD_DASHBOARD, label: 'SD Dashboard', path: '/sd-dashboard', description: 'Management overview: SD exposure, upcoming lease dates, recoveries and trends.' },
       { screen: SCREENS.SD_REPORT, label: 'SD Balance Report', path: '/reports/sd-balance', description: 'Balances and repayable amounts per SD Code, with totals and export.' },
     ],
   },

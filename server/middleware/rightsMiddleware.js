@@ -12,6 +12,7 @@ const SCREENS = {
   EMAIL_LOG: 'EMAIL_LOG',
   AUDIT_LOG: 'AUDIT_LOG',
   NOTIFICATION: 'NOTIFICATION',
+  SD_DASHBOARD: 'SD_DASHBOARD',
 };
 
 // Route guard: requireRight(SCREENS.USER, 'edit'). Must run after
