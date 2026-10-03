@@ -1,7 +1,11 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  // Default: in development (npm start on port 3000) the API on port 5000 of
+  // the same host; otherwise the server that served these screens (desktop app)
+  baseURL: process.env.REACT_APP_API_URL || (window.location.port === '3000'
+    ? `${window.location.protocol}//${window.location.hostname}:5000/api`
+    : '/api'),
   // Multi-select filters are arrays: send them as one comma-separated value
   // (?sdType=Paid,Refund) and leave out empty filters.
   paramsSerializer: {

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'" />
+  <title>SD Maintenance - Setup</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="panel">
+    <div class="brand"><img src="icon.png" alt="" /><strong>SD Maintenance</strong></div>
+    <h1>How is this PC used?</h1>
+    <p class="lead">Choose once. You can change it later from Settings &gt; Connection settings.</p>
+
+    <div class="choices">
+      <button type="button" class="choice" id="pick-server">
+        <span class="tag">One PC in the office</span>
+        <h2>This PC holds the data</h2>
+        <p>Keeps the SD Maintenance database on this PC. Other PCs connect to this one. Keep this PC on, with the app open, while others work.</p>
+      </button>
+      <button type="button" class="choice" id="pick-client">
+        <span class="tag">Every other PC</span>
+        <h2>Connect to the main PC</h2>
+        <p>Uses the data on the main PC over the office network. Enter its address, shown on the main PC under Settings &gt; Address for other PCs.</p>
+      </button>
+    </div>
+
+    <form id="server-form" hidden>
+      <div id="new-admin">
+        <p class="hint">Create the administrator. You will sign in with user name <strong>admin</strong> and this password.</p>
+        <label for="admin-email">Administrator email</label>
+        <input id="admin-email" type="email" autocomplete="email" placeholder="name@company.com" />
+        <div class="grid2">
+          <div>
+            <label for="admin-pass">Password</label>
+            <input id="admin-pass" type="password" autocomplete="new-password" placeholder="At least 8 characters, a letter and a number" />
+          </div>
+          <div>
+            <label for="admin-pass2">Confirm password</label>
+            <input id="admin-pass2" type="password" autocomplete="new-password" />
+          </div>
+        </div>
+      </div>
+      <p class="hint" id="existing-data" hidden>The SD Maintenance data already on this PC will be opened.</p>
+      <div class="msg" id="server-msg" hidden></div>
+      <div class="actions">
+        <button type="submit" class="btn primary" id="server-go">Set up this PC</button>
+        <span class="hint" id="server-progress"></span>
+      </div>
+    </form>
+
+    <form id="client-form" hidden>
+      <label for="server-address">Main PC address</label>
+      <input id="server-address" type="text" placeholder="e.g. 192.168.1.20 or OFFICE-PC" />
+      <p class="hint" id="port-hint"></p>
+      <div class="msg" id="client-msg" hidden></div>
+      <div class="actions">
+        <button type="submit" class="btn primary" id="client-go">Connect</button>
+        <button type="button" class="btn" id="client-test">Test connection</button>
+      </div>
+    </form>
+  </main>
+  <script src="setup.js"></script>
+</body>
+</html>

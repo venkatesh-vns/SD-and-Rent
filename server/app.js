@@ -3,6 +3,9 @@
 require('dotenv').config();
 
 const express = require('express');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -29,11 +32,33 @@ const app = express();
 // Global Middleware
 // ============================================================
 
-app.use(helmet());
+// Default security headers, except "upgrade-insecure-requests": the app is
+// opened over plain http on the office network (http://<pc>:<port>), where
+// upgrading every request to https would stop the screens loading.
+app.use(helmet({
+  contentSecurityPolicy: { directives: { upgradeInsecureRequests: null } },
+}));
+
+// Browser origins allowed to call the API: CLIENT_URL plus the same client
+// port under this machine's other names (localhost, 127.0.0.1 and its network
+// IP addresses), so the app works however this PC is addressed.
+function allowedOrigins() {
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:3000';
+  const origins = new Set([clientUrl.replace(/\/+$/, '')]);
+  try {
+    const url = new URL(clientUrl);
+    const hosts = ['localhost', '127.0.0.1', ...Object.values(os.networkInterfaces()).flat()
+      .filter((i) => i && i.family === 'IPv4').map((i) => i.address)];
+    hosts.forEach((h) => origins.add(`${url.protocol}//${h}${url.port ? `:${url.port}` : ''}`));
+  } catch {
+    // CLIENT_URL is not a URL: allow it as written
+  }
+  return [...origins];
+}
 
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: allowedOrigins(),
     credentials: true,
     exposedHeaders: ['Content-Disposition'], // lets the client read download file names
   })
@@ -101,6 +126,19 @@ app.get('/api/health', async (req, res) => {
     });
   }
 });
+
+
+// ============================================================
+// Web screens (desktop / single-port installs)
+// ============================================================
+// When CLIENT_BUILD_DIR points at the built React app, the API also serves
+// the screens, so one address (http://<pc>:<port>) is all users need.
+
+const clientBuild = process.env.CLIENT_BUILD_DIR;
+if (clientBuild && fs.existsSync(path.join(clientBuild, 'index.html'))) {
+  app.use(express.static(clientBuild, { index: false, maxAge: '1h' }));
+  app.get(/^(?!\/api(\/|$)).*/, (req, res) => res.sendFile(path.join(clientBuild, 'index.html')));
+}
 
 
 // ============================================================

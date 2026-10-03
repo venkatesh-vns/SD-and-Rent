@@ -1,0 +1,56 @@
+{
+  "name": "sd-maintenance-desktop",
+  "productName": "SD Maintenance",
+  "version": "1.0.0",
+  "description": "SD Maintenance Application (IndiQube) - Windows desktop app",
+  "author": "IndiQube",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "prepare-resources": "node scripts/prepare.js",
+    "icon": "electron scripts/make-icon.js",
+    "start": "electron .",
+    "dist": "node scripts/prepare.js && electron scripts/make-icon.js && electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {},
+  "build": {
+    "appId": "com.indiqube.sdmaintenance",
+    "productName": "SD Maintenance",
+    "copyright": "IndiQube",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "lib/**",
+      "ui/**",
+      "package.json"
+    ],
+    "extraResources": [
+      { "from": "staging/backend", "to": "backend" },
+      { "from": "staging/pgsql", "to": "pgsql" }
+    ],
+    "asar": true,
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.png",
+      "artifactName": "SD-Maintenance-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SD Maintenance",
+      "include": "build/installer.nsh",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

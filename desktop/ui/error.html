@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'" />
+  <title>SD Maintenance</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="panel medium">
+    <div class="brand"><img src="icon.png" alt="" /><strong>SD Maintenance</strong></div>
+    <h1 id="message">Something went wrong.</h1>
+    <p class="lead" id="detail"></p>
+    <div class="actions">
+      <button type="button" class="btn primary" id="retry">Try again</button>
+      <button type="button" class="btn" id="settings">Connection settings</button>
+      <button type="button" class="btn" id="logs">Open log folder</button>
+    </div>
+  </main>
+  <script src="page.js"></script>
+</body>
+</html>

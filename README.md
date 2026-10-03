@@ -425,6 +425,49 @@ real database is never touched and no emails are sent.
 **CORS:** Set `CLIENT_URL` in the server `.env` to your deployed frontend URL
 so the API accepts requests from it.
 
+**Single-port install:** set `CLIENT_BUILD_DIR` to the `client/build` folder
+and the API also serves the screens, so users need only `http://<server>:<PORT>`.
+
+---
+
+## 8a. Windows Desktop App (setup.exe)
+
+`desktop/` packages the application as a Windows installer
+(`SD-Maintenance-Setup-<version>.exe`, Electron + NSIS). It bundles the
+server, the screens and a private PostgreSQL, so target PCs need nothing
+else installed. On first launch each PC chooses:
+
+- **This PC holds the data** (one PC in the office): runs its own PostgreSQL
+  (data in `%APPDATA%\SD Maintenance\pgdata`, listening on 127.0.0.1 only)
+  and the SD Maintenance server on port 5050. The setup screen creates the
+  `admin` user. Settings > *Address for other PCs* shows the address to use;
+  File > *Back up database* saves a `pg_dump` backup.
+- **Connect to the main PC** (every other PC): enter the main PC's address
+  (e.g. `192.168.1.20`); the app opens the screens served by that PC.
+  Browsers can also use `http://<main-pc>:5050`.
+
+The installer adds a Windows Firewall rule for the app (private and domain
+networks). Logs: `%APPDATA%\SD Maintenance\logs`.
+
+**Building the installer** (on Windows, with PostgreSQL installed):
+
+```bash
+cd desktop
+npm install
+npm run dist        # -> desktop/dist/SD-Maintenance-Setup-1.0.0.exe
+```
+
+`npm run dist` builds the client, copies the server with production packages
+and the migrations into `desktop/staging`, copies the PostgreSQL server
+files from `C:\Program Files\PostgreSQL\18` (set `PG_HOME` for another
+version) and builds the installer. If electron-builder fails with *Cannot
+create symbolic link*, extract its `winCodeSign` cache archive manually to
+`%LOCALAPPDATA%\electron-builder\Cache\winCodeSign\winCodeSign-2.6.0` (7-Zip;
+the two macOS link errors can be ignored) or enable Windows Developer Mode.
+
+The installer is not code-signed, so Windows SmartScreen may show
+*"Windows protected your PC"*: choose **More info > Run anyway**.
+
 ---
 
 ## 9. Local Development Quick Start

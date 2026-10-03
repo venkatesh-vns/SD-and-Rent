@@ -4,7 +4,8 @@ const { httpError } = require('../utils/httpError');
 
 // Stores uploaded Excel files temporarily in /uploads before parsing
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'uploads')),
+  // UPLOAD_DIR: a writable folder when installed under Program Files
+  destination: (req, file, cb) => cb(null, process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads')),
   filename: (req, file, cb) => cb(null, `${Date.now()}-${path.basename(file.originalname)}`),
 });
 

@@ -10,7 +10,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 
-const MIGRATIONS_DIR = path.join(__dirname, '..', '..', 'database', 'migrations');
+const MIGRATIONS_DIR = process.env.MIGRATIONS_DIR || path.join(__dirname, '..', '..', 'database', 'migrations');
 
 // Applies pending migrations using the given pg Pool; returns the files applied
 async function runMigrations(pool, { log = console.log } = {}) {
