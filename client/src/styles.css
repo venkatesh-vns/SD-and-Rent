@@ -1173,6 +1173,36 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
 }
 
 /* ============================================================
+   Rent Transaction screens (pages/rent/*)
+   ============================================================ */
+.badge-individual { background: var(--info-bg); border-color: var(--info-border); color: var(--info); }
+.badge-transfer { background: #f5f3ff; border-color: #ddd6fe; color: #6d28d9; }
+.badge-yes { background: var(--ok-bg); border-color: var(--ok-border); color: #166534; }
+.badge-no { background: #f1f5f9; border-color: #e2e8f0; color: #64748b; }
+.rent-facts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem 1rem; margin: 0.8rem 0 0.4rem;
+  padding: 0.75rem 0.9rem; background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: var(--r);
+}
+.rent-facts dt { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.rent-facts dd { margin: 0.15rem 0 0; font-size: 0.9rem; font-weight: 600; color: var(--text-2); }
+.data-table.component-grid tbody th[scope='row'], .data-table.component-grid tfoot th {
+  font-size: 0.86rem; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-2);
+  text-align: left; white-space: nowrap; background: none;
+}
+.component-grid td input { min-height: 34px; padding: 0.3rem 0.55rem; font-size: 0.86rem; }
+.component-grid tr.is-used th[scope='row'] { color: var(--primary-strong); }
+.component-grid tr.is-used { background: var(--primary-tint); }
+.component-grid tfoot th, .component-grid tfoot td { background: var(--surface-2); }
+.rent-tiles { margin: 0.2rem 0 0.9rem; }
+.rent-view { margin-bottom: 0.8rem; flex-wrap: wrap; }
+.rent-runs { margin-top: 1.2rem; }
+.rent-runs table { margin-top: 0.6rem; }
+@media print {
+  .rent-schedule .filter-bar, .rent-schedule .rent-view, .rent-schedule .rent-runs, .rent-schedule .pager { display: none !important; }
+  .rent-schedule .table-wrap { max-height: none; overflow: visible; }
+}
+
+/* ============================================================
    Motion preferences
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {

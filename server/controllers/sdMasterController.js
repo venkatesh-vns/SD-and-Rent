@@ -9,6 +9,7 @@ const { parseDMY, formatDMY } = require('../utils/dates');
 const { processUpload } = require('../utils/bulkUpload');
 const { buildWorkbook, sendWorkbook, dateStamp } = require('../utils/excel');
 const { SCREENS } = require('../middleware/rightsMiddleware');
+const { regenerateForSd } = require('../services/rentScheduleService');
 
 const { FIELDS } = sdMasterModel;
 const { LABELS, blank, text, parseAmount } = service;
@@ -119,6 +120,8 @@ async function update(req, res, next) {
         actionBy: req.user.userName, oldValues: before, newValues: after,
         details: changes.map((c) => `${c.statusType} Status ${c.oldStatus} -> ${c.newStatus}`).join('; ') || null,
       }, db);
+      // New LCD / RCD / LED: future Rent Schedules of this SD's Rent Codes follow
+      await regenerateForSd(before, after, { by: req.user.userName }, db);
       return { after, changes };
     });
     // Emails go out only once the change is committed
@@ -293,6 +296,7 @@ async function bulkUpload(req, res, next) {
             oldValues: before, newValues: after,
             details: ['Bulk update', ...changes.map((c) => `${c.statusType} Status ${c.oldStatus} -> ${c.newStatus}`)].join('; '),
           }, db);
+          await regenerateForSd(before, after, { by: uploadedBy }, db);
         } else {
           const created = await sdMasterModel.create(rec, uploadedBy, { uploaded: true }, db);
           await logAudit({ tableName: 'sd_master', recordId: created.sd_id, action: 'UPLOAD', actionBy: uploadedBy, newValues: created }, db);

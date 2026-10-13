@@ -24,6 +24,7 @@ const reportRoutes = require('./routes/reportRoutes');
 const notificationTemplateRoutes = require('./routes/notificationTemplateRoutes');
 const mailSettingsRoutes = require('./routes/mailSettingsRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const rentRoutes = require('./routes/rentRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -102,6 +103,7 @@ app.use('/api/sd-transactions', sdTransactionRoutes);
 app.use('/api/notification-templates', notificationTemplateRoutes);
 app.use('/api/mail-settings', mailSettingsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/rent', rentRoutes); // Rent Transaction menu
 app.use('/api', reportRoutes); // /api/reports, /api/logs, /api/notifications
 
 

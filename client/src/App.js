@@ -21,6 +21,11 @@ import EmailLog from './pages/EmailLog';
 import AuditLog from './pages/AuditLog';
 import EmailTemplates from './pages/EmailTemplates';
 import SdDashboard from './pages/SdDashboard';
+import RentMaster from './pages/rent/RentMaster';
+import RentAgreements from './pages/rent/RentAgreements';
+import RentRules from './pages/rent/RentRules';
+import RentWaivers from './pages/rent/RentWaivers';
+import RentSchedule from './pages/rent/RentSchedule';
 
 function App() {
   return (
@@ -45,6 +50,11 @@ function App() {
           <Route path="/audit-log" element={<ProtectedRoute screen={SCREENS.AUDIT_LOG}><AuditLog /></ProtectedRoute>} />
           <Route path="/email-templates" element={<ProtectedRoute screen={SCREENS.NOTIFICATION}><EmailTemplates /></ProtectedRoute>} />
           <Route path="/user-rights" element={<ProtectedRoute screen={SCREENS.USER_RIGHTS}><UserRightsMaster /></ProtectedRoute>} />
+          <Route path="/rent/master" element={<ProtectedRoute screen={SCREENS.RENT_MASTER}><RentMaster /></ProtectedRoute>} />
+          <Route path="/rent/agreements" element={<ProtectedRoute screen={SCREENS.RENT_AGREEMENT}><RentAgreements /></ProtectedRoute>} />
+          <Route path="/rent/rules" element={<ProtectedRoute screen={SCREENS.RENT_RULE}><RentRules /></ProtectedRoute>} />
+          <Route path="/rent/waivers" element={<ProtectedRoute screen={SCREENS.RENT_WAIVER}><RentWaivers /></ProtectedRoute>} />
+          <Route path="/rent/schedule" element={<ProtectedRoute screen={SCREENS.RENT_SCHEDULE}><RentSchedule /></ProtectedRoute>} />
 
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

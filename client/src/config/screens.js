@@ -11,6 +11,11 @@ export const SCREENS = {
   AUDIT_LOG: 'AUDIT_LOG',
   NOTIFICATION: 'NOTIFICATION',
   SD_DASHBOARD: 'SD_DASHBOARD',
+  RENT_MASTER: 'RENT_MASTER',
+  RENT_AGREEMENT: 'RENT_AGREEMENT',
+  RENT_RULE: 'RENT_RULE',
+  RENT_WAIVER: 'RENT_WAIVER',
+  RENT_SCHEDULE: 'RENT_SCHEDULE',
 };
 
 // Screens that are built, in menu order. Add an entry here as each module
@@ -33,6 +38,16 @@ export const MENU = [
     group: 'Transactions',
     items: [
       { screen: SCREENS.SD_TRANSACTION, label: 'SD Transaction', path: '/sd-transactions', description: 'SD Paid, Transfer, Adjustment and Refund per SD Code, with balances.' },
+    ],
+  },
+  {
+    group: 'Rent Transaction',
+    items: [
+      { screen: SCREENS.RENT_MASTER, label: 'Rent Master', path: '/rent/master', description: 'Links a landlord to an SD Code and creates the Rent Code.' },
+      { screen: SCREENS.RENT_AGREEMENT, label: 'Rent Agreement Master', path: '/rent/agreements', description: 'The nine rent and charge components of each Rent Code.' },
+      { screen: SCREENS.RENT_RULE, label: 'Rule Master', path: '/rent/rules', description: 'Escalation rules (RCD, LCD or Normal Day) and percentages.' },
+      { screen: SCREENS.RENT_WAIVER, label: 'Waiver Master', path: '/rent/waivers', description: 'Rent-free periods that override every other calculation.' },
+      { screen: SCREENS.RENT_SCHEDULE, label: 'Rent Schedule', path: '/rent/schedule', description: 'Generate, view and export the month-wise rent per component.' },
     ],
   },
   {
