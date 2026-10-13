@@ -42,7 +42,7 @@ pg_restore -U postgres -d sd_maintenance_restored --no-owner "D:\DatabasePostger
 ```
 
 The UAT database `sd_rent_uat` was created from this backup, then migration
-`010_rent_module.sql` was applied to it only.
+`010_rent_module.sql` and `011_rent_multi_component.sql` were applied to it only.
 
 ## 4. What is new — Rent Transaction menu
 
@@ -78,20 +78,23 @@ Please confirm or tell us to change any of these.
 | 6 | Escalation Month values | Any whole number 1–600 |
 | 7 | LED limit | As written: RCD escalation must be **before** LED; LCD escalation **on or before** LED |
 | 8 | Normal Day with RCD / LCD | Allowed together. Normal Day applies its % only between From and To, on top of the escalated rent |
-| 9 | Rule scope | New optional **Applies to** field: blank = all components, or one component |
+| 9 | Rule scope | **Applies to** multi-select: one or more components; empty = all components |
 | 10 | Compounding | Yes — each escalation applies to the already-escalated rent |
 | 11 | Lease start for waivers | LCD (RCD if the SD has no LCD) |
 | 12 | Partial-month waivers | Day-level: in the 6.4 example, 31/10/2026 is charged pro-rata (₹37.10), so October = ₹37.10, not ₹0 |
 | 13 | Pro-rata basis and rounding | Actual days in the month; each month line rounded to 2 decimals |
 | 14 | Remark field | Up to 500 characters; included in the Agreement and Waiver upload templates |
 
-Also: Waivers have an optional **Applies to** component (blank = all components).
+Also: Waivers have the same **Applies to** multi-select (empty = all components).
+In the Rule and Waiver upload templates, each component has its own column
+`Applies to: <component>` — **Yes** = selected, **No** = not selected; leave all
+of them blank for all components (on an update, blank keeps the stored selection).
 Rent Master requires the SD record to have an RCD and LED; a blank LCD means no
 Maintenance Charges (scope 3.3).
 
 ## 6. Testing performed
 
-- **90 automated tests pass** (66 existing SD tests unchanged + 24 new): every
+- **92 automated tests pass** (66 existing SD tests unchanged + 26 new): every
   example in the scope document (component samples, 4.2 escalation dates, 4.3
   percentages, 6.3 pro-rating, 6.4 worked scenario, Inactive End Date, waivers,
   transfers), validations, locking, bulk uploads, report output, regeneration.
