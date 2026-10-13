@@ -6,7 +6,7 @@ const { setup, createMasters, sdBody } = require('./helpers');
 
 const HEADERS = {
   master: ['Rent Code', 'SD Code', 'Cost Center', 'Floor', 'LCD', 'RCD', 'LED', 'Landlord Name', 'LL Status', 'Inactive End Date'],
-  waiver: ['Waiver ID', 'Rent Code', 'From Date', 'To Date', 'Waiver Status', 'Component', 'Remark'],
+  waiver: ['Waiver ID', 'Rent Code', 'From Date', 'To Date', 'Waiver Status', 'Remark', 'Applies to: Additional Parking', 'Applies to: Fitouts', 'Applies to: Cafe', 'Applies to: Car Park Rent', 'Applies to: Office Rent', 'Applies to: Signage', 'Applies to: Solar', 'Applies to: Terrace', 'Applies to: Maintenance Charges'],
 };
 
 describe('Rent Transaction module', () => {
@@ -178,15 +178,34 @@ describe('Rent Transaction module', () => {
       assert.match(String(ws.getCell('F4').value), /Same Cost Center \+ SD Code \+ Floor \+ Landlord Name as row 2/);
     });
 
-    it('uploads waivers and rejects overlaps within the file', async () => {
+    it('uploads waivers with Yes / No Applies to columns and rejects overlaps', async () => {
+      //            AddlPark Fitouts Cafe CarPark Office Signage Solar Terrace Maint
+      const only = (i) => Array.from({ length: 9 }, (_, k) => (k === i ? 'Yes' : ''));
       const res = await ctx.upload('/rent/waivers/bulk-upload', [
         HEADERS.waiver,
-        ['', rent.rent_code, '01/06/2026', '30/06/2026', 'Yes', '', ''],
-        ['', rent.rent_code, '15/06/2026', '15/07/2026', 'Yes', '', ''],
-        ['', rent.rent_code, '01/08/2026', '31/08/2026', 'Maybe', '', ''],
+        ['', rent.rent_code, '01/06/2026', '30/06/2026', 'Yes', '', ...only(4)],              // Office Rent only
+        ['', rent.rent_code, '15/06/2026', '15/07/2026', 'Yes', '', ...only(8)],              // Maintenance only: no clash
+        ['', rent.rent_code, '20/06/2026', '25/06/2026', 'Yes', '', ...Array(9).fill('')],    // all components: clashes row 2
+        ['', rent.rent_code, '01/08/2026', '31/08/2026', 'Maybe', '', ...Array(9).fill('')],
+        ['', rent.rent_code, '01/09/2026', '30/09/2026', 'Yes', '', ...only(4).map((v) => (v ? 'Perhaps' : ''))],
+        ['', rent.rent_code, '01/11/2026', '20/11/2026', 'Yes', '', ...Array(9).fill('No')],
       ]);
-      assert.equal(res.body.data.passed, 1);
-      assert.equal(res.body.data.failed, 2);
+      assert.equal(res.body.data.passed, 2, JSON.stringify(res.body.data.report.filter((x) => x.status === 'Failed')));
+      assert.equal(res.body.data.failed, 4);
+      const errors = res.body.data.report.filter((x) => x.status === 'Failed').map((x) => x.error).join(' ');
+      assert.match(errors, /must be Yes or No/);
+      assert.match(errors, /Select at least one component/);
+      const saved = (await ctx.api('GET', `/rent/waivers?rentId=${rent.rent_id}&dateFrom=01/06/2026&dateTo=30/06/2026`)).body.data;
+      assert.deepEqual(saved.map((w) => w.component_codes).sort(), [['MAINTENANCE'], ['OFFICE']]);
+    });
+
+    it('saves several components on a rule from the screen', async () => {
+      const res = await ctx.api('POST', '/rent/rules', { rentId: rent.rent_id, ruleType: 'Normal Day', fromDate: '01/06/2026', toDate: '30/06/2026', percentage: '0', componentCodes: ['OFFICE', 'Cafe'] });
+      assert.equal(res.status, 201, res.body.message);
+      assert.deepEqual(res.body.data.component_codes, ['CAFE', 'OFFICE']);
+      const bad = await ctx.api('POST', '/rent/rules', { rentId: rent.rent_id, ruleType: 'Normal Day', fromDate: '01/06/2026', toDate: '30/06/2026', percentage: '0', componentCodes: ['Gym'] });
+      assert.match(bad.body.message, /Component not recognised/);
+      await ctx.api('DELETE', `/rent/rules/${res.body.data.rule_id}`);
     });
   });
 });

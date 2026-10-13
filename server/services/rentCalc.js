@@ -53,14 +53,15 @@ function escalationChain(rules, { lcd, rcd }) {
     });
 }
 
-const appliesTo = (item, code) => !item.component_code || item.component_code === code;
+// A rule / waiver with no component list applies to every component
+const appliesTo = (item, code) => !item.component_codes || !item.component_codes.length || item.component_codes.includes(code);
 
 /**
  * Month lines for one Rent Code.
  *   rent        { rent_id, ll_status, inactive_end_date, lcd, rcd, led }
  *   agreements  [{ agreement_id, agreement_status, status, transfer_effective_date, components: [{ component_code, quantity, rate, percentage }] }]
- *   rules       [{ rule_id, rule_type, escalation_months, from_date, to_date, percentage, component_code, status }]
- *   waivers     [{ from_date, to_date, waiver_status, component_code }]
+ *   rules       [{ rule_id, rule_type, escalation_months, from_date, to_date, percentage, component_codes, status }]
+ *   waivers     [{ from_date, to_date, waiver_status, component_codes }]
  *   transferOutDate  earliest effective date of an active Transfer that takes this
  *                    Rent Code's configuration to another landlord (its rent stops the day before)
  *   fromMonth / toMonth  'YYYY-MM-01' range of months to produce

@@ -39,4 +39,55 @@ function findComponent(value) {
   return COMPONENTS.find((c) => [c.code, c.label, c.short].some((n) => n.toLowerCase() === v)) || null;
 }
 
-module.exports = { COMPONENTS, BY_CODE, triggerName, excelHeaders, monthlyAmount, findComponent };
+// Rule / Waiver "Applies to": one Yes/No column per component in Excel templates
+const appliesToHeader = (c) => `Applies to: ${c.short}`;
+const APPLIES_TO_COLUMNS = COMPONENTS.map((c) => ({ header: appliesToHeader(c), required: false }));
+
+/**
+ * "Applies to" components from the screen (array or comma-separated codes / names).
+ * Returns { codes: [...] | null (= all components), unknown: [values not recognised] }.
+ */
+function parseComponentList(value) {
+  const parts = Array.isArray(value) ? value : String(value ?? '').split(',');
+  const codes = [];
+  const unknown = [];
+  parts.map((p) => String(p).trim()).filter(Boolean).forEach((p) => {
+    const c = findComponent(p);
+    if (!c) unknown.push(p);
+    else if (!codes.includes(c.code)) codes.push(c.code);
+  });
+  return { codes: codes.length ? COMPONENTS.map((c) => c.code).filter((k) => codes.includes(k)) : null, unknown };
+}
+
+/**
+ * "Applies to" from an Excel row's Yes/No columns. Yes = selected, No / blank = not.
+ * Returns { given: false } when every column is blank (caller keeps the stored value
+ * or uses all components), else { given: true, codes, errors }.
+ */
+function componentsFromRow(row) {
+  const errors = [];
+  const codes = [];
+  let given = false;
+  COMPONENTS.forEach((c) => {
+    const header = appliesToHeader(c);
+    const raw = row[header] === undefined || row[header] === null ? '' : String(row[header]).trim();
+    if (!raw) return;
+    given = true;
+    const v = raw.toLowerCase();
+    if (v === 'yes' || v === 'y') codes.push(c.code);
+    else if (v !== 'no' && v !== 'n') errors.push({ field: header, value: raw, error: `${header} must be Yes or No.` });
+  });
+  if (given && !codes.length && !errors.length) {
+    errors.push({ field: 'Applies to', value: 'No', error: 'Select at least one component (Yes), or leave every Applies to column blank for all components.' });
+  }
+  return { given, codes, errors };
+}
+
+// Selected = Yes, else No (for exports); "All components" when the list is empty
+const appliesToValues = (codes) => COMPONENTS.map((c) => (!codes || !codes.length || codes.includes(c.code) ? 'Yes' : 'No'));
+const appliesToLabel = (codes) => (!codes || !codes.length ? 'All components' : codes.map((k) => BY_CODE[k]?.label || k).join(', '));
+
+module.exports = {
+  COMPONENTS, BY_CODE, triggerName, excelHeaders, monthlyAmount, findComponent,
+  APPLIES_TO_COLUMNS, parseComponentList, componentsFromRow, appliesToValues, appliesToLabel,
+};

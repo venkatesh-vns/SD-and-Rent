@@ -72,7 +72,7 @@ async function copyTransferConfiguration(agreement, by, db) {
     .filter((w) => w.waiver_status === 'Yes' && w.to_date >= agreement.transfer_effective_date);
   for (const w of sourceWaivers) {
     const from = w.from_date > agreement.transfer_effective_date ? w.from_date : agreement.transfer_effective_date;
-    const clash = await waiverModel.overlapping(agreement.rent_id, from, w.to_date, w.component_code, null, db);
+    const clash = await waiverModel.overlapping(agreement.rent_id, from, w.to_date, w.component_codes, null, db);
     if (!clash.length) await waiverModel.create({ ...w, rent_id: agreement.rent_id, from_date: from, remark: `Transferred from ${w.rent_code}` }, by, {}, db);
   }
   if (sourceWaivers.length) notes.push(`${sourceWaivers.length} waiver(s) copied`);

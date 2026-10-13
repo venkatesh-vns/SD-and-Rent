@@ -3,7 +3,7 @@ const waiverModel = require('../models/rentWaiverModel');
 const rentMasterModel = require('../models/rentMasterModel');
 const service = require('../services/rentService');
 const schedule = require('../services/rentScheduleService');
-const { BY_CODE } = require('../services/rentComponents');
+const { APPLIES_TO_COLUMNS, componentsFromRow, appliesToValues } = require('../services/rentComponents');
 const { logAudit } = require('../utils/audit');
 const { formatDMY, parseDMY } = require('../utils/dates');
 const { processUpload } = require('../utils/bulkUpload');
@@ -19,12 +19,13 @@ const COLUMNS = [
   { header: 'From Date', required: true },
   { header: 'To Date', required: true },
   { header: 'Waiver Status', required: true },
-  { header: 'Component', required: false },
   { header: 'Remark', required: false },
+  // One Yes/No column per component; all blank = all components
+  ...APPLIES_TO_COLUMNS,
 ];
 
 const fromBody = (b) => ({
-  rentId: b.rentId, fromDate: b.fromDate, toDate: b.toDate, waiverStatus: b.waiverStatus, componentCode: b.componentCode, remark: b.remark,
+  rentId: b.rentId, fromDate: b.fromDate, toDate: b.toDate, waiverStatus: b.waiverStatus, componentCodes: b.componentCodes, remark: b.remark,
 });
 
 async function getAll(req, res, next) {
@@ -110,7 +111,7 @@ async function exportAll(req, res, next) {
     await sendWorkbook(res, `Waiver_Master_${dateStamp()}.xlsx`, buildWorkbook('Waiver Master',
       [...COLUMNS.map((c) => c.header), 'SD Code', 'Landlord Name', 'Created By', 'Created Date', 'Modified By', 'Modified Date'],
       rows.map((w) => [w.waiver_id, w.rent_code, formatDMY(w.from_date), formatDMY(w.to_date), w.waiver_status,
-        w.component_code ? BY_CODE[w.component_code].label : '', w.remark || '', w.sd_code, w.landlord_name,
+        w.remark || '', ...appliesToValues(w.component_codes), w.sd_code, w.landlord_name,
         w.created_by, w.created_date, w.modified_by, w.modified_date])));
   } catch (err) {
     next(err);
@@ -144,9 +145,12 @@ async function bulkUpload(req, res, next) {
           fromDate: keep('From Date', formatDMY(before?.from_date)),
           toDate: keep('To Date', formatDMY(before?.to_date)),
           waiverStatus: keep('Waiver Status', before?.waiver_status),
-          componentCode: keep('Component', before?.component_code),
           remark: keep('Remark', before?.remark),
         };
+        // Applies to: the row's Yes/No columns, or (all blank) the stored list on an update
+        const applies = componentsFromRow(row);
+        if (applies.errors.length) return applies.errors;
+        input.componentCodes = applies.given ? applies.codes : (before?.component_codes || []);
         const { rec, errors, rent } = await service.validateWaiver(input, before);
         if (errors.length === 0 && before) {
           const k = `waiver:${before.waiver_id}`;
@@ -164,7 +168,7 @@ async function bulkUpload(req, res, next) {
           const { rec, rent } = resolved.get(v.rowNumber);
           if (rec.waiver_status !== 'Yes') continue;
           const clash = kept.find((k) => k.rent_id === rec.rent_id && k.from_date <= rec.to_date && k.to_date >= rec.from_date
-            && (!k.component_code || !rec.component_code || k.component_code === rec.component_code));
+            && (!k.component_codes || !rec.component_codes || k.component_codes.some((c) => rec.component_codes.includes(c))));
           if (clash) {
             errors.push({ rowNumber: v.rowNumber, field: 'From Date', value: formatDMY(rec.from_date), error: `Overlaps the waiver in row ${clash.rowNumber} for ${rent.rent_code}.` });
           } else kept.push({ ...rec, rowNumber: v.rowNumber });

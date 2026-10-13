@@ -15,6 +15,10 @@ export const COMPONENTS = [
   { code: 'MAINTENANCE', label: 'Maintenance Charges - Landlord', unit: 'sqft' },
 ];
 export const COMPONENT_LABEL = Object.fromEntries(COMPONENTS.map((c) => [c.code, c.label]));
+// "Applies to" of a rule / waiver: no list = all components
+export const appliesToLabel = (codes) => (!codes || !codes.length ? 'All components' : codes.map((k) => COMPONENT_LABEL[k] || k).join(', '));
+export const COMPONENT_OPTIONS = COMPONENTS.map((c) => ({ value: c.code, label: c.label }));
+
 export const triggerName = (c) => (c.unit === 'sqft' ? 'Sq.Ft' : c.unit === 'count' ? 'No.' : 'Rate / Month');
 
 // Quantity x Rate x % (Signage / Solar: Rate x %)

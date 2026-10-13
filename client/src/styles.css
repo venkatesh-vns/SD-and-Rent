@@ -1193,6 +1193,12 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
 .component-grid tr.is-used th[scope='row'] { color: var(--primary-strong); }
 .component-grid tr.is-used { background: var(--primary-tint); }
 .component-grid tfoot th, .component-grid tfoot td { background: var(--surface-2); }
+/* Multi-select inside a pop-up form: the panel opens in-line (not floating),
+   so the form's own scrolling never cuts it off */
+.modal-content .applies-to .multi-select { width: 100%; max-width: none; }
+.modal-content .applies-to .multi-select-panel { position: static; width: 100%; margin-top: 6px; box-shadow: var(--shadow-sm); }
+.modal-content .applies-to .multi-select-list { max-height: 320px; }
+.applies-to .hint { display: block; margin-top: 0.3rem; }
 .rent-tiles { margin: 0.2rem 0 0.9rem; }
 .rent-view { margin-bottom: 0.8rem; flex-wrap: wrap; }
 .rent-runs { margin-top: 1.2rem; }

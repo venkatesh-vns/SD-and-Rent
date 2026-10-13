@@ -44,34 +44,35 @@ async function forRents(rentIds, db = pool) {
   return (await db.query(`${SELECT} WHERE w.rent_id = ANY($1::int[]) ORDER BY w.from_date`, [rentIds])).rows;
 }
 
-// Active (Status Yes) waivers of a Rent Code overlapping from-to, except one waiver
-async function overlapping(rentId, from, to, componentCode, exceptId, db = pool) {
+// Active (Status Yes) waivers of a Rent Code overlapping from-to and sharing a
+// component (no list = all components), except one waiver
+async function overlapping(rentId, from, to, componentCodes, exceptId, db = pool) {
   return (await db.query(
     `SELECT waiver_id, from_date, to_date FROM rent_waivers
      WHERE rent_id = $1 AND waiver_status = 'Yes' AND from_date <= $3::date AND to_date >= $2::date
        AND waiver_id <> COALESCE($5, 0)
-       AND (component_code IS NULL OR $4::varchar IS NULL OR component_code = $4)`,
-    [rentId, from, to, componentCode, exceptId]
+       AND (component_codes IS NULL OR $4::varchar[] IS NULL OR component_codes && $4::varchar[])`,
+    [rentId, from, to, componentCodes && componentCodes.length ? componentCodes : null, exceptId]
   )).rows;
 }
 
 async function create(rec, by, { uploaded = false } = {}, db = pool) {
   const r = await db.query(
-    `INSERT INTO rent_waivers (rent_id, from_date, to_date, waiver_status, component_code, remark, created_by, uploaded_by, uploaded_date)
+    `INSERT INTO rent_waivers (rent_id, from_date, to_date, waiver_status, component_codes, remark, created_by, uploaded_by, uploaded_date)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING waiver_id`,
-    [rec.rent_id, rec.from_date, rec.to_date, rec.waiver_status, rec.component_code, rec.remark, by, uploaded ? by : null, uploaded ? new Date() : null]
+    [rec.rent_id, rec.from_date, rec.to_date, rec.waiver_status, rec.component_codes, rec.remark, by, uploaded ? by : null, uploaded ? new Date() : null]
   );
   return findById(r.rows[0].waiver_id, db);
 }
 
 async function update(id, rec, by, { uploaded = false } = {}, db = pool) {
   await db.query(
-    `UPDATE rent_waivers SET rent_id = $2, from_date = $3, to_date = $4, waiver_status = $5, component_code = $6, remark = $7,
+    `UPDATE rent_waivers SET rent_id = $2, from_date = $3, to_date = $4, waiver_status = $5, component_codes = $6, remark = $7,
             modified_by = $8, modified_date = NOW(),
             uploaded_by = CASE WHEN $9 THEN $8 ELSE uploaded_by END,
             uploaded_date = CASE WHEN $9 THEN NOW() ELSE uploaded_date END
      WHERE waiver_id = $1`,
-    [id, rec.rent_id, rec.from_date, rec.to_date, rec.waiver_status, rec.component_code, rec.remark, by, uploaded]
+    [id, rec.rent_id, rec.from_date, rec.to_date, rec.waiver_status, rec.component_codes, rec.remark, by, uploaded]
   );
   return findById(id, db);
 }

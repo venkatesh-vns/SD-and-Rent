@@ -11,12 +11,12 @@ import { useAuth } from '../../context/AuthContext';
 import { SCREENS } from '../../config/screens';
 import useDebounce from '../../hooks/useDebounce';
 import { formatDate } from '../../utils/format';
-import { COMPONENTS, COMPONENT_LABEL, useRentLookups, rentLabel, DateInput, FormErrors, LeaseDates } from './rentShared';
+import { COMPONENT_OPTIONS, appliesToLabel, useRentLookups, rentLabel, DateInput, FormErrors, LeaseDates } from './rentShared';
 
 const PAGE_SIZE = 50;
 const RULE_TYPES = ['RCD', 'LCD', 'Normal Day'];
 const EMPTY_FILTERS = { search: '', rentId: [], ruleType: [], status: [] };
-const EMPTY_FORM = { rentId: '', ruleType: 'RCD', escalationMonths: '', fromDate: '', toDate: '', percentage: '', componentCode: '', status: 'Active' };
+const EMPTY_FORM = { rentId: '', ruleType: 'RCD', escalationMonths: '', fromDate: '', toDate: '', percentage: '', componentCodes: [], status: 'Active' };
 
 const columns = [
   { key: 'id', label: 'Rule ID' },
@@ -41,7 +41,7 @@ const toRow = (r) => ({
   months: r.escalation_months ?? '—',
   period: r.rule_type === 'Normal Day' ? `${formatDate(r.from_date)} – ${formatDate(r.to_date)}` : '—',
   percentage: pct(r.percentage),
-  component: r.component_code ? COMPONENT_LABEL[r.component_code] : 'All components',
+  component: appliesToLabel(r.component_codes),
   effective: formatDate(r.effective_date) || '—',
   status: r.status,
   cellClass: { rentCode: 'code-cell', percentage: Number(r.percentage) < 0 ? 'num tone-out' : 'num tone-paid' },
@@ -93,7 +93,7 @@ export default function RentRules() {
     setForm({
       rentId: String(r.rent_id), ruleType: r.rule_type, escalationMonths: r.escalation_months ?? '',
       fromDate: formatDate(r.from_date), toDate: formatDate(r.to_date), percentage: String(Number(r.percentage)),
-      componentCode: r.component_code || '', status: r.status,
+      componentCodes: r.component_codes || [], status: r.status,
     });
     setModal({ editing: r });
   };
@@ -153,7 +153,7 @@ export default function RentRules() {
         {can(SCREENS.RENT_RULE, 'upload') && (
           <>
             <ExcelUpload endpoint="/rent/rules" templateName="Rule_Master_Template.xlsx" onUploaded={fetchRows} />
-            <p className="hint upload-note">Leave Rule ID blank to add a rule; fill it to update that rule. Rules of one Rent Code are applied in row order. Dates as DD/MM/YYYY.</p>
+            <p className="hint upload-note">Leave Rule ID blank to add a rule; fill it to update that rule. Rules of one Rent Code are applied in row order. "Applies to: ..." columns: Yes = selected, No = not selected; leave them all blank for all components. Dates as DD/MM/YYYY.</p>
           </>
         )}
 
@@ -212,18 +212,19 @@ export default function RentRules() {
                     <input id="percentage" inputMode="decimal" placeholder="e.g. 5, 0, -10" required value={form.percentage} onChange={set('percentage')} />
                   </div>
                   <div>
-                    <label htmlFor="componentCode">Applies to</label>
-                    <select id="componentCode" value={form.componentCode} onChange={set('componentCode')}>
-                      <option value="">All components</option>
-                      {COMPONENTS.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
-                    </select>
-                  </div>
-                  <div>
                     <label htmlFor="status">Status</label>
                     <select id="status" value={form.status} onChange={set('status')}>
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
                     </select>
+                  </div>
+                  <div className="span-2 applies-to">
+                    <label>Applies to</label>
+                    <MultiSelect
+                      allLabel="All components" noun="components" options={COMPONENT_OPTIONS}
+                      value={form.componentCodes} onChange={(v) => setForm({ ...form, componentCodes: v })}
+                    />
+                    <span className="hint">Tick one or more components; leave empty for all components.</span>
                   </div>
                 </div>
                 <p className="hint">

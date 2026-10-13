@@ -115,7 +115,7 @@ test('rules can target one component; transfer splits rent between Rent Codes', 
   const { lines } = run({
     rent: rent({ rcd: '2026-01-01', led: '2026-12-31' }),
     agreements: [agreement(comps)],
-    rules: [{ rule_id: 1, rule_type: 'RCD', escalation_months: 1, percentage: 10, status: 'Active', component_code: 'SOLAR' }],
+    rules: [{ rule_id: 1, rule_type: 'RCD', escalation_months: 1, percentage: 10, status: 'Active', component_codes: ['SOLAR'] }],
     transferOutDate: '2026-07-01',
   });
   const office2 = lines.filter((l) => l.component_code === 'OFFICE');
@@ -129,4 +129,17 @@ test('rules can target one component; transfer splits rent between Rent Codes', 
     agreements: [agreement([office(1000, 1, 100)], { agreement_status: 'Transfer', transfer_effective_date: '2026-07-01' })],
   });
   assert.equal(target.lines[0].rent_month, '2026-07-01', 'transfer starts on its effective date');
+});
+
+test('rules and waivers can apply to several components', () => {
+  const comps = [office(1000, 1, 100), { component_code: 'CAFE', quantity: 100, rate: 1, percentage: 100 }, { component_code: 'SOLAR', quantity: null, rate: 500, percentage: 100 }];
+  const { lines } = run({
+    rent: rent({ rcd: '2026-01-01', led: '2026-12-31' }),
+    agreements: [agreement(comps)],
+    rules: [{ rule_id: 1, rule_type: 'RCD', escalation_months: 1, percentage: 10, status: 'Active', component_codes: ['OFFICE', 'CAFE'] }],
+    waivers: [{ from_date: '2026-03-01', to_date: '2026-03-31', waiver_status: 'Yes', component_codes: ['CAFE', 'SOLAR'] }],
+  });
+  const at = (code, m) => lines.find((l) => l.component_code === code && l.rent_month === m).final_amount;
+  assert.deepEqual([at('OFFICE', '2026-02-01'), at('CAFE', '2026-02-01'), at('SOLAR', '2026-02-01')], [1100, 110, 500], 'rule on Office + Cafe only');
+  assert.deepEqual([at('OFFICE', '2026-03-01'), at('CAFE', '2026-03-01'), at('SOLAR', '2026-03-01')], [1100, 0, 0], 'waiver on Cafe + Solar only');
 });

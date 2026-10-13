@@ -49,10 +49,10 @@ async function forRents(rentIds, db = pool) {
 
 async function create(rec, by, { uploaded = false } = {}, db = pool) {
   const r = await db.query(
-    `INSERT INTO rent_rules (rent_id, rule_type, escalation_months, from_date, to_date, percentage, component_code, status,
+    `INSERT INTO rent_rules (rent_id, rule_type, escalation_months, from_date, to_date, percentage, component_codes, status,
                              created_by, uploaded_by, uploaded_date)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING rule_id`,
-    [rec.rent_id, rec.rule_type, rec.escalation_months, rec.from_date, rec.to_date, rec.percentage, rec.component_code, rec.status,
+    [rec.rent_id, rec.rule_type, rec.escalation_months, rec.from_date, rec.to_date, rec.percentage, rec.component_codes, rec.status,
       by, uploaded ? by : null, uploaded ? new Date() : null]
   );
   return findById(r.rows[0].rule_id, db);
@@ -61,11 +61,11 @@ async function create(rec, by, { uploaded = false } = {}, db = pool) {
 async function update(id, rec, by, { uploaded = false } = {}, db = pool) {
   await db.query(
     `UPDATE rent_rules SET rent_id = $2, rule_type = $3, escalation_months = $4, from_date = $5, to_date = $6, percentage = $7,
-            component_code = $8, status = $9, modified_by = $10, modified_date = NOW(),
+            component_codes = $8, status = $9, modified_by = $10, modified_date = NOW(),
             uploaded_by = CASE WHEN $11 THEN $10 ELSE uploaded_by END,
             uploaded_date = CASE WHEN $11 THEN NOW() ELSE uploaded_date END
      WHERE rule_id = $1`,
-    [id, rec.rent_id, rec.rule_type, rec.escalation_months, rec.from_date, rec.to_date, rec.percentage, rec.component_code, rec.status, by, uploaded]
+    [id, rec.rent_id, rec.rule_type, rec.escalation_months, rec.from_date, rec.to_date, rec.percentage, rec.component_codes, rec.status, by, uploaded]
   );
   return findById(id, db);
 }

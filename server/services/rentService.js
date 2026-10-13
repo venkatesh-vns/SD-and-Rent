@@ -9,7 +9,7 @@ const rentMasterModel = require('../models/rentMasterModel');
 const agreementModel = require('../models/rentAgreementModel');
 const ruleModel = require('../models/rentRuleModel');
 const waiverModel = require('../models/rentWaiverModel');
-const { COMPONENTS, BY_CODE, triggerName, findComponent } = require('./rentComponents');
+const { COMPONENTS, BY_CODE, triggerName, findComponent, parseComponentList } = require('./rentComponents');
 const { escalationChain } = require('./rentCalc');
 const { parseDMY, formatDMY } = require('../utils/dates');
 
@@ -277,18 +277,14 @@ async function validateRule(input, before = null) {
   if (percentage === null) err('Percentage', '', 'Percentage is required (it may be 0 or negative).');
   else if (percentage === undefined || percentage < -100 || percentage > 1000) err('Percentage', input.percentage, 'Percentage must be a number from -100 to 1000.');
 
-  let componentCode = null;
-  if (!blank(input.componentCode)) {
-    const c = findComponent(input.componentCode);
-    if (!c) err('Component', input.componentCode, 'Component not recognised. Leave blank to apply to all components.');
-    componentCode = c?.code || null;
-  }
+  const applies = parseComponentList(input.componentCodes);
+  if (applies.unknown.length) err('Applies to', applies.unknown.join(', '), 'Component not recognised. Leave Applies to empty for all components.');
   const status = blank(input.status) ? 'Active' : pick(RECORD_STATUSES, input.status);
   if (!status) err('Status', input.status, 'Status must be Active or Inactive.');
 
   const rec = {
     rent_id: rent?.rent_id, rule_type: ruleType, escalation_months: months, from_date: from, to_date: to,
-    percentage, component_code: componentCode, status,
+    percentage, component_codes: applies.codes, status,
   };
   let chain = [];
   if (errors.length === 0) {
@@ -343,18 +339,14 @@ async function validateWaiver(input, before = null) {
 
   const waiverStatus = pick(WAIVER_STATUSES, input.waiverStatus);
   if (!waiverStatus) err('Waiver Status', input.waiverStatus, blank(input.waiverStatus) ? 'Waiver Status is required.' : 'Waiver Status must be Yes or No.');
-  let componentCode = null;
-  if (!blank(input.componentCode)) {
-    const c = findComponent(input.componentCode);
-    if (!c) err('Component', input.componentCode, 'Component not recognised. Leave blank to waive all components.');
-    componentCode = c?.code || null;
-  }
+  const applies = parseComponentList(input.componentCodes);
+  if (applies.unknown.length) err('Applies to', applies.unknown.join(', '), 'Component not recognised. Leave Applies to empty to waive all components.');
   const remark = text(input.remark);
   if (remark && remark.length > REMARK_MAX) err('Remark', `${remark.slice(0, 20)}...`, `Remark must be ${REMARK_MAX} characters or fewer.`);
 
-  const rec = { rent_id: rent?.rent_id, from_date: from, to_date: to, waiver_status: waiverStatus, component_code: componentCode, remark };
+  const rec = { rent_id: rent?.rent_id, from_date: from, to_date: to, waiver_status: waiverStatus, component_codes: applies.codes, remark };
   if (errors.length === 0 && waiverStatus === 'Yes') {
-    const clash = await waiverModel.overlapping(rent.rent_id, from, to, componentCode, before?.waiver_id);
+    const clash = await waiverModel.overlapping(rent.rent_id, from, to, applies.codes, before?.waiver_id);
     if (clash.length) {
       err('From Date', input.fromDate, `Overlaps the waiver ${dmy(clash[0].from_date)} to ${dmy(clash[0].to_date)} of ${rent.rent_code}.`);
     }

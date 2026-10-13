@@ -12,11 +12,11 @@ import { useAuth } from '../../context/AuthContext';
 import { SCREENS } from '../../config/screens';
 import useDebounce from '../../hooks/useDebounce';
 import { formatDate } from '../../utils/format';
-import { COMPONENTS, COMPONENT_LABEL, useRentLookups, rentLabel, DateInput, FormErrors, LeaseDates } from './rentShared';
+import { COMPONENT_OPTIONS, appliesToLabel, useRentLookups, rentLabel, DateInput, FormErrors, LeaseDates } from './rentShared';
 
 const PAGE_SIZE = 50;
 const EMPTY_FILTERS = { search: '', rentId: [], waiverStatus: [], dateFrom: '', dateTo: '' };
-const EMPTY_FORM = { rentId: '', fromDate: '', toDate: '', waiverStatus: 'Yes', componentCode: '', remark: '' };
+const EMPTY_FORM = { rentId: '', fromDate: '', toDate: '', waiverStatus: 'Yes', componentCodes: [], remark: '' };
 
 const columns = [
   { key: 'id', label: 'Waiver ID' },
@@ -36,7 +36,7 @@ const toRow = (w) => ({
   from: formatDate(w.from_date),
   to: formatDate(w.to_date),
   waiverStatus: w.waiver_status,
-  component: w.component_code ? COMPONENT_LABEL[w.component_code] : 'All components',
+  component: appliesToLabel(w.component_codes),
   remark: w.remark || '—',
   cellClass: { rentCode: 'code-cell' },
   raw: w,
@@ -84,7 +84,7 @@ export default function RentWaivers() {
       return;
     }
     const w = row.raw;
-    setForm({ rentId: String(w.rent_id), fromDate: formatDate(w.from_date), toDate: formatDate(w.to_date), waiverStatus: w.waiver_status, componentCode: w.component_code || '', remark: w.remark || '' });
+    setForm({ rentId: String(w.rent_id), fromDate: formatDate(w.from_date), toDate: formatDate(w.to_date), waiverStatus: w.waiver_status, componentCodes: w.component_codes || [], remark: w.remark || '' });
     setModal({ editing: w });
   };
 
@@ -140,7 +140,7 @@ export default function RentWaivers() {
         {can(SCREENS.RENT_WAIVER, 'upload') && (
           <>
             <ExcelUpload endpoint="/rent/waivers" templateName="Waiver_Master_Template.xlsx" onUploaded={fetchRows} />
-            <p className="hint upload-note">A row with the same Rent Code, From Date and To Date as a saved waiver updates it (for example to Status No); otherwise a waiver is added. Dates as DD/MM/YYYY.</p>
+            <p className="hint upload-note">A row with the same Rent Code, From Date and To Date as a saved waiver updates it (for example to Status No); otherwise a waiver is added. "Applies to: ..." columns: Yes = selected, No = not selected; leave them all blank for all components. Dates as DD/MM/YYYY.</p>
           </>
         )}
 
@@ -189,12 +189,13 @@ export default function RentWaivers() {
                       <option value="No">No</option>
                     </select>
                   </div>
-                  <div>
-                    <label htmlFor="componentCode">Applies to</label>
-                    <select id="componentCode" value={form.componentCode} onChange={set('componentCode')}>
-                      <option value="">All components</option>
-                      {COMPONENTS.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
-                    </select>
+                  <div className="span-2 applies-to">
+                    <label>Applies to</label>
+                    <MultiSelect
+                      allLabel="All components" noun="components" options={COMPONENT_OPTIONS}
+                      value={form.componentCodes} onChange={(v) => setForm({ ...form, componentCodes: v })}
+                    />
+                    <span className="hint">Tick one or more components; leave empty for all components.</span>
                   </div>
                   <div className="span-2">
                     <label htmlFor="remark">Remark</label>

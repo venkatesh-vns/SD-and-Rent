@@ -3,7 +3,7 @@ const ruleModel = require('../models/rentRuleModel');
 const rentMasterModel = require('../models/rentMasterModel');
 const service = require('../services/rentService');
 const schedule = require('../services/rentScheduleService');
-const { BY_CODE } = require('../services/rentComponents');
+const { APPLIES_TO_COLUMNS, componentsFromRow, appliesToValues } = require('../services/rentComponents');
 const { escalationChain } = require('../services/rentCalc');
 const { logAudit } = require('../utils/audit');
 const { formatDMY } = require('../utils/dates');
@@ -21,13 +21,14 @@ const COLUMNS = [
   { header: 'From Date', required: false },
   { header: 'To Date', required: false },
   { header: 'Percentage', required: true },
-  { header: 'Component', required: false },
   { header: 'Status', required: false },
+  // One Yes/No column per component; all blank = all components
+  ...APPLIES_TO_COLUMNS,
 ];
 
 const fromBody = (b) => ({
   rentId: b.rentId, ruleType: b.ruleType, escalationMonths: b.escalationMonths, fromDate: b.fromDate, toDate: b.toDate,
-  percentage: b.percentage, componentCode: b.componentCode, status: b.status,
+  percentage: b.percentage, componentCodes: b.componentCodes, status: b.status,
 });
 
 // Re-calculates and stores the escalation dates of a Rent Code's rules
@@ -140,7 +141,7 @@ async function exportAll(req, res, next) {
     await sendWorkbook(res, `Rule_Master_${dateStamp()}.xlsx`, buildWorkbook('Rule Master',
       [...COLUMNS.map((c) => c.header), 'Escalation Date', 'LCD', 'RCD', 'LED', 'Created By', 'Created Date', 'Modified By', 'Modified Date'],
       data.map((r) => [r.rule_id, r.rent_code, r.rule_type, r.escalation_months ?? '', formatDMY(r.from_date), formatDMY(r.to_date),
-        Number(r.percentage), r.component_code ? BY_CODE[r.component_code].label : '', r.status,
+        Number(r.percentage), r.status, ...appliesToValues(r.component_codes),
         formatDMY(r.effective_date), formatDMY(r.lcd), formatDMY(r.rcd), formatDMY(r.led),
         r.created_by, r.created_date, r.modified_by, r.modified_date])));
   } catch (err) {
@@ -172,9 +173,12 @@ async function bulkUpload(req, res, next) {
           fromDate: keep('From Date', formatDMY(before?.from_date)),
           toDate: keep('To Date', formatDMY(before?.to_date)),
           percentage: keep('Percentage', before ? Number(before.percentage) : ''),
-          componentCode: keep('Component', before?.component_code),
           status: keep('Status', before?.status),
         };
+        // Applies to: the row's Yes/No columns, or (all blank) the stored list on an update
+        const applies = componentsFromRow(row);
+        if (applies.errors.length) return applies.errors;
+        input.componentCodes = applies.given ? applies.codes : (before?.component_codes || []);
         const { rec, errors, rent } = await service.validateRule(input, before);
         if (errors.length === 0) resolved.set(rowNumber, { rec, before, rent });
         return errors;
