@@ -208,4 +208,42 @@ describe('Rent Transaction module', () => {
       await ctx.api('DELETE', `/rent/rules/${res.body.data.rule_id}`);
     });
   });
+
+  describe('SD & Rent Transaction Summary Report', () => {
+    it('lists SD transactions and Rent Schedule lines together, with filters, totals and summaries', async () => {
+      const txn = await ctx.api('POST', '/sd-transactions', {
+        sdId: sd.sd_id, sdType: 'Landlord SD', fy: '2026-2027', txnDate: '05/05/2026', agreementStatus: 'LOI', paidAmount: '50000', refundAmount: '',
+      });
+      assert.equal(txn.status, 201, txn.body.message);
+      const report = async (qs) => (await ctx.api('GET', `/reports/sd-rent?pageSize=500&${qs}`)).body;
+
+      const all = await report(`sdId=${sd.sd_id}&dateFrom=01/05/2026&dateTo=31/05/2026`);
+      const sdRow = all.data.find((r) => r.source === 'SD');
+      assert.equal(sdRow.expense_category, 'Security Deposit');
+      assert.equal(sdRow.expense_head, 'Landlord SD');
+      assert.equal(Number(sdRow.amount), 50000);
+      const rentRow = all.data.find((r) => r.source === 'Rent');
+      assert.equal(rentRow.expense_head, 'Rent to Landlord - Office Rent');
+      assert.equal(rentRow.expense_category, 'Rent');
+      assert.equal(rentRow.rent_code, rent.rent_code);
+      assert.equal(Number(all.totals.sd_amount), 50000);
+      assert.equal(Number(all.totals.rent_amount), Number(rentRow.amount));
+
+      const onlyRent = await report(`sdId=${sd.sd_id}&expenseHead=Rent to Landlord - Office Rent&dateFrom=01/05/2026&dateTo=31/05/2026`);
+      assert.ok(onlyRent.data.length > 0 && onlyRent.data.every((r) => r.source === 'Rent'));
+      const byLandlord = await report(`landlordName=New Owner`);
+      assert.ok(byLandlord.data.every((r) => r.landlord_name === 'New Owner'));
+
+      const sum = (await ctx.api('GET', `/reports/sd-rent/summary?groupBy=costCenter&sdId=${sd.sd_id}`)).body.data;
+      assert.equal(sum[0].group_key, 'Test CC');
+      assert.equal(Number(sum[0].sd_amount), 50000);
+      const opts = (await ctx.api('GET', '/reports/sd-rent/options')).body.data;
+      assert.ok(opts.expenseHeads.includes('Landlord SD') && opts.expenseHeads.includes('Maintenance Charges - Landlord'));
+
+      const file = await ctx.download(`/reports/sd-rent/export?sdId=${sd.sd_id}`);
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(file.buffer);
+      assert.ok(['SD & Rent Transactions', 'By Cost Center', 'By Landlord', 'By Expense Head'].every((n) => wb.getWorksheet(n)));
+    });
+  });
 });

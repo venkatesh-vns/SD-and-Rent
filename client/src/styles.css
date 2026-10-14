@@ -1200,6 +1200,17 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
 .modal-content .applies-to .multi-select-list { max-height: 320px; }
 .applies-to .hint { display: block; margin-top: 0.3rem; }
 .rent-tiles { margin: 0.2rem 0 0.9rem; }
+/* SD & Rent Transaction Summary Report */
+.category-chip {
+  display: inline-block; padding: 0.08rem 0.5rem; border-radius: 999px; font-size: 0.74rem; font-weight: 600; white-space: nowrap;
+  color: var(--tone); background: var(--tone-bg); border: 1px solid color-mix(in srgb, var(--tone) 25%, white);
+}
+.data-table td.amount-negative strong { color: var(--danger); }
+.report-note { margin-top: 0.8rem; }
+@media print {
+  .sd-rent-report .filter-bar, .sd-rent-report .rent-view, .sd-rent-report .pager, .sd-rent-report .report-note { display: none !important; }
+  .sd-rent-report .table-wrap { max-height: none; overflow: visible; }
+}
 .rent-view { margin-bottom: 0.8rem; flex-wrap: wrap; }
 .rent-runs { margin-top: 1.2rem; }
 .rent-runs table { margin-top: 0.6rem; }

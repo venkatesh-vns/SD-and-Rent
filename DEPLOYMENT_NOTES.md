@@ -42,7 +42,7 @@ pg_restore -U postgres -d sd_maintenance_restored --no-owner "D:\DatabasePostger
 ```
 
 The UAT database `sd_rent_uat` was created from this backup, then migration
-`010_rent_module.sql` and `011_rent_multi_component.sql` were applied to it only.
+`010_rent_module.sql`, `011_rent_multi_component.sql` and `012_sd_rent_report.sql` were applied to it only.
 
 ## 4. What is new — Rent Transaction menu
 
@@ -53,6 +53,14 @@ The UAT database `sd_rent_uat` was created from this backup, then migration
 | Rule Master | /rent/rules | RCD / LCD escalation chains, Normal Day periods, positive / zero / negative % |
 | Waiver Master | /rent/waivers | Rent-free periods (Yes / No), overlap and range checks |
 | Rent Schedule | /rent/schedule | Generate / Regenerate, multi-select filters, period presets, summaries by Agreement Header / Cost Center / Landlord / Rent Code / Month, Excel and PDF export, generation history |
+
+**Reports > SD & Rent Transaction Summary Report** (/reports/sd-rent): SD transactions
+(Expense Category "Security Deposit", Expense Head = SD Type, amount = Paid − Transfer −
+Adjustment − Refund) and generated Rent Schedule months ("Rent" / "Maintenance", Expense
+Head = component, amount = final monthly rent) in one list with Cost Center, SD Code,
+Landlord, Floor, Rent Code, Agreement No., Effective Date and Status. Multi-select filters
+(Cost Center, Landlord, Floor, SD Code, Expense Head, Category, Status) and a date range;
+views by Cost Center / Landlord / Expense Head / Floor / Month; Excel and PDF export.
 
 All four masters: Add, Edit, Delete, Search, View, Excel template, bulk upload / update,
 Export. Upload results download as Excel with each row **Success** (green) or
@@ -94,7 +102,7 @@ Maintenance Charges (scope 3.3).
 
 ## 6. Testing performed
 
-- **92 automated tests pass** (66 existing SD tests unchanged + 26 new): every
+- **93 automated tests pass** (66 existing SD tests unchanged + 27 new): every
   example in the scope document (component samples, 4.2 escalation dates, 4.3
   percentages, 6.3 pro-rating, 6.4 worked scenario, Inactive End Date, waivers,
   transfers), validations, locking, bulk uploads, report output, regeneration.

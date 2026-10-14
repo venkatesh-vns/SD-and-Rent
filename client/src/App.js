@@ -26,6 +26,7 @@ import RentAgreements from './pages/rent/RentAgreements';
 import RentRules from './pages/rent/RentRules';
 import RentWaivers from './pages/rent/RentWaivers';
 import RentSchedule from './pages/rent/RentSchedule';
+import SdRentReport from './pages/SdRentReport';
 
 function App() {
   return (
@@ -54,6 +55,7 @@ function App() {
           <Route path="/rent/agreements" element={<ProtectedRoute screen={SCREENS.RENT_AGREEMENT}><RentAgreements /></ProtectedRoute>} />
           <Route path="/rent/rules" element={<ProtectedRoute screen={SCREENS.RENT_RULE}><RentRules /></ProtectedRoute>} />
           <Route path="/rent/waivers" element={<ProtectedRoute screen={SCREENS.RENT_WAIVER}><RentWaivers /></ProtectedRoute>} />
+          <Route path="/reports/sd-rent" element={<ProtectedRoute screen={SCREENS.SD_RENT_REPORT}><SdRentReport /></ProtectedRoute>} />
           <Route path="/rent/schedule" element={<ProtectedRoute screen={SCREENS.RENT_SCHEDULE}><RentSchedule /></ProtectedRoute>} />
 
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

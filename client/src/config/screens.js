@@ -16,6 +16,7 @@ export const SCREENS = {
   RENT_RULE: 'RENT_RULE',
   RENT_WAIVER: 'RENT_WAIVER',
   RENT_SCHEDULE: 'RENT_SCHEDULE',
+  SD_RENT_REPORT: 'SD_RENT_REPORT',
 };
 
 // Screens that are built, in menu order. Add an entry here as each module
@@ -55,6 +56,7 @@ export const MENU = [
     items: [
       { screen: SCREENS.SD_DASHBOARD, label: 'SD Dashboard', path: '/sd-dashboard', description: 'Management overview: SD exposure, upcoming lease dates, recoveries and trends.' },
       { screen: SCREENS.SD_REPORT, label: 'SD Balance Report', path: '/reports/sd-balance', description: 'Balances and repayable amounts per SD Code, with totals and export.' },
+      { screen: SCREENS.SD_RENT_REPORT, label: 'SD & Rent Transaction Summary', path: '/reports/sd-rent', description: 'SD transactions and monthly rent together, by cost center, landlord, floor and expense head.' },
     ],
   },
   {

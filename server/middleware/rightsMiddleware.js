@@ -18,6 +18,7 @@ const SCREENS = {
   RENT_RULE: 'RENT_RULE',
   RENT_WAIVER: 'RENT_WAIVER',
   RENT_SCHEDULE: 'RENT_SCHEDULE',
+  SD_RENT_REPORT: 'SD_RENT_REPORT',
 };
 
 // Route guard: requireRight(SCREENS.USER, 'edit'). Must run after
