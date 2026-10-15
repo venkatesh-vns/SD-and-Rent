@@ -118,3 +118,18 @@ Maintenance Charges (scope 3.3).
   field); a blank upload cell keeps the stored value.
 - PDF export uses the browser's print dialog (Save as PDF).
 - The Windows desktop installer (setup.exe) does not yet include the Rent module.
+
+## 8. UAT Release 1 — v2.0.0-uat.1 (desktop installer)
+
+- Installer: `desktop/dist/SD-and-Rent-UAT-Setup-2.0.0-uat.1.exe` (also on the GitHub
+  pre-release `v2.0.0-uat.1`). Build again with `cd desktop` then `npm run dist:uat`.
+- Installs as **"SD and Rent UAT"**, side by side with the live SD Maintenance app: own
+  data folder (`%APPDATA%\SD and Rent UAT`), port **5250**, private PostgreSQL on 5545,
+  own firewall rule. Emails are dry-run (Email Log only).
+- Install on one main PC ("This PC holds the data", creates the admin), then on testers'
+  PCs ("Connect to the main PC" with the address shown under Settings > Address for
+  other PCs). The UAT app starts with an empty database: testers create or upload data.
+- Test cases: `docs/UAT/SD_and_Rent_UAT_Test_Cases_v2.0.0-uat.1.xlsx` (68 cases, Summary
+  sheet counts Pass / Fail / Blocked / Not Run automatically).
+- Feedback, bugs and enhancements are fixed in the next UAT release (uat.2, ...);
+  production is deployed only after final approval.

@@ -17,7 +17,7 @@ function lanAddresses() {
  * firstAdmin = { email, password } creates the admin user on an empty database.
  * Returns { close() }.
  */
-async function startBackend({ backendDir, uploadDir, httpPort, pgPort, dbUser, dbName, dbPassword, jwtSecret, settingsSecret, firstAdmin, log }) {
+async function startBackend({ backendDir, uploadDir, httpPort, pgPort, dbUser, dbName, dbPassword, jwtSecret, settingsSecret, emailDryRun = false, firstAdmin, log }) {
   fs.mkdirSync(uploadDir, { recursive: true });
   const lan = lanAddresses()[0];
   Object.assign(process.env, {
@@ -35,7 +35,7 @@ async function startBackend({ backendDir, uploadDir, httpPort, pgPort, dbUser, d
     MIGRATIONS_DIR: path.join(backendDir, 'database', 'migrations'),
     UPLOAD_DIR: uploadDir,
     NOTIFY_ENABLED: 'true',
-    EMAIL_DRY_RUN: 'false',
+    EMAIL_DRY_RUN: emailDryRun ? 'true' : 'false', // UAT build: emails are logged, never sent
   });
 
   const server = (p) => require(path.join(backendDir, 'server', p));

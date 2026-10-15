@@ -10,7 +10,8 @@
     "prepare-resources": "node scripts/prepare.js",
     "icon": "electron scripts/make-icon.js",
     "start": "electron .",
-    "dist": "node scripts/prepare.js && electron scripts/make-icon.js && electron-builder --win nsis"
+    "dist": "node scripts/prepare.js && electron scripts/make-icon.js && electron-builder --win nsis",
+    "dist:uat": "node scripts/prepare.js && electron scripts/make-icon.js && electron-builder --win nsis --config scripts/uat.config.js"
   },
   "devDependencies": {
     "electron": "^33.2.1",
@@ -30,15 +31,29 @@
       "preload.js",
       "lib/**",
       "ui/**",
-      "package.json"
+      "package.json",
+      "!scripts/**"
     ],
     "extraResources": [
-      { "from": "staging/backend", "to": "backend" },
-      { "from": "staging/pgsql", "to": "pgsql" }
+      {
+        "from": "staging/backend",
+        "to": "backend"
+      },
+      {
+        "from": "staging/pgsql",
+        "to": "pgsql"
+      }
     ],
     "asar": true,
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.png",
       "artifactName": "SD-Maintenance-Setup-${version}.${ext}"
     },

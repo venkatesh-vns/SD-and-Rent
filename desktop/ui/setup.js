@@ -18,6 +18,11 @@ window.sdm.info().then((info) => {
   $('new-admin').hidden = info.hasLocalData;
   $('existing-data').hidden = !info.hasLocalData;
   $('server-address').value = info.clientUrl;
+  if (info.uat) {
+    document.title = `${info.appName} - Setup`;
+    document.querySelector('.brand strong').textContent = info.appName;
+    $('uat-note').hidden = false;
+  }
   $('port-hint').textContent = `The app uses port ${info.defaultPort} unless you add another, e.g. 192.168.1.20:${info.defaultPort}.`;
 });
 

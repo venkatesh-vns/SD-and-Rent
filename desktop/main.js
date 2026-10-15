@@ -10,9 +10,11 @@ const path = require('path');
 const configStore = require('./lib/config');
 const { Database, freePort, DB_USER, DB_NAME } = require('./lib/database');
 const { startBackend, lanAddresses } = require('./lib/backend');
+const channel = require('./lib/channel');
 
-const DEFAULT_HTTP_PORT = 5050;
-const DEFAULT_PG_PORT = 5544;
+const DEFAULT_HTTP_PORT = channel.HTTP_PORT;
+const DEFAULT_PG_PORT = channel.PG_PORT;
+const APP_NAME = channel.APP_NAME;
 
 const RES = app.isPackaged ? process.resourcesPath : path.join(__dirname, 'staging');
 // SDM_USER_DATA: run with a separate data folder (testing a build without touching real data)
@@ -57,7 +59,7 @@ function createWindow() {
     minWidth: 980,
     minHeight: 620,
     show: false,
-    title: 'SD Maintenance',
+    title: APP_NAME,
     icon: path.join(__dirname, 'ui', 'icon.png'),
     backgroundColor: '#f4f6f5',
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false },
@@ -75,7 +77,7 @@ function createWindow() {
       buttons: ['Close SD Maintenance', 'Cancel'],
       defaultId: 1,
       cancelId: 1,
-      title: 'Close SD Maintenance',
+      title: `Close ${APP_NAME}`,
       message: 'This PC holds the SD Maintenance data.',
       detail: 'Other PCs connected to this one cannot use the application until you open it again.',
     });
@@ -109,6 +111,7 @@ async function startServerMode(firstAdmin) {
     dbPassword: s.dbPassword,
     jwtSecret: s.jwtSecret,
     settingsSecret: s.settingsSecret,
+    emailDryRun: channel.EMAIL_DRY_RUN,
     firstAdmin,
     log,
   });
@@ -185,7 +188,7 @@ function buildMenu() {
       submenu: [{
         label: 'About SD Maintenance',
         click: () => dialog.showMessageBox(mainWindow, {
-          type: 'info', title: 'About', message: `SD Maintenance ${app.getVersion()}`,
+          type: 'info', title: 'About', message: `${APP_NAME} ${app.getVersion()}`,
           detail: `IndiQube Security Deposit and Lease Management\n\nMode: ${server ? 'This PC holds the data' : config.mode === 'client' ? `Connected to ${config.client.url}` : 'Not set up'}\nData and logs: ${USER_DIR}`,
         }),
       }],
@@ -228,8 +231,8 @@ async function changeConnection() {
 async function backupDatabase() {
   const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
   const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-    title: 'Back up SD Maintenance database',
-    defaultPath: path.join(app.getPath('documents'), `SD_Maintenance_backup_${stamp}.dump`),
+    title: `Back up ${APP_NAME} database`,
+    defaultPath: path.join(app.getPath('documents'), `${APP_NAME.replace(/ /g, '_')}_backup_${stamp}.dump`),
     filters: [{ name: 'PostgreSQL backup', extensions: ['dump'] }],
   });
   if (canceled || !filePath) return;
@@ -252,6 +255,8 @@ ipcMain.handle('sdm:info', (event) => {
     hasLocalData: fs.existsSync(path.join(USER_DIR, 'pgdata', 'PG_VERSION')),
     clientUrl: config.client?.url || '',
     defaultPort: DEFAULT_HTTP_PORT,
+    appName: APP_NAME,
+    uat: channel.UAT,
     mode: config.mode || '',
   };
 });
@@ -358,7 +363,7 @@ app.on('before-quit', (e) => {
 app.on('window-all-closed', () => app.quit());
 
 app.whenReady().then(() => {
-  log(`SD Maintenance ${app.getVersion()} starting (mode: ${config.mode || 'not set up'})`);
+  log(`${APP_NAME} ${app.getVersion()} starting (mode: ${config.mode || 'not set up'})`);
   createWindow();
   boot();
 });
