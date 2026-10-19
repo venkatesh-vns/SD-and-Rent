@@ -9,7 +9,9 @@ const { formatDMY, parseDMY } = require('../utils/dates');
 const { processUpload } = require('../utils/bulkUpload');
 const { buildWorkbook, sendWorkbook, dateStamp } = require('../utils/excel');
 const { SCREENS } = require('../middleware/rightsMiddleware');
-const { paging, badRequest, withDates, cell } = require('./rentHelpers');
+const {
+  paging, badRequest, withDates, cell, editWorkbook, scheduleBlock, earliest, latest, sameList, monthLabel,
+} = require('./rentHelpers');
 
 // Waiver ID filled = update that waiver; otherwise the same Rent Code + From Date
 // + To Date updates the existing waiver (e.g. to set Status No), else a new one is added
@@ -118,19 +120,34 @@ async function exportAll(req, res, next) {
   }
 }
 
-async function bulkUpload(req, res, next) {
+// The waiver as it stood vs the uploaded values: nothing to save
+const sameWaiver = (before, rec) => before.rent_id === rec.rent_id && before.from_date === rec.from_date && before.to_date === rec.to_date
+  && before.waiver_status === rec.waiver_status && (before.remark || null) === (rec.remark || null)
+  && sameList(before.component_codes, rec.component_codes);
+
+/**
+ * Waiver Master Excel upload.
+ *  Upload (editOnly false): Waiver ID, or the same Rent Code + From Date + To Date,
+ *    updates a waiver; otherwise one is added. Generated months are recalculated
+ *    from the current month.
+ *  Bulk Edit (editOnly true): every row needs a Waiver ID; unchanged rows are skipped;
+ *    a changed waiver is refused while Rent Schedule lines exist in its old or new
+ *    period (delete them first, then regenerate after the edit).
+ */
+async function runUpload(req, res, next, { editOnly }) {
   try {
     const resolved = new Map();
     const result = await processUpload(req, {
       screenCode: SCREENS.RENT_WAIVER,
-      columns: COLUMNS,
-      keyOf: (row) => `${cell(row, 'Rent Code') || '?'} ${cell(row, 'From Date')} - ${cell(row, 'To Date')}`,
+      columns: editOnly ? COLUMNS.map((c) => (c.header === 'Waiver ID' ? { ...c, required: true } : c)) : COLUMNS,
+      keyOf: (row) => (editOnly && cell(row, 'Waiver ID') ? `Waiver ${cell(row, 'Waiver ID')}` : `${cell(row, 'Rent Code') || '?'} ${cell(row, 'From Date')} - ${cell(row, 'To Date')}`),
       validateRow: async (row, { seen, rowNumber }) => {
         const id = cell(row, 'Waiver ID');
         let before = null;
+        if (!id && editOnly) return [{ field: 'Waiver ID', value: '', error: 'Waiver ID is required in Bulk Edit. Use "Download for Bulk Edit", or add new waivers with Upload.' }];
         if (id) {
           before = /^\d+$/.test(id) ? await waiverModel.findById(Number(id)) : null;
-          if (!before) return [{ field: 'Waiver ID', value: id, error: 'Waiver ID not found. Leave it blank to add a new waiver.' }];
+          if (!before) return [{ field: 'Waiver ID', value: id, error: editOnly ? 'Waiver ID not found.' : 'Waiver ID not found. Leave it blank to add a new waiver.' }];
         } else {
           const rent = await rentMasterModel.findByCode(cell(row, 'Rent Code'));
           const from = parseDMY(cell(row, 'From Date'));
@@ -157,7 +174,19 @@ async function bulkUpload(req, res, next) {
           if (seen.has(k)) errors.push({ field: 'Waiver ID', value: before.waiver_id, error: `Same waiver as row ${seen.get(k)}.` });
           else seen.set(k, rowNumber);
         }
-        if (errors.length === 0) resolved.set(rowNumber, { rec, before, rent });
+        const unchanged = editOnly && errors.length === 0 && sameWaiver(before, rec);
+        // Bulk Edit: no generated Rent Schedule in the old or new waiver period
+        // (a waiver that is No before and after does not affect the schedule)
+        if (editOnly && errors.length === 0 && !unchanged && !(before.waiver_status === 'No' && rec.waiver_status === 'No')) {
+          const checks = before.rent_id === rec.rent_id
+            ? [[rent, earliest(before.from_date, rec.from_date), latest(before.to_date, rec.to_date)]]
+            : [[await rentMasterModel.findById(before.rent_id), before.from_date, before.to_date], [rent, rec.from_date, rec.to_date]];
+          for (const [r, from, to] of checks) {
+            const block = await scheduleBlock(r, from, to);
+            if (block) { errors.push({ field: 'Rent Schedule', value: r.rent_code, error: block }); break; }
+          }
+        }
+        if (errors.length === 0) resolved.set(rowNumber, { rec, before, rent, unchanged });
         return errors;
       },
       // Active (Yes) waivers of one Rent Code in the same file must not overlap each other
@@ -176,16 +205,50 @@ async function bulkUpload(req, res, next) {
         return errors;
       },
       saveRow: async (row, db, by, rowNumber) => {
-        const { rec, before } = resolved.get(rowNumber);
+        const { rec, before, unchanged } = resolved.get(rowNumber);
+        if (unchanged) return 'Unchanged';
         const saved = before ? await waiverModel.update(before.waiver_id, rec, by, { uploaded: true }, db) : await waiverModel.create(rec, by, { uploaded: true }, db);
-        await logAudit({ tableName: 'rent_waivers', recordId: saved.waiver_id, action: 'UPLOAD', actionBy: by, oldValues: before, newValues: saved, details: before ? 'Bulk update' : null }, db);
-        await schedule.regenerateFuture([saved.rent_id], { by, trigger: 'Waiver Master upload' }, db);
+        await logAudit({
+          tableName: 'rent_waivers', recordId: saved.waiver_id, action: editOnly ? 'UPDATE' : 'UPLOAD', actionBy: by, oldValues: before, newValues: saved,
+          details: editOnly ? 'Bulk Edit' : before ? 'Bulk update' : null,
+        }, db);
+        // Bulk Edit: the user regenerates the deleted months afterwards
+        if (!editOnly) await schedule.regenerateFuture([saved.rent_id], { by, trigger: 'Waiver Master upload' }, db);
+        return 'Saved';
       },
     });
-    res.json({ success: true, message: `Upload processed: ${result.passed} saved, ${result.failed} rejected.`, data: result });
+    const unchanged = result.unchanged ? `, ${result.unchanged} unchanged` : '';
+    res.json({ success: true, message: `${editOnly ? 'Bulk Edit' : 'Upload'} processed: ${result.passed} saved${unchanged}, ${result.failed} rejected.`, data: result });
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = { getAll, getOne, create, update, remove, downloadTemplate, exportAll, bulkUpload };
+const bulkUpload = (req, res, next) => runUpload(req, res, next, { editOnly: false });
+const bulkEdit = (req, res, next) => runUpload(req, res, next, { editOnly: true });
+
+// GET /api/rent/waivers/bulk-edit - the filtered waivers in the upload layout, Waiver ID filled
+async function bulkEditExport(req, res, next) {
+  try {
+    const { rows } = await waiverModel.getAll(withDates(req.query, ['dateFrom', 'dateTo']), { pageSize: 0 });
+    const buffer = await editWorkbook({
+      sheet: 'Waiver Master',
+      editable: COLUMNS.map((c) => c.header),
+      info: ['SD Code', 'Landlord Name', 'Rent Schedule Generated Up To'],
+      rows: rows.map((w) => [w.waiver_id, w.rent_code, formatDMY(w.from_date), formatDMY(w.to_date), w.waiver_status,
+        w.remark || '', ...appliesToValues(w.component_codes),
+        w.sd_code, w.landlord_name, w.schedule_to_month ? monthLabel(w.schedule_to_month) : 'Not generated']),
+      steps: [
+        'If the Rent Schedule is already generated for the months you will change (old and new waiver period), first delete those lines in Rent Schedule (Delete Schedule) for that period.',
+        'Change the green columns of the waivers you want to edit. Do not add rows here; add new waivers with Upload.',
+        'Save the file and upload it with "Upload Bulk Edit" on the Waiver Master screen. Check the report for any rejected rows.',
+        'Regenerate the Rent Schedule for the deleted period.',
+      ],
+    });
+    await sendWorkbook(res, `Waiver_Master_Bulk_Edit_${dateStamp()}.xlsx`, buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getAll, getOne, create, update, remove, downloadTemplate, exportAll, bulkUpload, bulkEdit, bulkEditExport };

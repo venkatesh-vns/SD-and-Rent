@@ -105,6 +105,30 @@ export default function RentSchedule() {
     }
   };
 
+  // Deletes the generated lines of the period (e.g. before a Rule / Waiver Bulk Edit)
+  const [deleting, setDeleting] = useState(false);
+  const deleteSchedule = async () => {
+    if (!filters.fromDate || !filters.toDate) {
+      setError('Choose the From and To dates of the period to delete.');
+      return;
+    }
+    const { fromDate, toDate, ...rest } = filters;
+    if (!window.confirm(`Delete the Rent Schedule lines from ${fromDate} to ${toDate} for the selected filters? You can generate them again afterwards.`)) return;
+    setDeleting(true);
+    setMessages([]);
+    try {
+      const res = await api.post('/rent/schedule/delete', { fromDate, toDate, filters: rest });
+      setNotice(res.data.message);
+      setPage(1);
+      load();
+      if (showRuns) loadRuns();
+    } catch (err) {
+      setError(errorMessage(err, 'Delete failed.'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const tiles = totals && [
     ['Lines', totals.lines, null],
     ['Escalated Amount', money(totals.escalated_amount), 'balance'],
@@ -124,6 +148,9 @@ export default function RentSchedule() {
           <div className="dash-actions">
             {can(SCREENS.RENT_SCHEDULE, 'add') && (
               <button type="button" className="btn btn-primary" onClick={generate} disabled={generating}>{generating ? 'Generating...' : 'Generate / Regenerate'}</button>
+            )}
+            {can(SCREENS.RENT_SCHEDULE, 'delete') && (
+              <button type="button" className="btn btn-danger" onClick={deleteSchedule} disabled={deleting}>{deleting ? 'Deleting...' : 'Delete Schedule'}</button>
             )}
             <button type="button" className="btn btn-outline" onClick={() => downloadFile('/rent/schedule/export', filters, 'Rent_Schedule.xlsx').catch(() => setError('Export failed.'))}>Export to Excel</button>
             <button type="button" className="btn btn-secondary" onClick={() => window.print()}>Export to PDF</button>

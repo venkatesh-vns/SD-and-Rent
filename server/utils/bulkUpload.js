@@ -19,7 +19,8 @@ const { httpError } = require('./httpError');
  *                   ledger across several rows) and returns
  *                   [{ rowNumber, field, value, error }] for rows to fail
  *   saveRow(row, db, uploadedBy, rowNumber)
- *                   saves one valid row inside the upload transaction
+ *                   saves one valid row inside the upload transaction; may return
+ *                   'Unchanged' when the row matches the stored record (nothing saved)
  *
  * Valid rows are saved in one transaction, so a failure part-way through
  * saves nothing. Failed rows are never saved.
@@ -68,10 +69,12 @@ async function processUpload(req, { screenCode, columns, keyOf, validateRow, aft
 
     if (totalRows === 0) throw httpError(400, 'The file has no data rows.');
 
+    let unchanged = 0;
     const batch = await withTransaction(async (db) => {
       for (const v of valid) {
-        await saveRow(v.row, db, uploadedBy, v.rowNumber);
-        report.push({ row: v.rowNumber, key: v.key, field: '-', value: '-', status: 'Passed', error: '' });
+        const outcome = await saveRow(v.row, db, uploadedBy, v.rowNumber);
+        if (outcome === 'Unchanged') unchanged += 1;
+        report.push({ row: v.rowNumber, key: v.key, field: '-', value: '-', status: outcome === 'Unchanged' ? 'Unchanged' : 'Passed', error: '' });
       }
       report.sort((a, b) => a.row - b.row);
       const result = await db.query(
@@ -85,7 +88,8 @@ async function processUpload(req, { screenCode, columns, keyOf, validateRow, aft
     return {
       batchId: batch.batch_id,
       totalRows,
-      passed: valid.length,
+      passed: valid.length - unchanged,
+      unchanged,
       failed: totalRows - valid.length,
       report,
     };

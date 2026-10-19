@@ -1,5 +1,5 @@
 const ExcelJS = require('exceljs');
-const { pool } = require('../config/db');
+const { pool, withTransaction } = require('../config/db');
 const scheduleModel = require('../models/rentScheduleModel');
 const rentMasterModel = require('../models/rentMasterModel');
 const schedule = require('../services/rentScheduleService');
@@ -8,6 +8,7 @@ const { monthStart } = require('../services/rentCalc');
 const { parseDMY, formatDMY } = require('../utils/dates');
 const { sendWorkbook, dateStamp } = require('../utils/excel');
 const { paging } = require('./rentHelpers');
+const { logAudit } = require('../utils/audit');
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const monthLabel = (iso) => `${MONTHS[+iso.slice(5, 7) - 1]}-${iso.slice(0, 4)}`;
@@ -63,6 +64,44 @@ async function generate(req, res, next) {
       message: `Rent Schedule generated: ${result.lines} line(s) for ${result.rentCodes} Rent Code(s), ${monthLabel(monthStart(from))} to ${monthLabel(monthStart(to))}.`
         + (result.messages.length ? ` ${result.messages.length} message(s) to review.` : ''),
       data: { runId: result.run.run_id, lines: result.lines, rentCodes: result.rentCodes, messages: result.messages },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/rent/schedule/delete { fromDate, toDate, filters }
+// Deletes the generated lines of a period (needed before a Rule / Waiver Bulk Edit
+// that changes those months); the months can then be generated again.
+async function deleteLines(req, res, next) {
+  try {
+    const from = parseDMY(req.body.fromDate);
+    const to = parseDMY(req.body.toDate);
+    const errors = [];
+    if (!from) errors.push({ field: 'From Date', error: 'From Date is required as DD/MM/YYYY.' });
+    if (!to) errors.push({ field: 'To Date', error: 'To Date is required as DD/MM/YYYY.' });
+    if (from && to && from > to) errors.push({ field: 'From Date', error: 'From Date must be on or before To Date.' });
+    if (errors.length) return res.status(400).json({ success: false, message: errors.map((e) => e.error).join(' '), errors });
+
+    const { filters = {} } = req.body;
+    const fromMonth = monthStart(from);
+    const toMonth = monthStart(to);
+    const by = req.user.userName;
+    const result = await withTransaction(async (db) => {
+      const out = await scheduleModel.deleteLines({ ...filters, fromMonth, toMonth }, db);
+      const run = await scheduleModel.createRun({ trigger: 'Delete', fromMonth, toMonth, filters, rentCodes: out.rentIds.length, lines: out.lines, by }, db);
+      await logAudit({
+        tableName: 'rent_schedule_runs', recordId: run.run_id, action: 'DELETE', actionBy: by,
+        details: `Deleted ${out.lines} line(s) of ${out.rentIds.length} Rent Code(s), ${fromMonth.slice(0, 7)} to ${toMonth.slice(0, 7)}`,
+      }, db);
+      return out;
+    });
+    res.json({
+      success: true,
+      message: result.lines
+        ? `Deleted ${result.lines} Rent Schedule line(s) of ${result.rentIds.length} Rent Code(s), ${monthLabel(fromMonth)} to ${monthLabel(toMonth)}.`
+        : 'No Rent Schedule lines matched the period and filters.',
+      data: result,
     });
   } catch (err) {
     next(err);
@@ -146,4 +185,4 @@ async function lookups(req, res, next) {
   }
 }
 
-module.exports = { getLines, getSummary, generate, runs, exportLines, lookups };
+module.exports = { getLines, getSummary, generate, deleteLines, runs, exportLines, lookups };

@@ -10,7 +10,7 @@ export default function UploadReport({ result, onClose }) {
     <div className={`upload-report ${result.failed > 0 ? 'has-errors' : ''}`}>
       <div className="upload-report-header">
         <strong>
-          {result.totalRows} row(s): {result.passed} saved, {result.failed} failed
+          {result.totalRows} row(s): {result.passed} saved{result.unchanged ? `, ${result.unchanged} unchanged` : ''}, {result.failed} failed
         </strong>
         <div>
           <label className="inline-check">
@@ -40,7 +40,7 @@ export default function UploadReport({ result, onClose }) {
                   <td>{r.key}</td>
                   <td>{r.field}</td>
                   <td>{r.value}</td>
-                  <td><span className={`badge badge-${r.status === 'Passed' ? 'active' : 'inactive'}`}>{r.status}</span></td>
+                  <td><span className={`badge badge-${{ Passed: 'active', Unchanged: 'no' }[r.status] || 'inactive'}`}>{r.status}</span></td>
                   <td>{r.error}</td>
                 </tr>
               ))}

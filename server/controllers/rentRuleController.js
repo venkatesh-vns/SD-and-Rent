@@ -10,7 +10,9 @@ const { formatDMY } = require('../utils/dates');
 const { processUpload } = require('../utils/bulkUpload');
 const { buildWorkbook, sendWorkbook, dateStamp } = require('../utils/excel');
 const { SCREENS } = require('../middleware/rightsMiddleware');
-const { paging, badRequest, cell } = require('./rentHelpers');
+const {
+  paging, badRequest, cell, editWorkbook, scheduleBlock, earliest, latest, sameList, monthLabel,
+} = require('./rentHelpers');
 
 // Rule ID blank = new rule; filled = update of that rule (blank cells keep values)
 const COLUMNS = [
@@ -149,19 +151,40 @@ async function exportAll(req, res, next) {
   }
 }
 
-async function bulkUpload(req, res, next) {
+// The rule as it stood vs the uploaded values: nothing to save
+const sameRule = (before, rec) => before.rent_id === rec.rent_id && before.rule_type === rec.rule_type
+  && (before.escalation_months ?? null) === (rec.escalation_months ?? null)
+  && (before.from_date || null) === (rec.from_date || null) && (before.to_date || null) === (rec.to_date || null)
+  && Number(before.percentage) === Number(rec.percentage) && before.status === rec.status
+  && sameList(before.component_codes, rec.component_codes);
+
+// Months a rule affects: Normal Day = its From..To; RCD / LCD = from its escalation date onward
+const ruleWindow = (r, effective, rent) => (r.rule_type === 'Normal Day'
+  ? { from: r.from_date, to: r.to_date }
+  : { from: effective || (r.rule_type === 'LCD' ? rent?.lcd : rent?.rcd) || rent?.lcd || rent?.rcd, to: null });
+
+/**
+ * Rule Master Excel upload.
+ *  Upload (editOnly false): Rule ID blank = new rule, filled = update (blank cells keep values);
+ *    months already generated are recalculated from the current month.
+ *  Bulk Edit (editOnly true): every row needs a Rule ID; unchanged rows are skipped; a
+ *    changed rule is refused while Rent Schedule lines exist in the months it affects
+ *    (delete them first, then regenerate after the edit).
+ */
+async function runUpload(req, res, next, { editOnly }) {
   try {
     const resolved = new Map();
     const result = await processUpload(req, {
       screenCode: SCREENS.RENT_RULE,
-      columns: COLUMNS,
+      columns: editOnly ? COLUMNS.map((c) => (c.header === 'Rule ID' ? { ...c, required: true } : c)) : COLUMNS,
       keyOf: (row) => (cell(row, 'Rule ID') ? `Rule ${cell(row, 'Rule ID')}` : `${cell(row, 'Rent Code') || '?'} (new)`),
       validateRow: async (row, { seen, rowNumber }) => {
         const id = cell(row, 'Rule ID');
         let before = null;
+        if (!id && editOnly) return [{ field: 'Rule ID', value: '', error: 'Rule ID is required in Bulk Edit. Use "Download for Bulk Edit", or add new rules with Upload.' }];
         if (id) {
           before = /^\d+$/.test(id) ? await ruleModel.findById(Number(id)) : null;
-          if (!before) return [{ field: 'Rule ID', value: id, error: 'Rule ID not found. Leave it blank to add a new rule.' }];
+          if (!before) return [{ field: 'Rule ID', value: id, error: editOnly ? 'Rule ID not found.' : 'Rule ID not found. Leave it blank to add a new rule.' }];
           if (seen.has(`rule:${id}`)) return [{ field: 'Rule ID', value: id, error: `Rule ID repeated from row ${seen.get(`rule:${id}`)}.` }];
           seen.set(`rule:${id}`, rowNumber);
         }
@@ -180,7 +203,7 @@ async function bulkUpload(req, res, next) {
         if (applies.errors.length) return applies.errors;
         input.componentCodes = applies.given ? applies.codes : (before?.component_codes || []);
         const { rec, errors, rent } = await service.validateRule(input, before);
-        if (errors.length === 0) resolved.set(rowNumber, { rec, before, rent });
+        if (errors.length === 0) resolved.set(rowNumber, { rec, before, rent, unchanged: editOnly && sameRule(before, rec) });
         return errors;
       },
       // Rules of one Rent Code in the same file are checked together, in row order
@@ -206,26 +229,81 @@ async function bulkUpload(req, res, next) {
             }));
             continue;
           }
-          escalationChain(all, rent).forEach((r) => {
+          const chain = escalationChain(all, rent);
+          chain.forEach((r) => {
             if (!r.rowNumber || !r.effective_date || !rent.led) return;
             const tooLate = r.rule_type === 'RCD' ? r.effective_date >= rent.led : r.effective_date > rent.led;
             if (tooLate) errors.push({ rowNumber: r.rowNumber, field: 'Escalation Month', value: r.escalation_months, error: `Escalates on ${formatDMY(r.effective_date)}, which is ${r.rule_type === 'RCD' ? 'not before' : 'after'} the LED (${formatDMY(rent.led)}).` });
           });
+          if (!editOnly) continue;
+
+          // Bulk Edit: no generated Rent Schedule in the months the change affects
+          const newDates = Object.fromEntries(chain.map((r) => [r.rule_id, r.effective_date]));
+          for (const i of items) {
+            if (i.unchanged || errors.some((e) => e.rowNumber === i.rowNumber)) continue;
+            if (i.before.status === 'Inactive' && i.rec.status === 'Inactive') continue; // no effect on the schedule
+            const oldW = ruleWindow(i.before, i.before.effective_date, i.before.rent_id === rentId ? rent : await rentMasterModel.findById(i.before.rent_id));
+            const newW = ruleWindow(i.rec, newDates[i.before.rule_id], rent);
+            const checks = i.before.rent_id === rentId
+              ? [[rent, earliest(oldW.from, newW.from), oldW.to && newW.to ? latest(oldW.to, newW.to) : null]]
+              : [[await rentMasterModel.findById(i.before.rent_id), oldW.from, oldW.to], [rent, newW.from, newW.to]];
+            for (const [r, from, to] of checks) {
+              const block = await scheduleBlock(r, from, to);
+              if (block) { errors.push({ rowNumber: i.rowNumber, field: 'Rent Schedule', value: r.rent_code, error: block }); break; }
+            }
+          }
         }
         return errors;
       },
       saveRow: async (row, db, by, rowNumber) => {
-        const { rec, before } = resolved.get(rowNumber);
+        const { rec, before, unchanged } = resolved.get(rowNumber);
+        if (unchanged) return 'Unchanged';
         const saved = before ? await ruleModel.update(before.rule_id, rec, by, { uploaded: true }, db) : await ruleModel.create(rec, by, { uploaded: true }, db);
         await refreshChain(saved.rent_id, db);
-        await logAudit({ tableName: 'rent_rules', recordId: saved.rule_id, action: 'UPLOAD', actionBy: by, oldValues: before, newValues: saved, details: before ? 'Bulk update' : null }, db);
-        await schedule.regenerateFuture([saved.rent_id], { by, trigger: 'Rule Master upload' }, db);
+        if (before && before.rent_id !== saved.rent_id) await refreshChain(before.rent_id, db);
+        await logAudit({
+          tableName: 'rent_rules', recordId: saved.rule_id, action: editOnly ? 'UPDATE' : 'UPLOAD', actionBy: by, oldValues: before, newValues: saved,
+          details: editOnly ? 'Bulk Edit' : before ? 'Bulk update' : null,
+        }, db);
+        // Bulk Edit: the user regenerates the deleted months afterwards
+        if (!editOnly) await schedule.regenerateFuture([saved.rent_id], { by, trigger: 'Rule Master upload' }, db);
+        return 'Saved';
       },
     });
-    res.json({ success: true, message: `Upload processed: ${result.passed} saved, ${result.failed} rejected.`, data: result });
+    const unchanged = result.unchanged ? `, ${result.unchanged} unchanged` : '';
+    res.json({ success: true, message: `${editOnly ? 'Bulk Edit' : 'Upload'} processed: ${result.passed} saved${unchanged}, ${result.failed} rejected.`, data: result });
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = { getAll, getOne, create, update, remove, downloadTemplate, exportAll, bulkUpload };
+const bulkUpload = (req, res, next) => runUpload(req, res, next, { editOnly: false });
+const bulkEdit = (req, res, next) => runUpload(req, res, next, { editOnly: true });
+
+// GET /api/rent/rules/bulk-edit - the filtered rules in the upload layout, Rule ID filled
+async function bulkEditExport(req, res, next) {
+  try {
+    const { rows } = await ruleModel.getAll(req.query, { pageSize: 0 });
+    const data = await withLiveDates(rows);
+    const buffer = await editWorkbook({
+      sheet: 'Rule Master',
+      editable: COLUMNS.map((c) => c.header),
+      info: ['SD Code', 'Landlord Name', 'Escalation Date', 'LCD', 'RCD', 'LED', 'Rent Schedule Generated Up To'],
+      rows: data.map((r) => [r.rule_id, r.rent_code, r.rule_type, r.escalation_months ?? '', formatDMY(r.from_date), formatDMY(r.to_date),
+        Number(r.percentage), r.status, ...appliesToValues(r.component_codes),
+        r.sd_code, r.landlord_name, formatDMY(r.effective_date), formatDMY(r.lcd), formatDMY(r.rcd), formatDMY(r.led),
+        r.schedule_to_month ? monthLabel(r.schedule_to_month) : 'Not generated']),
+      steps: [
+        'If the Rent Schedule is already generated for the months you will change, first delete those lines in Rent Schedule (Delete Schedule) for that period.',
+        'Change the green columns of the rules you want to edit. Do not add rows here; add new rules with Upload.',
+        'Save the file and upload it with "Upload Bulk Edit" on the Rule Master screen. Check the report for any rejected rows.',
+        'Regenerate the Rent Schedule for the deleted period.',
+      ],
+    });
+    await sendWorkbook(res, `Rule_Master_Bulk_Edit_${dateStamp()}.xlsx`, buffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getAll, getOne, create, update, remove, downloadTemplate, exportAll, bulkUpload, bulkEdit, bulkEditExport };

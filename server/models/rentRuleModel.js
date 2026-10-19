@@ -2,7 +2,7 @@ const { pool } = require('../config/db');
 const { listOf, idsOf } = require('../utils/filters');
 
 const SELECT = `
-  SELECT u.*, r.rent_code, r.landlord_name, s.sd_code, s.floor, cc.cost_center_name,
+  SELECT u.*, r.rent_code, r.landlord_name, r.schedule_to_month, s.sd_code, s.floor, cc.cost_center_name,
          s.lease_commencement_date AS lcd, s.rent_commencement_date AS rcd, s.lease_end_date AS led
   FROM rent_rules u
   JOIN rent_master r ON r.rent_id = u.rent_id

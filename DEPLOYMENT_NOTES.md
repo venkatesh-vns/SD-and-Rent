@@ -50,9 +50,9 @@ The UAT database `sd_rent_uat` was created from this backup, then migration
 |---|---|---|
 | Rent Master | /rent/master | Rent Code (RENT0001…) per SD Code + landlord; Cost Center, Floor, LCD, RCD, LED read from SD Master; LL Status with Inactive End Date; Business Key duplicate check |
 | Rent Agreement Master | /rent/agreements | Nine components (Quantity × Rate × %), Individual / Transfer, Active / Inactive, lock once used |
-| Rule Master | /rent/rules | RCD / LCD escalation chains, Normal Day periods, positive / zero / negative % |
-| Waiver Master | /rent/waivers | Rent-free periods (Yes / No), overlap and range checks |
-| Rent Schedule | /rent/schedule | Generate / Regenerate, multi-select filters, period presets, summaries by Agreement Header / Cost Center / Landlord / Rent Code / Month, Excel and PDF export, generation history |
+| Rule Master | /rent/rules | RCD / LCD escalation chains, Normal Day periods, positive / zero / negative %; Bulk Edit (download existing rules, edit in Excel, upload) |
+| Waiver Master | /rent/waivers | Rent-free periods (Yes / No), overlap and range checks; Bulk Edit (download existing waivers, edit in Excel, upload) |
+| Rent Schedule | /rent/schedule | Generate / Regenerate, multi-select filters, period presets, summaries by Agreement Header / Cost Center / Landlord / Rent Code / Month, Excel and PDF export, generation history; Delete Schedule for a period (before a Bulk Edit) |
 
 **Reports > SD & Rent Transaction Summary Report** (/reports/sd-rent): SD transactions
 (Expense Category "Security Deposit", Expense Head = SD Type, amount = Paid − Transfer −

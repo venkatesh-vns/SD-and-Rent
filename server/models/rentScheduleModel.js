@@ -130,4 +130,37 @@ async function markGenerated(rentIds, toMonth, db) {
   );
 }
 
-module.exports = { getLines, getSummary, createRun, recentRuns, replaceLines, lastMonths, markGenerated, GROUPS };
+// Generated lines of a Rent Code from fromMonth to toMonth (null = no end):
+// { lines, first_month, last_month }, or null when there are none
+async function linesWithin(rentId, fromMonth, toMonth = null, db = pool) {
+  const row = (await db.query(
+    `SELECT COUNT(*)::int AS lines, MIN(rent_month) AS first_month, MAX(rent_month) AS last_month
+     FROM rent_schedule_lines
+     WHERE rent_id = $1 AND rent_month >= $2::date AND ($3::date IS NULL OR rent_month <= $3::date)`,
+    [rentId, fromMonth, toMonth]
+  )).rows[0];
+  return row.lines ? row : null;
+}
+
+/**
+ * Deletes the lines matching the schedule filters and month range, then resets
+ * each affected Rent Code's "generated up to" month to its last remaining line.
+ * Returns { lines, rentIds }.
+ */
+async function deleteLines(f, db) {
+  const { whereSql, params } = filterClause(f);
+  const deleted = (await db.query(
+    `DELETE FROM rent_schedule_lines WHERE line_id IN (SELECT l.line_id ${FROM} ${whereSql}) RETURNING rent_id`, params
+  )).rows;
+  const rentIds = [...new Set(deleted.map((d) => d.rent_id))];
+  if (rentIds.length) {
+    await db.query(
+      `UPDATE rent_master r SET schedule_to_month = (SELECT MAX(l.rent_month) FROM rent_schedule_lines l WHERE l.rent_id = r.rent_id)
+       WHERE r.rent_id = ANY($1::int[])`,
+      [rentIds]
+    );
+  }
+  return { lines: deleted.length, rentIds };
+}
+
+module.exports = { getLines, getSummary, createRun, recentRuns, replaceLines, lastMonths, markGenerated, linesWithin, deleteLines, GROUPS };

@@ -31,11 +31,18 @@ crud('agreements', SCREENS.RENT_AGREEMENT, agreementController);
 crud('rules', SCREENS.RENT_RULE, ruleController);
 crud('waivers', SCREENS.RENT_WAIVER, waiverController);
 
+// Bulk Edit: download existing records, change them in Excel, upload the changes
+for (const [path, screen, c] of [['rules', SCREENS.RENT_RULE, ruleController], ['waivers', SCREENS.RENT_WAIVER, waiverController]]) {
+  router.get(`/${path}/bulk-edit`, requireRight(screen, 'edit'), c.bulkEditExport);
+  router.post(`/${path}/bulk-edit`, requireRight(screen, 'edit'), upload.single('file'), c.bulkEdit);
+}
+
 const canSchedule = (action) => requireRight(SCREENS.RENT_SCHEDULE, action);
 router.get('/schedule', canSchedule('view'), scheduleController.getLines);
 router.get('/schedule/summary', canSchedule('view'), scheduleController.getSummary);
 router.get('/schedule/export', canSchedule('view'), scheduleController.exportLines);
 router.get('/schedule/runs', canSchedule('view'), scheduleController.runs);
 router.post('/schedule/generate', canSchedule('add'), scheduleController.generate);
+router.post('/schedule/delete', canSchedule('delete'), scheduleController.deleteLines);
 
 module.exports = router;

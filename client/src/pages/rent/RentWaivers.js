@@ -5,6 +5,7 @@ import MultiSelect from '../../components/MultiSelect';
 import DateRangeFilter from '../../components/DateRangeFilter';
 import Modal from '../../components/Modal';
 import ExcelUpload from '../../components/ExcelUpload';
+import BulkEdit from '../../components/BulkEdit';
 import Pager from '../../components/Pager';
 import Toast from '../../components/Toast';
 import api, { downloadFile, errorMessage } from '../../services/api';
@@ -142,6 +143,9 @@ export default function RentWaivers() {
             <ExcelUpload endpoint="/rent/waivers" templateName="Waiver_Master_Template.xlsx" onUploaded={fetchRows} />
             <p className="hint upload-note">A row with the same Rent Code, From Date and To Date as a saved waiver updates it (for example to Status No); otherwise a waiver is added. "Applies to: ..." columns: Yes = selected, No = not selected; leave them all blank for all components. Dates as DD/MM/YYYY.</p>
           </>
+        )}
+        {can(SCREENS.RENT_WAIVER, 'edit') && (
+          <BulkEdit endpoint="/rent/waivers" query={query} fileName="Waiver_Master_Bulk_Edit.xlsx" noun="waivers" onUploaded={fetchRows} />
         )}
 
         <div className="filter-bar">

@@ -4,6 +4,7 @@ import DataTable from '../../components/DataTable';
 import MultiSelect from '../../components/MultiSelect';
 import Modal from '../../components/Modal';
 import ExcelUpload from '../../components/ExcelUpload';
+import BulkEdit from '../../components/BulkEdit';
 import Pager from '../../components/Pager';
 import Toast from '../../components/Toast';
 import api, { downloadFile, errorMessage } from '../../services/api';
@@ -155,6 +156,9 @@ export default function RentRules() {
             <ExcelUpload endpoint="/rent/rules" templateName="Rule_Master_Template.xlsx" onUploaded={fetchRows} />
             <p className="hint upload-note">Leave Rule ID blank to add a rule; fill it to update that rule. Rules of one Rent Code are applied in row order. "Applies to: ..." columns: Yes = selected, No = not selected; leave them all blank for all components. Dates as DD/MM/YYYY.</p>
           </>
+        )}
+        {can(SCREENS.RENT_RULE, 'edit') && (
+          <BulkEdit endpoint="/rent/rules" query={query} fileName="Rule_Master_Bulk_Edit.xlsx" noun="rules" onUploaded={fetchRows} />
         )}
 
         <div className="filter-bar">
