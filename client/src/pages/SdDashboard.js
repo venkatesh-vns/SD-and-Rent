@@ -191,7 +191,7 @@ export default function SdDashboard() {
   const canTxnAdd = can(SCREENS.SD_TRANSACTION, 'add');
   const canTxnUpload = can(SCREENS.SD_TRANSACTION, 'upload');
   const sdLink = (r) => (can(SCREENS.SD_TRANSACTION, 'view')
-    ? <Link to={`/sd-transactions?sd=${r.sd_id}`}><strong>{r.sd_code}</strong></Link>
+    ? <Link to={`/sd-transactions?sd=${r.sd_id}&from=sd-dashboard`}><strong>{r.sd_code}</strong></Link>
     : <strong>{r.sd_code}</strong>);
   const daysChip = (r) => (
     <span className={`days-chip ${urgency(r.days_left)}`}>{r.days_left === 0 ? 'Today' : `${r.days_left} day${r.days_left === 1 ? '' : 's'}`}</span>

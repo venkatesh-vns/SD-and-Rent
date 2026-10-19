@@ -1250,3 +1250,12 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* "Back to ..." link above a screen opened from another one */
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px; margin: 0 0 6px; padding: 6px 12px 6px 8px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+  color: var(--primary); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+}
+.back-link:hover { background: var(--primary-tint); border-color: var(--primary); }
+.back-link:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

@@ -8,6 +8,7 @@ import api, { downloadFile, errorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { SCREENS } from '../config/screens';
 import useDebounce from '../hooks/useDebounce';
+import useReturnState from '../hooks/useReturnState';
 import useCascadeOptions from '../hooks/useCascadeOptions';
 import { formatAmount, formatDate } from '../utils/format';
 import AmountTiles from '../components/AmountTiles';
@@ -51,10 +52,13 @@ export default function SdBalanceReport() {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [totals, setTotals] = useState(null);
-  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  // Filters, page and scroll come back as they were via "Back to SD Balance Report"
+  const back = useReturnState('sd-balance', !loading);
+  const [page, setPage] = useState(() => back.saved?.page || 1);
   const [error, setError] = useState('');
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [filters, setFilters] = useState(() => back.saved?.filters || EMPTY_FILTERS);
+  useEffect(() => { back.save({ filters, page }); }, [filters, page, back]);
   const [costCenters, setCostCenters] = useState([]);
   const [l1List, setL1List] = useState([]);
   const [l2List, setL2List] = useState([]);
@@ -86,16 +90,16 @@ export default function SdBalanceReport() {
   // Level 2 choices follow the chosen Level 1s; picks outside them are dropped
   const l1Key = filters.l1Id.join(',');
   useEffect(() => {
-    if (!l1Key) { setL2List([]); return; }
-    api.get('/lookups/locations/2', { params: { parentId: l1Key } }).then((res) => setL2List(res.data.data)).catch(() => setL2List([]));
-  }, [l1Key]);
-  useEffect(() => {
-    setFilters((f) => {
-      const valid = new Set(l2List.map((l) => String(l.id)));
+    const keepValid = (list) => setFilters((f) => {
+      const valid = new Set(list.map((l) => String(l.id)));
       const kept = f.l2Id.filter((id) => valid.has(String(id)));
       return kept.length === f.l2Id.length ? f : { ...f, l2Id: kept };
     });
-  }, [l2List]);
+    if (!l1Key) { setL2List([]); keepValid([]); return; }
+    api.get('/lookups/locations/2', { params: { parentId: l1Key } })
+      .then((res) => { setL2List(res.data.data); keepValid(res.data.data); })
+      .catch(() => setL2List([]));
+  }, [l1Key]);
 
   const setFilter = (patch) => {
     setFilters((f) => ({ ...f, ...patch }));
@@ -214,7 +218,7 @@ export default function SdBalanceReport() {
                         <tr key={l.agreement_status}>
                           {i === 0 && (
                             <>
-                              <td rowSpan={span}>{canTxn ? <Link to={`/sd-transactions?sd=${r.sd_id}`}>{r.sd_code}</Link> : r.sd_code}</td>
+                              <td rowSpan={span}>{canTxn ? <Link to={`/sd-transactions?sd=${r.sd_id}&from=sd-balance`} onClick={back.leave}>{r.sd_code}</Link> : r.sd_code}</td>
                               <td rowSpan={span}>{[r.lease_id, r.agreement_no].filter(Boolean).join(' / ') || '—'}</td>
                               <td rowSpan={span}>{r.cost_center_name}</td>
                               <td rowSpan={span}>{r.floor}</td>

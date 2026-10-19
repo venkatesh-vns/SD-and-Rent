@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Toast from '../components/Toast';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
 import MultiSelect from '../components/MultiSelect';
@@ -13,6 +13,7 @@ import api, { downloadFile, errorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { SCREENS } from '../config/screens';
 import useDebounce from '../hooks/useDebounce';
+import { RETURN_SCREENS } from '../hooks/useReturnState';
 import useCascadeOptions from '../hooks/useCascadeOptions';
 import { formatAmount, formatDate } from '../utils/format';
 import AmountTiles from '../components/AmountTiles';
@@ -57,6 +58,10 @@ export default function SdTransactions() {
   const { can } = useAuth();
   const [params, setParams] = useSearchParams();
   const sdId = params.get('sd') || '';
+  // Opened from SD Master / SD Balance Report / SD Dashboard: offer a way back
+  const fromKey = params.get('from') || '';
+  const from = RETURN_SCREENS[fromKey];
+  const navigate = useNavigate();
 
   const [summary, setSummary] = useState(null); // { sd, balance }
   const [rows, setRows] = useState([]);
@@ -161,7 +166,7 @@ export default function SdTransactions() {
   };
 
   const selectSd = (sd) => {
-    setParams(sd ? { sd: String(sd.sd_id) } : {});
+    setParams({ ...(sd ? { sd: String(sd.sd_id) } : {}), ...(from ? { from: fromKey } : {}) });
     setPage(1);
     setNotice('');
     setError('');
@@ -288,6 +293,11 @@ export default function SdTransactions() {
     <div>
       <Navbar />
       <div className="page-container wide">
+        {from && (
+          <button type="button" className="back-link" onClick={() => navigate(from.path, { state: { restore: true } })}>
+            <span aria-hidden="true">←</span> Back to {from.label}
+          </button>
+        )}
         <div className="page-header">
           <h1>SD Transactions</h1>
           {can(SCREENS.SD_TRANSACTION, 'add') && !sd && (

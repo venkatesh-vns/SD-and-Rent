@@ -12,6 +12,7 @@ import api, { downloadFile, errorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { SCREENS } from '../config/screens';
 import useDebounce from '../hooks/useDebounce';
+import useReturnState from '../hooks/useReturnState';
 import useCascadeOptions from '../hooks/useCascadeOptions';
 import { formatAmount, formatDate, formatDateTime, daysUntil } from '../utils/format';
 import { AMOUNTS, amountClass } from '../config/amounts';
@@ -124,11 +125,14 @@ export default function SdMaster() {
   const [params, setParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  // Filters, page and scroll come back as they were via "Back to SD Master"
+  const back = useReturnState('sd-master', !loading);
+  const [page, setPage] = useState(back.saved?.page || 1);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [filters, setFilters] = useState(() => ({ ...EMPTY_FILTERS, search: params.get('search') || '' }));
+  const [filters, setFilters] = useState(() => back.saved?.filters || { ...EMPTY_FILTERS, search: params.get('search') || '' });
+  useEffect(() => { back.save({ filters, page }); }, [filters, page, back]);
   const [costCenters, setCostCenters] = useState([]);
   const [modal, setModal] = useState(null); // null | { editing: record | null, history: [] }
   const [form, setForm] = useState(EMPTY_FORM);
@@ -313,7 +317,7 @@ export default function SdMaster() {
               onDelete={can(SCREENS.SD_MASTER, 'delete') ? handleDelete : null}
               freeze
               extraActions={can(SCREENS.SD_TRANSACTION, 'view') ? (row) => (
-                <button className="btn btn-small btn-outline" onClick={() => navigate(`/sd-transactions?sd=${row.id}`)}>Transactions</button>
+                <button className="btn btn-small btn-outline" onClick={() => { back.leave(); navigate(`/sd-transactions?sd=${row.id}&from=sd-master`); }}>Transactions</button>
               ) : null}
             />
             <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
