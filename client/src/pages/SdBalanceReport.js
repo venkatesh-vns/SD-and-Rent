@@ -187,7 +187,7 @@ export default function SdBalanceReport() {
 
         {loading ? <p>Loading...</p> : rows.length === 0 ? <p className="empty-state">No records found.</p> : (
           <>
-            <div className="table-wrap">
+            <div className="table-wrap freeze-head">
               <table className="data-table compact sd-balance-grouped">
                 <thead>
                   <tr className="group-row">

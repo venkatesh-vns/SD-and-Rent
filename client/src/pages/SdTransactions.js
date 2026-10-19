@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Toast from '../components/Toast';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
@@ -173,6 +173,18 @@ export default function SdTransactions() {
   };
 
   const sd = summary?.sd;
+
+  // Height of the pinned SD details panel, so the frozen table headings stay below it
+  const [stickyH, setStickyH] = useState(0);
+  const stickyObserver = useRef(null);
+  const stickyRef = useCallback((el) => {
+    stickyObserver.current?.disconnect();
+    stickyObserver.current = null;
+    if (!el) { setStickyH(0); return; }
+    setStickyH(el.offsetHeight);
+    stickyObserver.current = new ResizeObserver(() => setStickyH(el.offsetHeight));
+    stickyObserver.current.observe(el);
+  }, []);
   const passive = sd && (sd.landlord_status !== 'Active' || sd.building_status !== 'Active');
 
   const openModal = (row = null, forSd = sd) => {
@@ -292,7 +304,7 @@ export default function SdTransactions() {
   return (
     <div>
       <Navbar />
-      <div className="page-container wide">
+      <div className="page-container wide" style={{ '--sticky-h': `${stickyH}px` }}>
         {from && (
           <button type="button" className="back-link" onClick={() => navigate(from.path, { state: { restore: true } })}>
             <span aria-hidden="true">←</span> Back to {from.label}
@@ -322,7 +334,7 @@ export default function SdTransactions() {
 
         {sd && b && (
           // Key SD details stay pinned under the menu bar while the transactions scroll
-          <section className="sd-sticky" aria-label={`Selected SD record ${sd.sd_code}`}>
+          <section ref={stickyRef} className="sd-sticky" aria-label={`Selected SD record ${sd.sd_code}`}>
             <div className="sd-sticky-id">
               <span>SD Code</span>
               <strong>{sd.sd_code}</strong>
