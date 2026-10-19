@@ -2,7 +2,6 @@ const { withTransaction } = require('../config/db');
 const waiverModel = require('../models/rentWaiverModel');
 const rentMasterModel = require('../models/rentMasterModel');
 const service = require('../services/rentService');
-const schedule = require('../services/rentScheduleService');
 const { APPLIES_TO_COLUMNS, componentsFromRow, appliesToValues } = require('../services/rentComponents');
 const { logAudit } = require('../utils/audit');
 const { formatDMY, parseDMY } = require('../utils/dates');
@@ -10,7 +9,7 @@ const { processUpload } = require('../utils/bulkUpload');
 const { buildWorkbook, sendWorkbook, dateStamp } = require('../utils/excel');
 const { SCREENS } = require('../middleware/rightsMiddleware');
 const {
-  paging, badRequest, withDates, cell, editWorkbook, scheduleBlock, earliest, latest, sameList, monthLabel,
+  paging, badRequest, withDates, cell, editWorkbook, changeBlock, sameList, monthLabel,
 } = require('./rentHelpers');
 
 // Waiver ID filled = update that waiver; otherwise the same Rent Code + From Date
@@ -51,8 +50,13 @@ async function getOne(req, res, next) {
 }
 
 async function save(req, res, before) {
-  const { rec, errors } = await service.validateWaiver(fromBody(req.body), before);
+  const { rec, errors, rent } = await service.validateWaiver(fromBody(req.body), before);
   if (errors.length) return badRequest(res, errors);
+  // No generated Rent Schedule in the old or new waiver period (unchanged saves are fine)
+  if (!(before && sameWaiver(before, rec))) {
+    const block = await changeBlock('waiver', before, rec, { rent });
+    if (block) return badRequest(res, [{ field: 'Rent Schedule', value: rent.rent_code, error: block }]);
+  }
   const by = req.user.userName;
   const saved = await withTransaction(async (db) => {
     const w = before ? await waiverModel.update(before.waiver_id, rec, by, {}, db) : await waiverModel.create(rec, by, {}, db);
@@ -60,7 +64,6 @@ async function save(req, res, before) {
       tableName: 'rent_waivers', recordId: w.waiver_id, action: !before ? 'INSERT' : before.waiver_status !== w.waiver_status ? 'STATUS_CHANGE' : 'UPDATE',
       actionBy: by, oldValues: before, newValues: w,
     }, db);
-    await schedule.regenerateFuture([w.rent_id, before?.rent_id], { by, trigger: 'Waiver Master change' }, db);
     return w;
   });
   return res.status(before ? 200 : 201).json({ success: true, message: `Waiver for ${saved.rent_code} saved.`, data: saved });
@@ -88,10 +91,11 @@ async function remove(req, res, next) {
   try {
     const before = await waiverModel.findById(req.params.id);
     if (!before) return res.status(404).json({ success: false, message: 'Waiver not found.' });
+    const block = await changeBlock('waiver', before, null);
+    if (block) return badRequest(res, [{ field: 'Rent Schedule', value: before.rent_code, error: block }]);
     await withTransaction(async (db) => {
       await waiverModel.remove(before.waiver_id, db);
       await logAudit({ tableName: 'rent_waivers', recordId: before.waiver_id, action: 'DELETE', actionBy: req.user.userName, oldValues: before }, db);
-      await schedule.regenerateFuture([before.rent_id], { by: req.user.userName, trigger: 'Waiver deleted' }, db);
     });
     res.json({ success: true, message: `Waiver of ${before.rent_code} deleted.` });
   } catch (err) {
@@ -128,11 +132,10 @@ const sameWaiver = (before, rec) => before.rent_id === rec.rent_id && before.fro
 /**
  * Waiver Master Excel upload.
  *  Upload (editOnly false): Waiver ID, or the same Rent Code + From Date + To Date,
- *    updates a waiver; otherwise one is added. Generated months are recalculated
- *    from the current month.
- *  Bulk Edit (editOnly true): every row needs a Waiver ID; unchanged rows are skipped;
- *    a changed waiver is refused while Rent Schedule lines exist in its old or new
- *    period (delete them first, then regenerate after the edit).
+ *    updates a waiver; otherwise one is added.
+ *  Bulk Edit (editOnly true): every row needs a Waiver ID.
+ *  Both: unchanged rows are skipped; a new or changed waiver is refused while Rent
+ *  Schedule lines exist in its old or new period (delete them first, regenerate after).
  */
 async function runUpload(req, res, next, { editOnly }) {
   try {
@@ -174,17 +177,11 @@ async function runUpload(req, res, next, { editOnly }) {
           if (seen.has(k)) errors.push({ field: 'Waiver ID', value: before.waiver_id, error: `Same waiver as row ${seen.get(k)}.` });
           else seen.set(k, rowNumber);
         }
-        const unchanged = editOnly && errors.length === 0 && sameWaiver(before, rec);
-        // Bulk Edit: no generated Rent Schedule in the old or new waiver period
-        // (a waiver that is No before and after does not affect the schedule)
-        if (editOnly && errors.length === 0 && !unchanged && !(before.waiver_status === 'No' && rec.waiver_status === 'No')) {
-          const checks = before.rent_id === rec.rent_id
-            ? [[rent, earliest(before.from_date, rec.from_date), latest(before.to_date, rec.to_date)]]
-            : [[await rentMasterModel.findById(before.rent_id), before.from_date, before.to_date], [rent, rec.from_date, rec.to_date]];
-          for (const [r, from, to] of checks) {
-            const block = await scheduleBlock(r, from, to);
-            if (block) { errors.push({ field: 'Rent Schedule', value: r.rent_code, error: block }); break; }
-          }
+        const unchanged = errors.length === 0 && Boolean(before) && sameWaiver(before, rec);
+        // No generated Rent Schedule in the old or new waiver period
+        if (errors.length === 0 && !unchanged) {
+          const block = await changeBlock('waiver', before, rec, { rent });
+          if (block) errors.push({ field: 'Rent Schedule', value: rent.rent_code, error: block });
         }
         if (errors.length === 0) resolved.set(rowNumber, { rec, before, rent, unchanged });
         return errors;
@@ -212,8 +209,7 @@ async function runUpload(req, res, next, { editOnly }) {
           tableName: 'rent_waivers', recordId: saved.waiver_id, action: editOnly ? 'UPDATE' : 'UPLOAD', actionBy: by, oldValues: before, newValues: saved,
           details: editOnly ? 'Bulk Edit' : before ? 'Bulk update' : null,
         }, db);
-        // Bulk Edit: the user regenerates the deleted months afterwards
-        if (!editOnly) await schedule.regenerateFuture([saved.rent_id], { by, trigger: 'Waiver Master upload' }, db);
+        // The user regenerates the Rent Schedule afterwards
         return 'Saved';
       },
     });

@@ -154,7 +154,7 @@ export default function RentRules() {
         {can(SCREENS.RENT_RULE, 'upload') && (
           <>
             <ExcelUpload endpoint="/rent/rules" templateName="Rule_Master_Template.xlsx" onUploaded={fetchRows} />
-            <p className="hint upload-note">Leave Rule ID blank to add a rule; fill it to update that rule. Rules of one Rent Code are applied in row order. "Applies to: ..." columns: Yes = selected, No = not selected; leave them all blank for all components. Dates as DD/MM/YYYY.</p>
+            <p className="hint upload-note">Leave Rule ID blank to add a rule; fill it to update that rule. Rules of one Rent Code are applied in row order. "Applies to: ..." columns: Yes = selected, No = not selected; leave them all blank for all components. Dates as DD/MM/YYYY. Once the Rent Schedule is generated, adding, editing or deleting a rule or waiver in those months needs the schedule deleted first (Rent Schedule &gt; Delete Schedule); regenerate it afterwards.</p>
           </>
         )}
         {can(SCREENS.RENT_RULE, 'edit') && (

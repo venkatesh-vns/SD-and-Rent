@@ -2,7 +2,6 @@ const { withTransaction } = require('../config/db');
 const ruleModel = require('../models/rentRuleModel');
 const rentMasterModel = require('../models/rentMasterModel');
 const service = require('../services/rentService');
-const schedule = require('../services/rentScheduleService');
 const { APPLIES_TO_COLUMNS, componentsFromRow, appliesToValues } = require('../services/rentComponents');
 const { escalationChain } = require('../services/rentCalc');
 const { logAudit } = require('../utils/audit');
@@ -11,7 +10,7 @@ const { processUpload } = require('../utils/bulkUpload');
 const { buildWorkbook, sendWorkbook, dateStamp } = require('../utils/excel');
 const { SCREENS } = require('../middleware/rightsMiddleware');
 const {
-  paging, badRequest, cell, editWorkbook, scheduleBlock, earliest, latest, sameList, monthLabel,
+  paging, badRequest, cell, editWorkbook, changeBlock, sameList, monthLabel,
 } = require('./rentHelpers');
 
 // Rule ID blank = new rule; filled = update of that rule (blank cells keep values)
@@ -75,8 +74,14 @@ async function getOne(req, res, next) {
 }
 
 async function save(req, res, next, before) {
-  const { rec, errors } = await service.validateRule(fromBody(req.body), before);
+  const { rec, errors, rent, chain } = await service.validateRule(fromBody(req.body), before);
   if (errors.length) return badRequest(res, errors);
+  // No generated Rent Schedule in the months the change affects (unchanged saves are fine)
+  if (!(before && sameRule(before, rec))) {
+    const id = before?.rule_id ?? Number.MAX_SAFE_INTEGER;
+    const block = await changeBlock('rule', before, rec, { rent, newEffective: chain.find((r) => r.rule_id === id)?.effective_date });
+    if (block) return badRequest(res, [{ field: 'Rent Schedule', value: rent.rent_code, error: block }]);
+  }
   const by = req.user.userName;
   const saved = await withTransaction(async (db) => {
     const r = before ? await ruleModel.update(before.rule_id, rec, by, {}, db) : await ruleModel.create(rec, by, {}, db);
@@ -87,7 +92,6 @@ async function save(req, res, next, before) {
       tableName: 'rent_rules', recordId: after.rule_id, action: !before ? 'INSERT' : before.status !== after.status ? 'STATUS_CHANGE' : 'UPDATE',
       actionBy: by, oldValues: before, newValues: after,
     }, db);
-    await schedule.regenerateFuture([after.rent_id, before?.rent_id], { by, trigger: 'Rule Master change' }, db);
     return after;
   });
   const when = saved.effective_date ? ` Escalates on ${formatDMY(saved.effective_date)}.` : '';
@@ -116,11 +120,12 @@ async function remove(req, res, next) {
   try {
     const before = await ruleModel.findById(req.params.id);
     if (!before) return res.status(404).json({ success: false, message: 'Rule not found.' });
+    const block = await changeBlock('rule', before, null);
+    if (block) return badRequest(res, [{ field: 'Rent Schedule', value: before.rent_code, error: block }]);
     await withTransaction(async (db) => {
       await ruleModel.remove(before.rule_id, db);
       await refreshChain(before.rent_id, db);
       await logAudit({ tableName: 'rent_rules', recordId: before.rule_id, action: 'DELETE', actionBy: req.user.userName, oldValues: before }, db);
-      await schedule.regenerateFuture([before.rent_id], { by: req.user.userName, trigger: 'Rule deleted' }, db);
     });
     res.json({ success: true, message: `Rule ${before.rule_id} of ${before.rent_code} deleted.` });
   } catch (err) {
@@ -158,18 +163,12 @@ const sameRule = (before, rec) => before.rent_id === rec.rent_id && before.rule_
   && Number(before.percentage) === Number(rec.percentage) && before.status === rec.status
   && sameList(before.component_codes, rec.component_codes);
 
-// Months a rule affects: Normal Day = its From..To; RCD / LCD = from its escalation date onward
-const ruleWindow = (r, effective, rent) => (r.rule_type === 'Normal Day'
-  ? { from: r.from_date, to: r.to_date }
-  : { from: effective || (r.rule_type === 'LCD' ? rent?.lcd : rent?.rcd) || rent?.lcd || rent?.rcd, to: null });
-
 /**
  * Rule Master Excel upload.
- *  Upload (editOnly false): Rule ID blank = new rule, filled = update (blank cells keep values);
- *    months already generated are recalculated from the current month.
- *  Bulk Edit (editOnly true): every row needs a Rule ID; unchanged rows are skipped; a
- *    changed rule is refused while Rent Schedule lines exist in the months it affects
- *    (delete them first, then regenerate after the edit).
+ *  Upload (editOnly false): Rule ID blank = new rule, filled = update (blank cells keep values).
+ *  Bulk Edit (editOnly true): every row needs a Rule ID.
+ *  Both: unchanged rows are skipped; a new or changed rule is refused while Rent Schedule
+ *  lines exist in the months it affects (delete them first, regenerate after the change).
  */
 async function runUpload(req, res, next, { editOnly }) {
   try {
@@ -203,7 +202,7 @@ async function runUpload(req, res, next, { editOnly }) {
         if (applies.errors.length) return applies.errors;
         input.componentCodes = applies.given ? applies.codes : (before?.component_codes || []);
         const { rec, errors, rent } = await service.validateRule(input, before);
-        if (errors.length === 0) resolved.set(rowNumber, { rec, before, rent, unchanged: editOnly && sameRule(before, rec) });
+        if (errors.length === 0) resolved.set(rowNumber, { rec, before, rent, unchanged: Boolean(before) && sameRule(before, rec) });
         return errors;
       },
       // Rules of one Rent Code in the same file are checked together, in row order
@@ -235,22 +234,14 @@ async function runUpload(req, res, next, { editOnly }) {
             const tooLate = r.rule_type === 'RCD' ? r.effective_date >= rent.led : r.effective_date > rent.led;
             if (tooLate) errors.push({ rowNumber: r.rowNumber, field: 'Escalation Month', value: r.escalation_months, error: `Escalates on ${formatDMY(r.effective_date)}, which is ${r.rule_type === 'RCD' ? 'not before' : 'after'} the LED (${formatDMY(rent.led)}).` });
           });
-          if (!editOnly) continue;
 
-          // Bulk Edit: no generated Rent Schedule in the months the change affects
+          // No generated Rent Schedule in the months a change affects
           const newDates = Object.fromEntries(chain.map((r) => [r.rule_id, r.effective_date]));
-          for (const i of items) {
+          for (const c of candidates) {
+            const i = items.find((x) => x.rowNumber === c.rowNumber);
             if (i.unchanged || errors.some((e) => e.rowNumber === i.rowNumber)) continue;
-            if (i.before.status === 'Inactive' && i.rec.status === 'Inactive') continue; // no effect on the schedule
-            const oldW = ruleWindow(i.before, i.before.effective_date, i.before.rent_id === rentId ? rent : await rentMasterModel.findById(i.before.rent_id));
-            const newW = ruleWindow(i.rec, newDates[i.before.rule_id], rent);
-            const checks = i.before.rent_id === rentId
-              ? [[rent, earliest(oldW.from, newW.from), oldW.to && newW.to ? latest(oldW.to, newW.to) : null]]
-              : [[await rentMasterModel.findById(i.before.rent_id), oldW.from, oldW.to], [rent, newW.from, newW.to]];
-            for (const [r, from, to] of checks) {
-              const block = await scheduleBlock(r, from, to);
-              if (block) { errors.push({ rowNumber: i.rowNumber, field: 'Rent Schedule', value: r.rent_code, error: block }); break; }
-            }
+            const block = await changeBlock('rule', i.before, i.rec, { rent, newEffective: newDates[c.rule_id] });
+            if (block) errors.push({ rowNumber: i.rowNumber, field: 'Rent Schedule', value: rent.rent_code, error: block });
           }
         }
         return errors;
@@ -265,8 +256,7 @@ async function runUpload(req, res, next, { editOnly }) {
           tableName: 'rent_rules', recordId: saved.rule_id, action: editOnly ? 'UPDATE' : 'UPLOAD', actionBy: by, oldValues: before, newValues: saved,
           details: editOnly ? 'Bulk Edit' : before ? 'Bulk update' : null,
         }, db);
-        // Bulk Edit: the user regenerates the deleted months afterwards
-        if (!editOnly) await schedule.regenerateFuture([saved.rent_id], { by, trigger: 'Rule Master upload' }, db);
+        // The user regenerates the Rent Schedule afterwards
         return 'Saved';
       },
     });

@@ -2,6 +2,7 @@
 const ExcelJS = require('exceljs');
 const { parseDMY } = require('../utils/dates');
 const scheduleModel = require('../models/rentScheduleModel');
+const rentMasterModel = require('../models/rentMasterModel');
 
 function paging(query) {
   return {
@@ -71,15 +72,43 @@ async function scheduleBlock(rent, fromDate, toDate = null) {
   const affects = toDate ? `${monthLabel(fromDate)} to ${monthLabel(toDate)}` : `${monthLabel(fromDate)} onward`;
   return `Rent Schedule is already generated for ${rent.rent_code} in the months this change affects (${affects}; generated lines `
     + `${monthLabel(found.first_month)} to ${monthLabel(found.last_month)}). Delete those Rent Schedule lines first `
-    + '(Rent Schedule > Delete Schedule), upload the Bulk Edit again, then regenerate the schedule.';
+    + '(Rent Schedule > Delete Schedule), save this change again, then regenerate the schedule.';
 }
 
 // Earliest / latest of ISO dates, ignoring blanks
 const earliest = (...d) => d.filter(Boolean).sort()[0] || null;
 const latest = (...d) => d.filter(Boolean).sort().pop() || null;
 
+/**
+ * Rent Schedule check for a change to a rule or waiver: before = the stored record
+ * (null when adding), after = the new values (null when deleting). Only the months
+ * the change affects count, for the old and the new version:
+ *   rule   - Normal Day: its From..To; RCD / LCD: from its escalation date onward
+ *   waiver - its From..To
+ * Inactive rules and waivers with Status No do not affect the schedule.
+ * Returns an error message, or null when the change may be saved.
+ */
+async function changeBlock(kind, before, after, { rent, newEffective } = {}) {
+  const active = (r) => r && (kind === 'rule' ? r.status === 'Active' : r.waiver_status === 'Yes');
+  const windowOf = (r, effective, forRent) => (kind === 'waiver' || r.rule_type === 'Normal Day'
+    ? { from: r.from_date, to: r.to_date }
+    : { from: effective || (r.rule_type === 'LCD' ? forRent?.lcd : forRent?.rcd) || forRent?.lcd || forRent?.rcd, to: null });
+  const oldRent = before ? (rent && before.rent_id === rent.rent_id ? rent : await rentMasterModel.findById(before.rent_id)) : null;
+  const o = active(before) ? windowOf(before, before.effective_date, oldRent) : null;
+  const n = active(after) ? windowOf(after, newEffective, rent) : null;
+  if (!o && !n) return null;
+  const checks = o && n && oldRent.rent_id === rent.rent_id
+    ? [[rent, earliest(o.from, n.from), o.to && n.to ? latest(o.to, n.to) : null]]
+    : [o && [oldRent, o.from, o.to], n && [rent, n.from, n.to]].filter(Boolean);
+  for (const [r, from, to] of checks) {
+    const block = await scheduleBlock(r, from, to);
+    if (block) return block;
+  }
+  return null;
+}
+
 // Two lists of component codes hold the same items
 const sameList = (a, b) => JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort());
 
-module.exports = { paging, badRequest, withDates, cell, editWorkbook, scheduleBlock, earliest, latest, sameList, monthLabel };
+module.exports = { paging, badRequest, withDates, cell, editWorkbook, scheduleBlock, changeBlock, earliest, latest, sameList, monthLabel };
 

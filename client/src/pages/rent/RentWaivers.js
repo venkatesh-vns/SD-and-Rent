@@ -141,7 +141,7 @@ export default function RentWaivers() {
         {can(SCREENS.RENT_WAIVER, 'upload') && (
           <>
             <ExcelUpload endpoint="/rent/waivers" templateName="Waiver_Master_Template.xlsx" onUploaded={fetchRows} />
-            <p className="hint upload-note">A row with the same Rent Code, From Date and To Date as a saved waiver updates it (for example to Status No); otherwise a waiver is added. "Applies to: ..." columns: Yes = selected, No = not selected; leave them all blank for all components. Dates as DD/MM/YYYY.</p>
+            <p className="hint upload-note">A row with the same Rent Code, From Date and To Date as a saved waiver updates it (for example to Status No); otherwise a waiver is added. "Applies to: ..." columns: Yes = selected, No = not selected; leave them all blank for all components. Dates as DD/MM/YYYY. Once the Rent Schedule is generated, adding, editing or deleting a rule or waiver in those months needs the schedule deleted first (Rent Schedule &gt; Delete Schedule); regenerate it afterwards.</p>
           </>
         )}
         {can(SCREENS.RENT_WAIVER, 'edit') && (
