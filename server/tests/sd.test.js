@@ -139,7 +139,7 @@ describe('SD Master and transactions', () => {
     });
 
     it('validates fields and blocks Passive SD Codes', async () => {
-      const bad = await txn({ txnDate: '31/02/2025', fy: '2024-2026', sdType: 'X', agreementStatus: '', paidAmount: '-1' });
+      const bad = await txn({ txnDate: '31/02/2025', fy: '2024-2026', sdType: 'X', agreementStatus: '', paidAmount: 'abc' });
       assert.equal(bad.body.errors.length, 5);
       assert.match((await txn({ txnDate: '01/03/2025' })).body.message, /at least one/);
       const passive = (await ctx.api('POST', '/sd-master', sdBody(m, { leaseId: 'P-1', landlordStatus: 'Passive' }))).body.data;
