@@ -73,7 +73,8 @@ describe('notifications, report and logs', () => {
     assert.equal((await ctx.api('GET', '/reports/sd-balance?leaseEndFrom=01/01/2030&leaseEndTo=31/01/2030')).body.total, 2);
     const rows = await readXlsx((await ctx.download('/reports/sd-balance/export')).buffer);
     assert.equal(rows.length, 4);
-    assert.equal(rows[3]['SD Code'], 'TOTAL (3)');
+    assert.equal(rows[3]['SD Code'], 'GRAND TOTAL (3 SD Codes)');
+    assert.equal(rows[3]['Row Type'], 'Grand Total');
     assert.equal(rows[3]['SD Balance Repayable'], 200000);
   });
 

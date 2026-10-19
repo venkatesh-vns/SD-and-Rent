@@ -16,7 +16,7 @@ const PAGE_SIZE = 50;
 // Multi-select filters hold arrays of values (empty = all)
 const EMPTY_FILTERS = {
   search: '', costCenterId: [], l1Id: [], l2Id: [], landlordStatus: [], buildingStatus: [],
-  leaseEndFrom: '', leaseEndTo: '', balanceDue: '', repayableDue: '',
+  leaseEndFrom: '', leaseEndTo: '', balanceDue: '', repayableDue: '', agreementStatus: [],
 };
 
 // Report column -> kind of amount (colour and meaning in config/amounts.js), optional label.
@@ -35,6 +35,14 @@ const MONEY = [
 ];
 
 // Tile values from the report totals
+const AGREEMENT_STATUSES = ['LOI', 'Agreement', 'Registered Agreement', 'Addendum Agreement', 'Mail Approval'];
+// Amounts shown per Agreement Status line (Agreement Value and SD Balance are per SD Code)
+const LINE_MONEY = MONEY.filter(([col]) => !['agreement_value', 'sd_balance', 'sd_balance_repayable'].includes(col));
+const NO_LINES = [{ agreement_status: '—', total_payments: 0, total_reversal: 0, total_paid: 0, total_transfer: 0, total_adjustment: 0, total_refund: 0, sd_balance_repayable: 0 }];
+const moneyCell = (kind, value, key, extra = '') => (
+  <td key={key} className={`${amountClass(kind, value)}${Number(value) < 0 ? ' amount-negative' : ''}${extra}`}>{formatAmount(value)}</td>
+);
+
 const tileValues = (t) => Object.fromEntries(MONEY.map(([col, kind]) => [kind, t[col]]));
 
 export default function SdBalanceReport() {
@@ -106,7 +114,7 @@ export default function SdBalanceReport() {
             Export to Excel
           </button>
         </div>
-        <p className="hint">One row per SD Code. SD Balance = Agreement Value − Paid; Repayable = Paid − Transfer − Refund − Adjustment.</p>
+        <p className="hint">One block per SD Code with a line per Agreement Status. Agreement Value and SD Balance appear once per SD Code and are counted once in the Grand Total. SD Balance = Agreement Value − Net SD Paid; Repayable = Net SD Paid − Transfer − Refund − Adjustment.</p>
 
         {error && <div className="alert alert-error">{error}</div>}
 
@@ -139,6 +147,10 @@ export default function SdBalanceReport() {
           />
         </div>
         <div className="filter-bar">
+          <MultiSelect
+            allLabel="All Agreement Status" noun="statuses" options={AGREEMENT_STATUSES}
+            value={filters.agreementStatus} onChange={(v) => setFilter({ agreementStatus: v })}
+          />
           <DateRangeFilter label="Lease End" from={filters.leaseEndFrom} to={filters.leaseEndTo} onChange={({ from, to }) => setFilter({ leaseEndFrom: from, leaseEndTo: to })} />
           <label className="inline-check">
             <input type="checkbox" checked={filters.balanceDue === 'true'} onChange={(e) => setFilter({ balanceDue: e.target.checked ? 'true' : '' })} />
@@ -166,48 +178,81 @@ export default function SdBalanceReport() {
         {loading ? <p>Loading...</p> : rows.length === 0 ? <p className="empty-state">No records found.</p> : (
           <>
             <div className="table-wrap">
-              <table className="data-table compact">
+              <table className="data-table compact sd-balance-grouped">
                 <thead>
                   <tr className="group-row">
                     <th colSpan={7}>SD details</th>
                     <th className="tone-agreement">Agreed</th>
+                    <th />
                     <th colSpan={6}>Payments and movements</th>
                     <th colSpan={2} className="tone-fill-head">Balances</th>
-                    <th />
                   </tr>
                   <tr>
                     <th>SD Code</th><th>Lease / Agreement</th><th>Cost Center</th><th>Location</th><th>Landlord</th>
                     <th>Status</th><th>Lease End</th>
-                    {MONEY.map(([col, kind, label, hint]) => (
+                    <th className={`num tone-head tone-${AMOUNTS.agreement.tone}`}>{AMOUNTS.agreement.label}</th>
+                    <th>Agreement Status</th>
+                    {LINE_MONEY.map(([col, kind, label, hint]) => (
                       <th key={col} className={`num tone-head tone-${AMOUNTS[kind].tone}`} title={hint || AMOUNTS[kind].hint}>{label || AMOUNTS[kind].label}</th>
                     ))}
-                    <th className="num">Txns</th>
+                    <th className={`num tone-head tone-${AMOUNTS.balance.tone}`} title={AMOUNTS.balance.hint}>{AMOUNTS.balance.label}</th>
+                    <th className={`num tone-head tone-${AMOUNTS.repayable.tone}`} title={AMOUNTS.repayable.hint}>{AMOUNTS.repayable.label}</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.sd_id}>
-                      <td>{canTxn ? <Link to={`/sd-transactions?sd=${r.sd_id}`}>{r.sd_code}</Link> : r.sd_code}</td>
-                      <td>{[r.lease_id, r.agreement_no].filter(Boolean).join(' / ') || '—'}</td>
-                      <td>{r.cost_center_name}</td>
-                      <td>
-                        <strong>{r.l3_name}</strong>
-                        <div className="hint">{r.l1_name} › {r.l2_name} · Floor {r.floor}</div>
-                      </td>
-                      <td>{r.landlord_name || '—'}</td>
-                      <td>
-                        {r.landlord_status === 'Active' && r.building_status === 'Active'
-                          ? <span className="badge badge-active">Active</span>
-                          : <span className="badge badge-passive">Passive</span>}
-                      </td>
-                      <td>{formatDate(r.lease_end_date) || '—'}</td>
-                      {MONEY.map(([col, kind]) => (
-                        <td key={col} className={`${amountClass(kind, r[col])}${Number(r[col]) < 0 ? ' amount-negative' : ''}`}>{formatAmount(r[col])}</td>
+                {rows.map((r) => {
+                  const lines = r.lines.length ? r.lines : NO_LINES;
+                  const span = lines.length + (lines.length > 1 ? 1 : 0);
+                  return (
+                    <tbody key={r.sd_id} className="sd-group">
+                      {lines.map((l, i) => (
+                        <tr key={l.agreement_status}>
+                          {i === 0 && (
+                            <>
+                              <td rowSpan={span}>{canTxn ? <Link to={`/sd-transactions?sd=${r.sd_id}`}>{r.sd_code}</Link> : r.sd_code}</td>
+                              <td rowSpan={span}>{[r.lease_id, r.agreement_no].filter(Boolean).join(' / ') || '—'}</td>
+                              <td rowSpan={span}>{r.cost_center_name}</td>
+                              <td rowSpan={span}>
+                                <strong>{r.l3_name}</strong>
+                                <div className="hint">{r.l1_name} › {r.l2_name} · Floor {r.floor}</div>
+                              </td>
+                              <td rowSpan={span}>{r.landlord_name || '—'}</td>
+                              <td rowSpan={span}>
+                                {r.landlord_status === 'Active' && r.building_status === 'Active'
+                                  ? <span className="badge badge-active">Active</span>
+                                  : <span className="badge badge-passive">Passive</span>}
+                              </td>
+                              <td rowSpan={span}>{formatDate(r.lease_end_date) || '—'}</td>
+                              <td rowSpan={span} className={`${amountClass('agreement', r.agreement_value)} once-per-sd`}>{formatAmount(r.agreement_value)}</td>
+                            </>
+                          )}
+                          <td><span className="status-chip">{l.agreement_status}</span></td>
+                          {LINE_MONEY.map(([col, kind]) => moneyCell(kind, l[col], col))}
+                          {i === 0 && <td rowSpan={span} className={`${amountClass('balance', r.sd_balance)} once-per-sd`}>{formatAmount(r.sd_balance)}</td>}
+                          {moneyCell('repayable', l.sd_balance_repayable, 'rep')}
+                        </tr>
                       ))}
-                      <td className="num">{r.txn_count}</td>
+                      {lines.length > 1 && (
+                        <tr className="sd-subtotal">
+                          <td>SD total</td>
+                          {LINE_MONEY.map(([col, kind]) => moneyCell(kind, r[col], col))}
+                          {moneyCell('repayable', r.sd_balance_repayable, 'rep')}
+                        </tr>
+                      )}
+                    </tbody>
+                  );
+                })}
+                {totals && (
+                  <tfoot>
+                    <tr className="grand-total">
+                      <th colSpan={7}>Grand Total ({totals.count} SD Code{totals.count === 1 ? '' : 's'}{total > PAGE_SIZE ? ', all pages' : ''})</th>
+                      {moneyCell('agreement', totals.agreement_value, 'av')}
+                      <td />
+                      {LINE_MONEY.map(([col, kind]) => moneyCell(kind, totals[col], col))}
+                      {moneyCell('balance', totals.sd_balance, 'bal')}
+                      {moneyCell('repayable', totals.sd_balance_repayable, 'rep')}
                     </tr>
-                  ))}
-                </tbody>
+                  </tfoot>
+                )}
               </table>
             </div>
             <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />

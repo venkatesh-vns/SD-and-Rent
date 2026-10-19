@@ -1216,6 +1216,17 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
 .reversal-box strong { color: var(--danger); }
 .amount-negative-text { color: var(--danger); font-weight: 700; }
 .reversal-note { margin: 0.5rem 0 0; }
+/* SD Balance Report: one block per SD Code, a line per Agreement Status */
+.sd-balance-grouped tbody.sd-group { border-top: 2px solid var(--border-strong); }
+.sd-balance-grouped tbody.sd-group td { vertical-align: top; }
+.sd-balance-grouped td.once-per-sd { font-weight: 700; background: var(--surface-2); }
+.sd-balance-grouped tr.sd-subtotal td { background: #f3f7f5; font-weight: 700; }
+.sd-balance-grouped tr.sd-subtotal td:first-child { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.sd-balance-grouped tfoot tr.grand-total th, .sd-balance-grouped tfoot tr.grand-total td {
+  background: var(--primary-tint); border-top: 2px solid var(--primary); font-weight: 800; position: sticky; bottom: 0;
+}
+.sd-balance-grouped tfoot tr.grand-total th { text-align: left; color: var(--primary-strong); }
+.status-chip { display: inline-block; padding: 0.05rem 0.45rem; border-radius: 999px; font-size: 0.74rem; font-weight: 600; background: var(--info-bg); color: var(--info); border: 1px solid var(--info-border); white-space: nowrap; }
 /* SD & Rent Transaction Summary Report */
 .category-chip {
   display: inline-block; padding: 0.08rem 0.5rem; border-radius: 999px; font-size: 0.74rem; font-weight: 600; white-space: nowrap;

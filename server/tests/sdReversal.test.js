@@ -109,7 +109,7 @@ describe('SD Paid reversal entries', () => {
     const r = report.data[0];
     assert.deepEqual([r.total_payments, r.total_reversal, r.total_paid].map(Number), [12100, -2150, 9950]);
     assert.equal(Number(r.sd_balance), 100000 - 9950, 'outstanding SD balance uses net SD Paid');
-    assert.equal(r.reversal_count, 3);
+    assert.equal(report.totals.reversal_count, 3);
     assert.equal(Number(report.totals.total_reversal), -2150);
 
     const dash = (await ctx.api('GET', `/dashboard?sdId=${sd.sd_id}`)).body.data;
@@ -118,6 +118,38 @@ describe('SD Paid reversal entries', () => {
     assert.equal(Number(dash.kpi.reversal_amount), 2150);
     assert.equal(dash.kpi.reversal_count, 3);
     assert.ok(dash.recent.some((t) => Number(t.paid_amount) < 0), 'recent transactions include reversals');
+  });
+
+  it('SD Balance Report: a line per Agreement Status, Agreement Value once, status filter, grand total', async () => {
+    const ExcelJS = require('exceljs');
+    // NEG-1 so far: all LOI; add an "Agreement" payment
+    assert.equal((await txn({ txnDate: '08/05/2026', paidAmount: '1000', agreementStatus: 'Agreement' })).status, 201);
+
+    const all = (await ctx.api('GET', '/reports/sd-balance?search=NEG-1')).body;
+    const r = all.data[0];
+    assert.deepEqual(r.lines.map((l) => [l.agreement_status, Number(l.total_paid)]), [['Agreement', 1000], ['LOI', 9950]]);
+    assert.equal(Number(r.agreement_value), 100000);
+    assert.equal(Number(all.totals.agreement_value), 100000, 'Agreement Value counted once in the total');
+    assert.equal(Number(r.sd_balance), 100000 - 10950);
+
+    const agreementOnly = (await ctx.api('GET', '/reports/sd-balance?search=NEG-&agreementStatus=Agreement')).body;
+    assert.equal(agreementOnly.total, 1, 'only SD Codes with Agreement transactions');
+    assert.equal(Number(agreementOnly.data[0].total_paid), 1000);
+    assert.deepEqual(agreementOnly.data[0].lines.map((l) => l.agreement_status), ['Agreement']);
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await ctx.download('/reports/sd-balance/export?search=NEG-1')).buffer);
+    const ws = wb.getWorksheet('SD Balance');
+    const head = ws.getRow(1).values;
+    const col = (row, name) => row[head.indexOf(name)];
+    const data = [];
+    ws.eachRow((row, n) => { if (n > 1 && row.getCell(1).value) data.push(row.values); });
+    assert.deepEqual(data.map((x) => col(x, 'Row Type')), ['Line', 'Line', 'SD Subtotal', 'Grand Total']);
+    assert.equal(col(data[0], 'Agreement Value'), 100000);
+    assert.equal(col(data[1], 'Agreement Value'), undefined, 'not repeated on the second status line');
+    assert.equal(col(data[2], 'Net SD Paid'), 10950);
+    assert.equal(col(data[3], 'Agreement Value'), 100000, 'grand total counts the Agreement Value once');
+    assert.ok(!head.includes('Transactions') && !head.includes('Reversal Entries'), 'columns removed');
   });
 
   it('exports transactions grouped by SD Code with the Agreement Value once', async () => {
@@ -138,7 +170,8 @@ describe('SD Paid reversal entries', () => {
     by.eachRow((row) => { if (row.getCell(1).value === sd.sd_code) line.push(row.values); });
     const col = (name) => line[0][head.indexOf(name)];
     assert.equal(col('Agreement Value'), 100000);
-    assert.deepEqual([col('SD Paid (payments)'), col('Reversals'), col('Net SD Paid')], [12100, -2150, 9950]);
-    assert.equal(col('SD Balance (closing)'), 90050);
+    // includes the 1,000 Agreement-status payment added by the previous test
+    assert.deepEqual([col('SD Paid (payments)'), col('Reversals'), col('Net SD Paid')], [13100, -2150, 10950]);
+    assert.equal(col('SD Balance (closing)'), 89050);
   });
 });

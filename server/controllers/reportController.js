@@ -3,6 +3,7 @@ const logModel = require('../models/logModel');
 const { runDateReminders } = require('../services/notificationService');
 const { parseDMY, formatDMY } = require('../utils/dates');
 const { httpError } = require('../utils/httpError');
+const ExcelJS = require('exceljs');
 const { buildWorkbook, sendWorkbook, dateStamp } = require('../utils/excel');
 
 function paging(query) {
@@ -33,29 +34,56 @@ async function sdBalance(req, res, next) {
 }
 
 // GET /api/reports/sd-balance/export
+// One row per SD Code and Agreement Status. SD details, Agreement Value and SD
+// Balance appear once per SD Code (its first row); an SD Subtotal row follows an
+// SD Code with several statuses, and the Grand Total counts each Agreement Value
+// once. "Row Type" lets users filter Lines / SD Subtotal / Grand Total in Excel.
 async function sdBalanceExport(req, res, next) {
   try {
     const { rows, totals } = await reportModel.sdBalance(withDates(req.query, ['leaseEndFrom', 'leaseEndTo']), { pageSize: 0 });
-    const data = rows.map((r) => [
-      r.sd_code, r.lease_id, r.agreement_no, r.cost_center_name, r.l1_name, r.l2_name, r.l3_name, r.floor,
-      r.landlord_name, r.landlord_status, r.building_status,
-      formatDMY(r.lease_commencement_date), formatDMY(r.rent_commencement_date), formatDMY(r.lease_end_date),
-      num(r.agreement_value), num(r.total_payments), num(r.total_reversal), num(r.total_paid), num(r.total_transfer), num(r.total_adjustment), num(r.total_refund),
-      num(r.sd_balance), num(r.sd_balance_repayable), r.txn_count, r.reversal_count, formatDMY(r.last_txn_date),
-    ]);
-    data.push([
-      `TOTAL (${totals.count})`, '', '', '', '', '', '', '', '', '', '', '', '', '',
-      num(totals.agreement_value), num(totals.total_payments), num(totals.total_reversal), num(totals.total_paid), num(totals.total_transfer), num(totals.total_adjustment),
-      num(totals.total_refund), num(totals.sd_balance), num(totals.sd_balance_repayable), '', totals.reversal_count, '',
-    ]);
-    const buffer = buildWorkbook('SD Balance', [
-      'SD Code', 'Lease ID', 'Agreement No.', 'Cost Center', 'Location Level 1', 'Location Level 2', 'Location Level 3', 'Floor',
+    const headers = [
+      'Row Type', 'SD Code', 'Lease ID', 'Agreement No.', 'Cost Center', 'Location Level 1', 'Location Level 2', 'Location Level 3', 'Floor',
       'Landlord Name', 'Landlord Status', 'Building Status',
       'Lease Commencement Date', 'Rent Commencement Date', 'Lease End Date',
-      'Agreement Value', 'SD Paid (payments)', 'SD Paid Reversals', 'Net SD Paid', 'Total SD Transfer', 'Total SD Adjustment', 'Total SD Refund',
-      'SD Balance', 'SD Balance Repayable', 'Transactions', 'Reversal Entries', 'Last Transaction Date',
-    ], data);
-    await sendWorkbook(res, `SD_Balance_Report_${dateStamp()}.xlsx`, buffer);
+      'Agreement Value', 'Agreement Status', 'SD Paid (payments)', 'SD Paid Reversals', 'Net SD Paid',
+      'Total SD Transfer', 'Total SD Adjustment', 'Total SD Refund', 'SD Balance', 'SD Balance Repayable', 'Last Transaction Date',
+    ];
+    const amounts = (x) => [num(x.total_payments), num(x.total_reversal), num(x.total_paid), num(x.total_transfer), num(x.total_adjustment), num(x.total_refund)];
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('SD Balance', { views: [{ state: 'frozen', ySplit: 1 }] });
+    ws.addRow(headers).font = { bold: true };
+    const shade = (row, argb) => row.eachCell({ includeEmpty: true }, (c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } }; });
+
+    rows.forEach((r) => {
+      const lines = r.lines.length ? r.lines : [{ agreement_status: '—', total_payments: 0, total_reversal: 0, total_paid: 0, total_transfer: 0, total_adjustment: 0, total_refund: 0, sd_balance_repayable: 0 }];
+      lines.forEach((l, i) => {
+        const first = i === 0;
+        ws.addRow([
+          'Line', r.sd_code,
+          ...(first ? [r.lease_id, r.agreement_no, r.cost_center_name, r.l1_name, r.l2_name, r.l3_name, r.floor, r.landlord_name,
+            r.landlord_status, r.building_status, formatDMY(r.lease_commencement_date), formatDMY(r.rent_commencement_date),
+            formatDMY(r.lease_end_date), num(r.agreement_value)] : Array(14).fill(null)),
+          l.agreement_status, ...amounts(l),
+          first ? num(r.sd_balance) : null, num(l.sd_balance_repayable), first ? formatDMY(r.last_txn_date) : null,
+        ]);
+      });
+      if (lines.length > 1) {
+        const sub = ws.addRow(['SD Subtotal', r.sd_code, ...Array(14).fill(null), 'All statuses', ...amounts(r), null, num(r.sd_balance_repayable), null]);
+        sub.font = { bold: true };
+        shade(sub, 'FFF1F5F3');
+      }
+    });
+    const grand = ws.addRow([
+      'Grand Total', `GRAND TOTAL (${totals.count} SD Codes)`, ...Array(13).fill(null), num(totals.agreement_value), 'All statuses',
+      ...amounts(totals), num(totals.sd_balance), num(totals.sd_balance_repayable), null,
+    ]);
+    grand.font = { bold: true };
+    shade(grand, 'FFDCFCE7');
+    ws.columns.forEach((col, i) => {
+      col.width = Math.max(12, headers[i].length + 3);
+      if (i >= 15 && i <= 24 && i !== 16) col.numFmt = '#,##,##0.00';
+    });
+    await sendWorkbook(res, `SD_Balance_Report_${dateStamp()}.xlsx`, Buffer.from(await wb.xlsx.writeBuffer()));
   } catch (err) {
     next(err);
   }
