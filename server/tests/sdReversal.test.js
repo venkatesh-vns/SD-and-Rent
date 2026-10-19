@@ -144,12 +144,26 @@ describe('SD Paid reversal entries', () => {
     const col = (row, name) => row[head.indexOf(name)];
     const data = [];
     ws.eachRow((row, n) => { if (n > 1 && row.getCell(1).value) data.push(row.values); });
-    assert.deepEqual(data.map((x) => col(x, 'Row Type')), ['Line', 'Line', 'SD Subtotal', 'Grand Total']);
+    assert.deepEqual(data.map((x) => col(x, 'Row Type')), ['Line', 'Line', 'Grand Total'], 'no subtotal rows');
     assert.equal(col(data[0], 'Agreement Value'), 100000);
+    assert.equal(col(data[0], 'Floor'), '1');
     assert.equal(col(data[1], 'Agreement Value'), undefined, 'not repeated on the second status line');
     assert.equal(col(data[2], 'Net SD Paid'), 10950);
-    assert.equal(col(data[3], 'Agreement Value'), 100000, 'grand total counts the Agreement Value once');
+    assert.equal(col(data[2], 'Agreement Value'), 100000, 'grand total counts the Agreement Value once');
     assert.ok(!head.includes('Transactions') && !head.includes('Reversal Entries'), 'columns removed');
+    assert.ok(head.includes('Floor') && !head.some((h) => /Location/.test(String(h))), 'Floor instead of Location in the report');
+  });
+
+  it('SD Balance Report: Floor and Landlord Name filters', async () => {
+    const opts = (await ctx.api('GET', '/reports/sd-balance/options')).body.data;
+    assert.ok(opts.floors.includes('1'));
+    assert.ok(opts.landlords.includes('(Not given)'));
+    await ctx.api('PUT', `/sd-master/${sd.sd_id}`, sdBody(m, { leaseId: 'NEG-1', agreementValue: '100000', floor: '7', landlordName: 'Prestige Estates' }));
+    const byFloor = (await ctx.api('GET', '/reports/sd-balance?floor=7')).body;
+    assert.deepEqual(byFloor.data.map((r) => r.sd_code), [sd.sd_code]);
+    const byLandlord = (await ctx.api('GET', '/reports/sd-balance?landlordName=Prestige Estates,Nobody')).body;
+    assert.deepEqual(byLandlord.data.map((r) => r.sd_code), [sd.sd_code]);
+    assert.equal((await ctx.api('GET', '/reports/sd-balance?floor=7&landlordName=Nobody')).body.total, 0);
   });
 
   it('exports transactions grouped by SD Code with the Agreement Value once', async () => {

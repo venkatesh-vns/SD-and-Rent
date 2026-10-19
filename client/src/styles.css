@@ -1220,8 +1220,6 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
 .sd-balance-grouped tbody.sd-group { border-top: 2px solid var(--border-strong); }
 .sd-balance-grouped tbody.sd-group td { vertical-align: top; }
 .sd-balance-grouped td.once-per-sd { font-weight: 700; background: var(--surface-2); }
-.sd-balance-grouped tr.sd-subtotal td { background: #f3f7f5; font-weight: 700; }
-.sd-balance-grouped tr.sd-subtotal td:first-child { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .sd-balance-grouped tfoot tr.grand-total th, .sd-balance-grouped tfoot tr.grand-total td {
   background: var(--primary-tint); border-top: 2px solid var(--primary); font-weight: 800; position: sticky; bottom: 0;
 }

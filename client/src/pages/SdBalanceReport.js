@@ -16,7 +16,7 @@ const PAGE_SIZE = 50;
 // Multi-select filters hold arrays of values (empty = all)
 const EMPTY_FILTERS = {
   search: '', costCenterId: [], l1Id: [], l2Id: [], landlordStatus: [], buildingStatus: [],
-  leaseEndFrom: '', leaseEndTo: '', balanceDue: '', repayableDue: '', agreementStatus: [],
+  leaseEndFrom: '', leaseEndTo: '', balanceDue: '', repayableDue: '', agreementStatus: [], floor: [], landlordName: [],
 };
 
 // Report column -> kind of amount (colour and meaning in config/amounts.js), optional label.
@@ -57,6 +57,7 @@ export default function SdBalanceReport() {
   const [costCenters, setCostCenters] = useState([]);
   const [l1List, setL1List] = useState([]);
   const [l2List, setL2List] = useState([]);
+  const [options, setOptions] = useState({ floors: [], landlords: [] }); // Floor / Landlord Name filter choices
   const search = useDebounce(filters.search);
   const query = { ...filters, search };
 
@@ -80,6 +81,7 @@ export default function SdBalanceReport() {
   useEffect(() => {
     api.get('/lookups/cost-centers').then((res) => setCostCenters(res.data.data)).catch(() => {});
     api.get('/lookups/locations/1').then((res) => setL1List(res.data.data)).catch(() => {});
+    api.get('/reports/sd-balance/options').then((res) => setOptions(res.data.data)).catch(() => {});
   }, []);
 
   // Level 2 choices follow the chosen Level 1s; picks outside them are dropped
@@ -114,7 +116,7 @@ export default function SdBalanceReport() {
             Export to Excel
           </button>
         </div>
-        <p className="hint">One block per SD Code with a line per Agreement Status. Agreement Value and SD Balance appear once per SD Code and are counted once in the Grand Total. SD Balance = Agreement Value − Net SD Paid; Repayable = Net SD Paid − Transfer − Refund − Adjustment.</p>
+        <p className="hint">One block per SD Code with a line per Agreement Status. Agreement Value and SD Balance appear once per SD Code and are counted once in the Grand Total at the bottom. SD Balance = Agreement Value − Net SD Paid; Repayable = Net SD Paid − Transfer − Refund − Adjustment.</p>
 
         {error && <div className="alert alert-error">{error}</div>}
 
@@ -147,6 +149,8 @@ export default function SdBalanceReport() {
           />
         </div>
         <div className="filter-bar">
+          <MultiSelect allLabel="All floors" noun="floors" options={options.floors} value={filters.floor} onChange={(v) => setFilter({ floor: v })} />
+          <MultiSelect allLabel="All landlords" noun="landlords" options={options.landlords} value={filters.landlordName} onChange={(v) => setFilter({ landlordName: v })} />
           <MultiSelect
             allLabel="All Agreement Status" noun="statuses" options={AGREEMENT_STATUSES}
             value={filters.agreementStatus} onChange={(v) => setFilter({ agreementStatus: v })}
@@ -201,7 +205,7 @@ export default function SdBalanceReport() {
                 </thead>
                 {rows.map((r) => {
                   const lines = r.lines.length ? r.lines : NO_LINES;
-                  const span = lines.length + (lines.length > 1 ? 1 : 0);
+                  const span = lines.length;
                   return (
                     <tbody key={r.sd_id} className="sd-group">
                       {lines.map((l, i) => (
@@ -231,13 +235,6 @@ export default function SdBalanceReport() {
                           {moneyCell('repayable', l.sd_balance_repayable, 'rep')}
                         </tr>
                       ))}
-                      {lines.length > 1 && (
-                        <tr className="sd-subtotal">
-                          <td>SD total</td>
-                          {LINE_MONEY.map(([col, kind]) => moneyCell(kind, r[col], col))}
-                          {moneyCell('repayable', r.sd_balance_repayable, 'rep')}
-                        </tr>
-                      )}
                     </tbody>
                   );
                 })}

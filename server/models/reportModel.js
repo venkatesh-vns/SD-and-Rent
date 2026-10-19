@@ -8,6 +8,7 @@ const { listOf } = require('../utils/filters');
  *
  * Filters: those of the SD Master list (search, costCenterId, l1Id, l2Id,
  * l3Id, landlordStatus, buildingStatus, leaseEndFrom, leaseEndTo), plus
+ *   floor, landlordName  one or more each (blank landlord = '(Not given)')
  *   agreementStatus  one or more; only transactions with those statuses are
  *                    added up, and only SD Codes that have such transactions are listed
  *   balanceDue       SD Balance > 0;  repayableDue  SD Balance Repayable > 0
@@ -20,8 +21,15 @@ const { listOf } = require('../utils/filters');
  * each Agreement Value once.
  */
 async function sdBalance(filters = {}, { page = 1, pageSize = 50 } = {}) {
-  const { sql, params } = filterClause(filters);
+  const base = filterClause(filters);
+  const params = base.params;
   const p = (v) => { params.push(v); return `$${params.length}`; };
+  const sdWhere = base.sql ? [base.sql.replace(/^WHERE /, '')] : [];
+  if (listOf(filters.floor).length) sdWhere.push(`s.floor = ANY(${p(listOf(filters.floor))})`);
+  if (listOf(filters.landlordName).length) {
+    sdWhere.push(`COALESCE(NULLIF(TRIM(s.landlord_name), ''), '(Not given)') = ANY(${p(listOf(filters.landlordName))})`);
+  }
+  const sql = sdWhere.length ? `WHERE ${sdWhere.join(' AND ')}` : '';
   const statuses = listOf(filters.agreementStatus);
   const statusCond = statuses.length ? `AND t.agreement_status = ANY(${p(statuses)})` : '';
 
@@ -114,4 +122,14 @@ async function sdBalance(filters = {}, { page = 1, pageSize = 50 } = {}) {
   return { rows, total: totals.count, totals };
 }
 
-module.exports = { sdBalance };
+// Floor and Landlord Name choices for the report's filters
+async function sdBalanceOptions() {
+  const sort = (rows) => rows.map((r) => r.v).filter(Boolean).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+  const floors = sort((await pool.query('SELECT DISTINCT floor AS v FROM sd_master')).rows);
+  const landlords = sort((await pool.query(
+    "SELECT DISTINCT COALESCE(NULLIF(TRIM(landlord_name), ''), '(Not given)') AS v FROM sd_master"
+  )).rows);
+  return { floors, landlords };
+}
+
+module.exports = { sdBalance, sdBalanceOptions };
