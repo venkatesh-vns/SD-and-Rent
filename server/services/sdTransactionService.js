@@ -17,6 +17,7 @@ const LABELS = {
   adjustment_amount: 'SD Adjustment Amount',
   refund_amount: 'SD Refund Amount',
   remarks: 'Remarks',
+  reverses_txn_id: 'Reverses Transaction No.',
 };
 
 // Matches a dropdown value ignoring case and extra spaces; returns the
@@ -61,9 +62,19 @@ function validateFields(rec, raw, { sd, isNew }) {
   else if (!AGREEMENT_STATUSES.includes(rec.agreement_status)) fail('agreement_status', 'Invalid Agreement Status.');
 
   AMOUNT_FIELDS.forEach((f) => {
-    if (rec[f] === undefined) fail(f, 'Amount must be a number with up to 2 decimals (0 or more).');
-    else if (rec[f] >= 1e13) fail(f, 'Amount is too large.');
+    if (rec[f] === undefined) {
+      fail(f, f === 'paid_amount'
+        ? 'Amount must be a number with up to 2 decimals (negative only for a reversal entry).'
+        : 'Amount must be a number with up to 2 decimals (0 or more).');
+    } else if (Math.abs(rec[f]) >= 1e13) fail(f, 'Amount is too large.');
   });
+  // Negative SD Paid = reversal / credit note of an earlier payment: an entry of its own
+  if (rec.paid_amount < 0 && ['transfer_amount', 'adjustment_amount', 'refund_amount'].some((f) => rec[f])) {
+    fail('paid_amount', 'A negative SD Paid amount is a reversal entry: leave Transfer, Adjustment and Refund empty on it.');
+  }
+  if (rec.reverses_txn_no && !(rec.paid_amount < 0)) {
+    fail('reverses_txn_id', 'Reverses Transaction No. is only used with a negative SD Paid amount.', rec.reverses_txn_no);
+  }
   if (AMOUNT_FIELDS.every((f) => rec[f] !== undefined) && AMOUNT_FIELDS.every((f) => !rec[f])) {
     errors.push({ field: 'Amounts', value: '0', error: 'Enter at least one of SD Paid, Transfer, Adjustment or Refund Amount.' });
   }
@@ -75,7 +86,7 @@ function validateFields(rec, raw, { sd, isNew }) {
 
 /**
  * Checks an SD Code's ledger after a change:
- *   - Total SD Paid may not exceed Agreement Value
+ *   - Total SD Paid may not exceed Agreement Value, nor drop below zero (reversals)
  *   - SD Balance Repayable may not drop below zero at any date
  * ledger: stored transactions; removeIds: txn_ids being replaced or deleted;
  * entries: new/changed transactions ({ txn_id?, txn_date, ...amounts }).
@@ -94,6 +105,14 @@ function checkLedger({ agreementValue, ledger, removeIds = new Set(), entries = 
   for (const t of rows) {
     paid += toCents(t.paid_amount);
     repayable += toCents(t.paid_amount) - toCents(t.transfer_amount) - toCents(t.refund_amount) - toCents(t.adjustment_amount);
+    if (paid < 0) {
+      errors.push({
+        field: LABELS.paid_amount,
+        value: formatDMY(t.txn_date),
+        error: `On ${formatDMY(t.txn_date)} total SD Paid would be ${money(paid)}. A reversal cannot exceed what was paid up to that date.`,
+      });
+      break;
+    }
     if (repayable < 0) {
       errors.push({
         field: 'SD Balance Repayable',
@@ -113,6 +132,37 @@ function checkLedger({ agreementValue, ledger, removeIds = new Set(), entries = 
   return errors;
 }
 
+// SD Paid may be negative (reversal); '-2,000.00' -> -2000
+function parseSignedAmount(value) {
+  if (blank(value)) return 0;
+  const cleaned = String(value).replace(/[,\s₹]/g, '').replace(/^\((.*)\)$/, '-$1');
+  if (!/^-?\d+(\.\d{1,2})?$/.test(cleaned)) return undefined;
+  return Number(cleaned) || 0;
+}
+
+/**
+ * Checks the payment a reversal points to (when Reverses Transaction No. is given):
+ * same SD Code, a positive SD Paid, dated on or before the reversal, and not
+ * reversed by more than its amount in total. Sets rec.reverses_txn_id.
+ */
+async function validateReversal(rec, { sd, exceptId = null, txnModel }) {
+  rec.reverses_txn_id = null;
+  if (!rec.reverses_txn_no || !(rec.paid_amount < 0)) return [];
+  const fail = (error) => [{ field: LABELS.reverses_txn_id, value: rec.reverses_txn_no, error }];
+  const original = await txnModel.findByNo(rec.reverses_txn_no);
+  if (!original) return fail('Transaction No. not found.');
+  if (sd && original.sd_id !== sd.sd_id) return fail(`${original.txn_no} belongs to ${original.sd_code}; a reversal must be on the same SD Code.`);
+  if (!(Number(original.paid_amount) > 0)) return fail(`${original.txn_no} is not an SD Paid payment, so it cannot be reversed.`);
+  if (rec.txn_date && original.txn_date > rec.txn_date) return fail(`The reversal date cannot be before ${original.txn_no} (${formatDMY(original.txn_date)}).`);
+  const already = await txnModel.reversedAmount(original.txn_id, exceptId);
+  const left = toCents(original.paid_amount) - toCents(already);
+  if (toCents(-rec.paid_amount) > left) {
+    return fail(`${original.txn_no} paid ${money(toCents(original.paid_amount))}${already ? `, of which ${money(toCents(already))} is already reversed` : ''}; at most ${money(left)} can be reversed.`);
+  }
+  rec.reverses_txn_id = original.txn_id;
+  return [];
+}
+
 // Manual entry body (camelCase, date DD/MM/YYYY) -> { rec, raw }
 function fromBody(body) {
   const amount = (v) => (blank(v) ? 0 : parseAmount(v));
@@ -122,11 +172,12 @@ function fromBody(body) {
     fy: text(body.fy),
     txn_date: parseDMY(body.txnDate),
     agreement_status: blank(body.agreementStatus) ? null : canonical(body.agreementStatus, AGREEMENT_STATUSES),
-    paid_amount: amount(body.paidAmount),
+    paid_amount: parseSignedAmount(body.paidAmount),
     transfer_amount: amount(body.transferAmount),
     adjustment_amount: amount(body.adjustmentAmount),
     refund_amount: amount(body.refundAmount),
     remarks: text(body.remarks),
+    reverses_txn_no: text(body.reversesTxnNo),
   };
   const raw = {
     txn_date: body.txnDate,
@@ -153,5 +204,5 @@ function changeSummary(before, after) {
 }
 
 module.exports = {
-  SD_TYPES, AGREEMENT_STATUSES, LABELS, canonical, validateFields, checkLedger, fromBody, changeSummary,
+  SD_TYPES, AGREEMENT_STATUSES, LABELS, canonical, validateFields, checkLedger, fromBody, changeSummary, parseSignedAmount, validateReversal,
 };

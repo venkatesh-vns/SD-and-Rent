@@ -1200,6 +1200,20 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
 .modal-content .applies-to .multi-select-list { max-height: 320px; }
 .applies-to .hint { display: block; margin-top: 0.3rem; }
 .rent-tiles { margin: 0.2rem 0 0.9rem; }
+/* SD Paid reversal (negative) entries */
+.data-table tr.row-reversal td { background: #fff7f7; }
+.txn-cell { display: inline-flex; flex-direction: column; gap: 0.15rem; }
+.reversal-tag {
+  display: inline-block; width: fit-content; padding: 0.02rem 0.45rem; border-radius: 999px; font-size: 0.68rem; font-weight: 700;
+  color: var(--danger); background: var(--danger-bg); border: 1px solid var(--danger-border); white-space: nowrap;
+}
+.reversed-note { color: var(--danger); font-size: 0.7rem; font-weight: 600; }
+.data-table td.amount-negative, .data-table td.amount-negative strong { color: var(--danger); font-weight: 700; }
+.reversal-box {
+  margin: 0.8rem 0 0.4rem; padding: 0.75rem 0.9rem; border: 1px solid var(--danger-border); border-radius: var(--r);
+  background: var(--danger-bg); color: var(--text-2); font-size: 0.86rem;
+}
+.reversal-box strong { color: var(--danger); }
 /* SD & Rent Transaction Summary Report */
 .category-chip {
   display: inline-block; padding: 0.08rem 0.5rem; border-radius: 999px; font-size: 0.74rem; font-weight: 600; white-space: nowrap;

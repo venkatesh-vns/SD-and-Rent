@@ -17,6 +17,7 @@ export const SCREENS = {
   RENT_WAIVER: 'RENT_WAIVER',
   RENT_SCHEDULE: 'RENT_SCHEDULE',
   SD_RENT_REPORT: 'SD_RENT_REPORT',
+  SD_NEGATIVE_ENTRY: 'SD_NEGATIVE_ENTRY', // a right only (no menu item): negative SD Paid entries
 };
 
 // Screens that are built, in menu order. Add an entry here as each module

@@ -7,7 +7,7 @@ import React from 'react';
 // Edit/Delete buttons show only when their handler is passed; `canDeleteRow`
 // hides Delete on individual rows; `extraActions` renders more buttons per row.
 // `freeze` keeps the column headings, the first column and the Actions column
-// in view while the table scrolls (like Excel's freeze panes).
+// in view while the table scrolls (like Excel's freeze panes). row.rowClass styles a whole row.
 export default function DataTable({ columns, rows, onEdit, editLabel = 'Edit', onDelete, canDeleteRow, extraActions, freeze = false }) {
   if (!rows || rows.length === 0) {
     return <p className="empty-state">No records found.</p>;
@@ -33,7 +33,7 @@ export default function DataTable({ columns, rows, onEdit, editLabel = 'Edit', o
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.id}>
+            <tr key={row.id} className={row.rowClass}>
               {columns.map((col) => (
                 <td key={col.key} className={row.cellClass?.[col.key] || (col.align === 'right' ? 'num' : undefined)}>
                   {(col.key === 'status' || col.badge) && typeof row[col.key] === 'string' ? (

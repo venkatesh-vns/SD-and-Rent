@@ -4,21 +4,25 @@ const { listOf, idsOf } = require('../utils/filters');
 const AMOUNT_FIELDS = ['paid_amount', 'transfer_amount', 'adjustment_amount', 'refund_amount'];
 
 // Editable columns, in the order create/update write them
-const FIELDS = ['sd_id', 'sd_type', 'fy', 'txn_date', 'agreement_status', ...AMOUNT_FIELDS, 'remarks'];
+const FIELDS = ['sd_id', 'sd_type', 'fy', 'txn_date', 'agreement_status', ...AMOUNT_FIELDS, 'remarks', 'reverses_txn_id'];
 
 const SELECT = `
   SELECT l.*,
+         rv.txn_no AS reverses_txn_no,
+         (SELECT COALESCE(-SUM(x.paid_amount), 0) FROM sd_transactions x WHERE x.reverses_txn_id = l.txn_id) AS reversed_amount,
          s.lease_id, s.agreement_no, s.landlord_name, s.floor,
          cc.cost_center_code, cc.cost_center_name, l1.l1_name, l2.l2_name, l3.l3_name
   FROM v_sd_ledger l
   JOIN sd_master s ON s.sd_id = l.sd_id
+  LEFT JOIN sd_transactions rv ON rv.txn_id = l.reverses_txn_id
   JOIN cost_centers cc ON cc.cost_center_id = s.cost_center_id
   JOIN location_l1 l1 ON l1.l1_id = s.l1_id
   JOIN location_l2 l2 ON l2.l2_id = s.l2_id
   JOIN location_l3 l3 ON l3.l3_id = s.l3_id`;
 
 // Filters: sdId, search (Txn No, SD Code, Remarks), sdType, fy,
-// agreementStatus, costCenterId (one or more each), dateFrom/dateTo ('YYYY-MM-DD')
+// agreementStatus, costCenterId (one or more each), dateFrom/dateTo ('YYYY-MM-DD'),
+// entryType ('Payment' / 'Reversal' - negative SD Paid entries)
 function filterClause(f) {
   const where = [];
   const params = [];
@@ -38,6 +42,8 @@ function filterClause(f) {
   if (idsOf(f.costCenterId).length) add('s.cost_center_id = ANY(?::int[])', idsOf(f.costCenterId));
   if (f.dateFrom) add('l.txn_date >= ?', f.dateFrom);
   if (f.dateTo) add('l.txn_date <= ?', f.dateTo);
+  const types = listOf(f.entryType);
+  if (types.length === 1) where.push(types[0] === 'Reversal' ? 'l.paid_amount < 0' : 'l.paid_amount >= 0');
   return { sql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
 }
 
@@ -76,6 +82,15 @@ async function getLedger(sdId, db = pool) {
     [sdId]
   );
   return result.rows.map((r) => ({ ...r, ...Object.fromEntries(AMOUNT_FIELDS.map((f) => [f, Number(r[f])])) }));
+}
+
+// Amount already reversed for a payment, by entries other than exceptId
+async function reversedAmount(txnId, exceptId = null, db = pool) {
+  const result = await db.query(
+    'SELECT COALESCE(-SUM(paid_amount), 0) AS n FROM sd_transactions WHERE reverses_txn_id = $1 AND txn_id <> COALESCE($2, 0)',
+    [txnId, exceptId]
+  );
+  return Number(result.rows[0].n);
 }
 
 async function getBalance(sdId, db = pool) {
@@ -133,6 +148,6 @@ async function searchSd(q, limit = 20) {
 }
 
 module.exports = {
-  AMOUNT_FIELDS, FIELDS, getAll, findById, findByNo, getLedger, getBalance,
+  AMOUNT_FIELDS, FIELDS, getAll, findById, findByNo, getLedger, getBalance, reversedAmount,
   create, update, remove, lockSd, searchSd,
 };

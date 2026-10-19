@@ -9,6 +9,7 @@ const { parseDMY, formatDMY } = require('../utils/dates');
 const { processUpload } = require('../utils/bulkUpload');
 const { buildWorkbook, sendWorkbook, dateStamp } = require('../utils/excel');
 const { SCREENS } = require('../middleware/rightsMiddleware');
+const userRightsModel = require('../models/userRightsModel');
 
 const { AMOUNT_FIELDS, FIELDS } = txnModel;
 const { LABELS } = service;
@@ -27,6 +28,7 @@ const TEMPLATE_COLUMNS = [
   { header: 'SD Adjustment Amount', required: false },
   { header: 'SD Refund Amount', required: false },
   { header: 'Remarks', required: false },
+  { header: 'Reverses Transaction No.', required: false },
 ];
 
 const AMOUNT_HEADERS = {
@@ -47,8 +49,17 @@ function pickFields(record) {
   const rec = {};
   FIELDS.forEach((f) => { rec[f] = record[f]; });
   AMOUNT_FIELDS.forEach((f) => { rec[f] = Number(record[f]); });
+  rec.reverses_txn_no = record.reverses_txn_no || null;
   return rec;
 }
+
+// Negative SD Paid (reversal) entries need the "SD Negative Entry" right; so does
+// changing an existing reversal. Admins always may.
+async function canNegative(user) {
+  return user.isAdmin || userRightsModel.hasRight(user.userId, SCREENS.SD_NEGATIVE_ENTRY, 'add');
+}
+const touchesNegative = (rec, before) => rec.paid_amount < 0 || (before && Number(before.paid_amount) < 0);
+const NO_NEGATIVE = 'You do not have permission to save negative SD Paid (reversal) entries. Ask your administrator for the "SD Negative Entry" right.';
 
 // Ledger check under a row lock on the SD Code, so two saves at the same
 // moment cannot both push it over the limits. Throws a 400 when it fails.
@@ -116,8 +127,10 @@ async function create(req, res, next) {
     const { rec, raw } = service.fromBody(req.body);
     const sd = rec.sd_id ? await sdMasterModel.findById(rec.sd_id) : null;
     if (rec.sd_id && !sd) raw.sd_id = req.body.sdId;
+    if (touchesNegative(rec) && !(await canNegative(req.user))) throw httpError(403, NO_NEGATIVE);
     const errors = service.validateFields(rec, raw, { sd, isNew: true });
     if (rec.sd_id && !sd) errors.unshift({ field: LABELS.sd_id, value: req.body.sdId, error: 'SD Code not found.' });
+    if (!errors.length) errors.push(...(await service.validateReversal(rec, { sd, txnModel })));
     if (errors.length) throw validationError(errors);
 
     const created = await withTransaction(async (db) => {
@@ -125,7 +138,8 @@ async function create(req, res, next) {
       const row = await txnModel.create(rec, req.user.userName, {}, db);
       await logAudit({
         tableName: 'sd_transactions', recordId: row.txn_id, action: 'INSERT', actionBy: req.user.userName,
-        newValues: row, details: `${sd.sd_code} ${row.txn_no}`,
+        newValues: row,
+        details: `${sd.sd_code} ${row.txn_no}${Number(row.paid_amount) < 0 ? ` - reversal entry${row.reverses_txn_no ? ` of ${row.reverses_txn_no}` : ''}` : ''}`,
       }, db);
       return row;
     });
@@ -143,7 +157,9 @@ async function update(req, res, next) {
 
     const { rec, raw } = service.fromBody({ ...req.body, sdId: before.sd_id });
     const sd = await sdMasterModel.findById(before.sd_id);
+    if (touchesNegative(rec, before) && !(await canNegative(req.user))) throw httpError(403, NO_NEGATIVE);
     const errors = service.validateFields(rec, raw, { sd, isNew: false });
+    if (!errors.length) errors.push(...(await service.validateReversal(rec, { sd, exceptId: before.txn_id, txnModel })));
     if (errors.length) throw validationError(errors);
 
     const updated = await withTransaction(async (db) => {
@@ -198,12 +214,13 @@ async function exportAll(req, res, next) {
       'SD Transactions',
       [
         ...TEMPLATE_COLUMNS.map((c) => c.header),
-        'Agreement Value', 'SD Balance (running)', 'SD Balance Repayable (running)',
+        'Entry Type', 'Agreement Value', 'SD Balance (running)', 'SD Balance Repayable (running)',
         'Cost Center', 'Location', 'Created By', 'Created Date', 'Modified By', 'Modified Date',
       ],
       rows.map((r) => [
         r.txn_no, r.sd_code, r.sd_type, r.fy, formatDMY(r.txn_date), r.agreement_status,
-        ...AMOUNT_FIELDS.map((f) => Number(r[f])), r.remarks,
+        ...AMOUNT_FIELDS.map((f) => Number(r[f])), r.remarks, r.reverses_txn_no || '',
+        Number(r.paid_amount) < 0 ? 'Reversal (negative SD Paid)' : 'Payment',
         Number(r.agreement_value), Number(r.running_sd_balance), Number(r.running_repayable),
         r.cost_center_name, `${r.l1_name} > ${r.l2_name} > ${r.l3_name}`,
         r.created_by, r.created_date, r.modified_by, r.modified_date,
@@ -259,12 +276,14 @@ async function resolveUploadRow(row) {
   Object.entries(AMOUNT_HEADERS).forEach(([f, h]) => {
     if (cell(h) !== null) {
       raw[f] = cell(h);
-      rec[f] = parseAmount(raw[f]);
+      rec[f] = f === 'paid_amount' ? service.parseSignedAmount(raw[f]) : parseAmount(raw[f]);
     }
   });
   if (cell('Remarks') !== null) rec.remarks = text(row['Remarks']);
+  if (cell('Reverses Transaction No.') !== null) rec.reverses_txn_no = cell('Reverses Transaction No.');
 
   errors.push(...service.validateFields(rec, raw, { sd, isNew: !before }));
+  if (!errors.length) errors.push(...(await service.validateReversal(rec, { sd, exceptId: before?.txn_id, txnModel })));
   return { rec, raw, before, sd, errors };
 }
 
@@ -272,6 +291,7 @@ async function resolveUploadRow(row) {
 async function bulkUpload(req, res, next) {
   try {
     const resolved = new Map();
+    const negativeAllowed = await canNegative(req.user);
 
     const result = await processUpload(req, {
       screenCode: SCREENS.SD_TRANSACTION,
@@ -279,6 +299,9 @@ async function bulkUpload(req, res, next) {
       keyOf: (row) => [text(row['SD Code']), text(row['Transaction No.'])].filter(Boolean).join(' / ') || '(blank)',
       validateRow: async (row, { seen, rowNumber }) => {
         const { rec, before, sd, errors } = await resolveUploadRow(row);
+        if (rec && touchesNegative(rec, before) && !negativeAllowed) {
+          return [{ field: LABELS.paid_amount, value: rec.paid_amount, error: NO_NEGATIVE }];
+        }
         if (before) {
           const key = `txn:${before.txn_no}`;
           if (seen.has(key)) errors.push({ field: 'Transaction No.', value: before.txn_no, error: `Transaction No. repeated from row ${seen.get(key)}.` });

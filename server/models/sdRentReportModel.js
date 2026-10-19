@@ -29,6 +29,8 @@ const DATA = `
          t.txn_no AS reference,
          concat_ws(', ',
            CASE WHEN t.paid_amount > 0 THEN 'Paid ' || to_char(t.paid_amount, 'FM99,99,99,99,990.00') END,
+           CASE WHEN t.paid_amount < 0 THEN 'Reversal (SD Paid) ' || to_char(t.paid_amount, 'FM99,99,99,99,990.00')
+                || COALESCE(' of ' || (SELECT o.txn_no FROM sd_transactions o WHERE o.txn_id = t.reverses_txn_id), '') END,
            CASE WHEN t.transfer_amount > 0 THEN 'Transfer ' || to_char(t.transfer_amount, 'FM99,99,99,99,990.00') END,
            CASE WHEN t.adjustment_amount > 0 THEN 'Adjustment ' || to_char(t.adjustment_amount, 'FM99,99,99,99,990.00') END,
            CASE WHEN t.refund_amount > 0 THEN 'Refund ' || to_char(t.refund_amount, 'FM99,99,99,99,990.00') END) AS details

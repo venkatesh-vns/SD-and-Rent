@@ -32,11 +32,11 @@ const AMOUNTS = [
 
 const EMPTY_FORM = {
   sdType: '', fy: '', txnDate: '', agreementStatus: '',
-  paidAmount: '', transferAmount: '', adjustmentAmount: '', refundAmount: '', remarks: '',
+  paidAmount: '', transferAmount: '', adjustmentAmount: '', refundAmount: '', remarks: '', reversesTxnNo: '',
 };
 
 // Multi-select filters hold arrays of values (empty = all)
-const EMPTY_FILTERS = { search: '', sdType: [], fy: [], agreementStatus: [], dateFrom: '', dateTo: '' };
+const EMPTY_FILTERS = { search: '', sdType: [], fy: [], agreementStatus: [], entryType: [], dateFrom: '', dateTo: '' };
 
 // Indian financial year (April-March) for a DD/MM/YYYY date, e.g. '2024-2025'
 function fyFor(dmy) {
@@ -66,6 +66,7 @@ export default function SdTransactions() {
   const [fyList, setFyList] = useState([]);
   const [modal, setModal] = useState(null); // null | { editing: txn | null, sd }
   const [form, setForm] = useState(EMPTY_FORM);
+  const [payments, setPayments] = useState([]); // this SD Code's payments, for a reversal's link
   const [formErrors, setFormErrors] = useState([]);
   const [saving, setSaving] = useState(false);
   const search = useDebounce(filters.search);
@@ -91,7 +92,14 @@ export default function SdTransactions() {
       const res = await api.get('/sd-transactions', { params: { ...query, page, pageSize: PAGE_SIZE } });
       setRows(res.data.data.map((t) => ({
         id: t.txn_id,
-        txnNo: t.txn_no,
+        // Negative SD Paid = reversal entry, tagged; a payment shows how much of it was reversed
+        txnNo: Number(t.paid_amount) < 0 ? (
+          <span className="txn-cell">{t.txn_no}<span className="reversal-tag" title="Negative SD Paid entry (reversal / credit note)">Reversal{t.reverses_txn_no ? ` of ${t.reverses_txn_no}` : ''}</span></span>
+        ) : Number(t.reversed_amount) > 0 ? (
+          <span className="txn-cell">{t.txn_no}<small className="reversed-note">₹{formatAmount(t.reversed_amount)} reversed</small></span>
+        ) : t.txn_no,
+        txnNoText: t.txn_no,
+        rowClass: Number(t.paid_amount) < 0 ? 'row-reversal' : undefined,
         sdCode: t.sd_code,
         txnDate: formatDate(t.txn_date),
         fy: t.fy,
@@ -104,7 +112,7 @@ export default function SdTransactions() {
         balance: formatAmount(t.running_sd_balance),
         repayable: formatAmount(t.running_repayable),
         cellClass: {
-          paid: amountClass('paid', t.paid_amount),
+          paid: `${amountClass('paid', t.paid_amount)}${Number(t.paid_amount) < 0 ? ' amount-negative' : ''}`,
           transfer: amountClass('transfer', t.transfer_amount),
           adjustment: amountClass('adjustment', t.adjustment_amount),
           refund: amountClass('refund', t.refund_amount),
@@ -158,6 +166,7 @@ export default function SdTransactions() {
         sdType: t.sd_type, fy: t.fy, txnDate: formatDate(t.txn_date), agreementStatus: t.agreement_status,
         ...Object.fromEntries(AMOUNTS.map(([key, col]) => [key, Number(t[col]) ? Number(t[col]).toFixed(2) : ''])),
         remarks: t.remarks || '',
+        reversesTxnNo: t.reverses_txn_no || '',
       });
       setModal({ editing: t, sd: { sd_id: t.sd_id, sd_code: t.sd_code } });
     } else {
@@ -200,7 +209,7 @@ export default function SdTransactions() {
   };
 
   const handleDelete = async (row) => {
-    if (!window.confirm(`Delete ${row.txnNo} (${row.sdCode}, ${row.txnDate})?`)) return;
+    if (!window.confirm(`Delete ${row.txnNoText} (${row.sdCode}, ${row.txnDate})?`)) return;
     setError('');
     try {
       const res = await api.delete(`/sd-transactions/${row.id}`);
@@ -230,6 +239,17 @@ export default function SdTransactions() {
     { key: 'repayable', label: 'Repayable', align: 'right', tone: 'repayable' },
     { key: 'remarks', label: 'Remarks' },
   ];
+
+  // Negative SD Paid (reversal) entries: allowed with the "SD Negative Entry" right
+  const canNegative = can(SCREENS.SD_NEGATIVE_ENTRY, 'add');
+  const negativePaid = String(form.paidAmount).trim().startsWith('-');
+  const modalSdId = modal?.sd?.sd_id;
+  useEffect(() => {
+    if (!modalSdId || !negativePaid) return;
+    api.get('/sd-transactions', { params: { sdId: modalSdId, entryType: 'Payment', pageSize: 200 } })
+      .then((res) => setPayments(res.data.data.filter((t) => Number(t.paid_amount) > 0)))
+      .catch(() => setPayments([]));
+  }, [modalSdId, negativePaid]);
 
   const editing = modal?.editing;
   const canEdit = can(SCREENS.SD_TRANSACTION, 'edit');
@@ -350,6 +370,7 @@ export default function SdTransactions() {
           <MultiSelect allLabel="All SD Types" noun="SD Types" options={SD_TYPES} value={filters.sdType} onChange={(v) => setFilter({ sdType: v })} />
           <MultiSelect allLabel="All FY" noun="FYs" options={fyList} value={filters.fy} onChange={(v) => setFilter({ fy: v })} />
           <MultiSelect allLabel="All Agreement Status" noun="statuses" options={AGREEMENT_STATUSES} value={filters.agreementStatus} onChange={(v) => setFilter({ agreementStatus: v })} />
+          <MultiSelect allLabel="Entry type: all" noun="types" options={[{ value: 'Payment', label: 'Payments' }, { value: 'Reversal', label: 'Reversals (negative SD Paid)' }]} value={filters.entryType} onChange={(v) => setFilter({ entryType: v })} />
           <DateRangeFilter label="Txn Date" from={filters.dateFrom} to={filters.dateTo} onChange={({ from, to }) => setFilter({ dateFrom: from, dateTo: to })} />
           <button type="button" className="btn btn-secondary" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); }}>Clear</button>
           <button type="button" className="btn btn-secondary" onClick={handleExport}>Export to Excel</button>
@@ -426,11 +447,27 @@ export default function SdTransactions() {
                     <label htmlFor={key}>{label}</label>
                     <div className="money-input">
                       <span aria-hidden="true">₹</span>
-                      <input id={key} type="text" inputMode="decimal" placeholder="Amount in ₹" value={form[key]} onChange={set(key)} />
+                      <input id={key} type="text" inputMode={key === 'paidAmount' && canNegative ? 'text' : 'decimal'} placeholder="Amount in ₹" value={form[key]} onChange={set(key)} />
                     </div>
+                    {key === 'paidAmount' && canNegative && <small className="hint">Enter a negative amount (e.g. -2000) to reverse a wrong payment.</small>}
                   </div>
                 ))}
               </div>
+              {negativePaid && (
+                <div className="reversal-box">
+                  <strong>Reversal entry</strong> — this negative SD Paid reverses an earlier payment (like a credit note); the original stays in the history.
+                  <div className="form-grid">
+                    <div>
+                      <label htmlFor="reversesTxnNo">Reverses Transaction No.</label>
+                      <input id="reversesTxnNo" list="sd-payments" placeholder="e.g. TXN0000012 (optional)" value={form.reversesTxnNo} onChange={set('reversesTxnNo')} />
+                      <datalist id="sd-payments">
+                        {payments.map((p) => <option key={p.txn_id} value={p.txn_no}>{`${formatDate(p.txn_date)} · Paid ₹${formatAmount(p.paid_amount)}`}</option>)}
+                      </datalist>
+                    </div>
+                  </div>
+                  {!canNegative && <p className="hint">You need the "SD Negative Entry" right to save a negative amount.</p>}
+                </div>
+              )}
 
               <div className="form-grid">
                 <div className="span-2">
