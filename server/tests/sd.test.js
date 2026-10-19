@@ -42,12 +42,25 @@ describe('SD Master and transactions', () => {
       assert.equal(Number(sd.agreement_value), 1000000);
     });
 
-    it('allows the same Lease ID, Agreement No. and Floor on another SD record', async () => {
-      const dup = await ctx.api('POST', '/sd-master', sdBody(m, { leaseId: 'l-1', agreementNo: 'ag-1', floor: '1' }));
-      assert.equal(dup.status, 201);
-      assert.equal(dup.body.data.lease_id, 'l-1', 'saved as entered, not combined');
-      assert.equal(dup.body.data.agreement_no, 'ag-1');
-      await ctx.api('DELETE', `/sd-master/${dup.body.data.sd_id}`);
+    it('rejects the same Cost Center, Location, Floor, Landlord, Lease ID and Agreement No.', async () => {
+      const first = (await ctx.api('GET', `/sd-master/${sd.sd_id}`)).body.data;
+      const same = { leaseId: 'l-1', agreementNo: 'ag-1', floor: first.floor, landlordName: first.landlord_name || '' };
+      const dup = await ctx.api('POST', '/sd-master', sdBody(m, same));
+      assert.equal(dup.status, 400);
+      assert.match(dup.body.message, /same Lease ID and Agreement No already exist for the selected Cost Center, Floor, Location, and Landlord Name/);
+      // Allowed when the Floor or the Landlord Name differs; saved as entered
+      for (const change of [{ floor: 'Other floor' }, { landlordName: 'Another Landlord' }]) {
+        const ok = await ctx.api('POST', '/sd-master', sdBody(m, { ...same, ...change }));
+        assert.equal(ok.status, 201, JSON.stringify(change));
+        assert.equal(ok.body.data.lease_id, 'l-1');
+        assert.equal(ok.body.data.agreement_no, 'ag-1');
+        // Editing a record into a duplicate is refused too
+        if (change.floor) {
+          const edit = await ctx.api('PUT', `/sd-master/${ok.body.data.sd_id}`, sdBody(m, same));
+          assert.equal(edit.status, 400);
+        }
+        await ctx.api('DELETE', `/sd-master/${ok.body.data.sd_id}`);
+      }
       assert.equal((await ctx.api('POST', '/sd-master', sdBody(m))).status, 201, 'blank Lease ID and Agreement No.');
     });
 

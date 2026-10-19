@@ -267,11 +267,20 @@ async function bulkUpload(req, res, next) {
         if (!rec) return errors;
         errors.push(...(await service.validateRecord(rec, raw, before)));
 
-        // The same SD Code twice in one file (Lease ID / Agreement No. may repeat)
+        // Duplicates within this file: the same SD Code, or the same Cost Center,
+        // Location, Floor, Landlord Name, Lease ID and Agreement No.
+        let repeated = false;
         if (before) {
           const key = `code:${before.sd_code}`;
-          if (seen.has(key)) errors.push({ field: 'SD Code', value: before.sd_code, error: `SD Code repeated from row ${seen.get(key)}.` });
+          repeated = seen.has(key);
+          if (repeated) errors.push({ field: 'SD Code', value: before.sd_code, error: `SD Code repeated from row ${seen.get(key)}.` });
           else seen.set(key, rowNumber);
+        }
+        if (!repeated && errors.length === 0 && (rec.lease_id || rec.agreement_no)) {
+          const key = `dup:${sdMasterModel.duplicateKey(rec)}`;
+          if (seen.has(key)) {
+            errors.push({ field: 'Lease ID', value: [rec.lease_id, rec.agreement_no].filter(Boolean).join(' / '), error: `The same Lease ID and Agreement No already exist for the selected Cost Center, Floor, Location, and Landlord Name. Duplicate records are not allowed. (same as row ${seen.get(key)})` });
+          } else seen.set(key, rowNumber);
         }
 
         if (errors.length === 0) resolved.set(rowNumber, { rec, before });

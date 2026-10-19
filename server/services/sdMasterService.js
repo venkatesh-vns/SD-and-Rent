@@ -115,7 +115,12 @@ async function validateRecord(rec, raw = {}, before = null) {
     fail('l3_id', `Location Level 3 '${found[3].l3_name}' does not belong to the selected Level 2.`, found[3].l3_name);
   }
 
-  // Lease ID and Agreement No. may repeat across SD records (no combined-key check)
+  // Lease ID + Agreement No. may repeat only for a different Cost Center, Location,
+  // Floor or Landlord Name
+  if (errors.length === 0) {
+    const dup = await sdMasterModel.findDuplicate(rec, before?.sd_id);
+    if (dup) fail('lease_id', `The same Lease ID and Agreement No already exist for the selected Cost Center, Floor, Location, and Landlord Name. Duplicate records are not allowed. (${dup.sd_code})`, [rec.lease_id, rec.agreement_no].filter(Boolean).join(' / '));
+  }
 
   return errors;
 }

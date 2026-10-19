@@ -81,6 +81,29 @@ async function findByCode(sdCode, db = pool) {
   return result.rows[0];
 }
 
+// Another record with the same Cost Center, Location (Level 1-3), Floor, Landlord Name,
+// Lease ID and Agreement No. (text ignoring case), if any. Only when a Lease ID or
+// Agreement No. is given.
+async function findDuplicate(rec, excludeId = null) {
+  if (!rec.lease_id && !rec.agreement_no) return null;
+  const params = [rec.cost_center_id, rec.l1_id, rec.l2_id, rec.l3_id, rec.floor || '', rec.landlord_name || '', rec.lease_id || '', rec.agreement_no || ''];
+  let query = `SELECT sd_id, sd_code FROM sd_master
+               WHERE cost_center_id = $1 AND l1_id = $2 AND l2_id = $3 AND l3_id = $4
+                 AND LOWER(floor) = LOWER($5)
+                 AND LOWER(COALESCE(landlord_name, '')) = LOWER($6)
+                 AND LOWER(COALESCE(lease_id, '')) = LOWER($7)
+                 AND LOWER(COALESCE(agreement_no, '')) = LOWER($8)`;
+  if (excludeId) {
+    params.push(excludeId);
+    query += ' AND sd_id <> $9';
+  }
+  return (await pool.query(query, params)).rows[0] || null;
+}
+
+// The same combination as a text key (for duplicates within an upload file)
+const duplicateKey = (rec) => [rec.cost_center_id, rec.l1_id, rec.l2_id, rec.l3_id, rec.floor, rec.landlord_name, rec.lease_id, rec.agreement_no]
+  .map((v) => String(v ?? '').trim().toLowerCase()).join('|');
+
 // data uses the column names in FIELDS; the SD Code is generated
 async function create(data, createdBy, { uploaded = false } = {}, db = pool) {
   const columns = [...FIELDS, 'created_by', 'uploaded_by', 'uploaded_date'];
@@ -128,6 +151,6 @@ async function getStatusHistory(sdId) {
 }
 
 module.exports = {
-  FIELDS, filterClause, getAll, findById, findByCode, create, update, remove,
+  FIELDS, filterClause, getAll, findById, findByCode, findDuplicate, duplicateKey, create, update, remove,
   addStatusHistory, getStatusHistory,
 };
