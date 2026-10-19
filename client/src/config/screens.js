@@ -31,14 +31,14 @@ export const MENU = [
       { screen: SCREENS.USER, label: 'User Master', path: '/users', description: 'Application users, status and passwords.' },
       { screen: SCREENS.LOCATION, label: 'Location Master', path: '/locations', description: 'Three-level location hierarchy (Level 1 > Level 2 > Level 3).' },
       { screen: SCREENS.NOTIFICATION, label: 'Email Notification Master', path: '/email-templates', description: 'Email templates, recipients and reminder days for SD notifications.' },
-      { screen: SCREENS.SD_MASTER, label: 'SD Master', path: '/sd-master', description: 'Lease and Security Deposit master records, one per SD Code.' },
       { screen: SCREENS.USER_RIGHTS, label: 'User Rights Master', path: '/user-rights', description: 'Who can view, add, edit, delete and upload on each screen.' },
     ],
   },
   {
-    group: 'Transactions',
+    group: 'SD Transaction',
     items: [
-      { screen: SCREENS.SD_TRANSACTION, label: 'SD Transaction', path: '/sd-transactions', description: 'SD Paid, Transfer, Adjustment and Refund per SD Code, with balances.' },
+      { screen: SCREENS.SD_MASTER, label: 'SD Master', path: '/sd-master', description: 'Lease and Security Deposit master records, one per SD Code.' },
+      { screen: SCREENS.SD_TRANSACTION, label: 'SD Transactions', path: '/sd-transactions', description: 'SD Paid, Transfer, Adjustment and Refund per SD Code, with balances.' },
     ],
   },
   {

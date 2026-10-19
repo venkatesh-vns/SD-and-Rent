@@ -257,7 +257,7 @@ export default function SdTransactions() {
       <Navbar />
       <div className="page-container wide">
         <div className="page-header">
-          <h1>SD Transaction</h1>
+          <h1>SD Transactions</h1>
           {can(SCREENS.SD_TRANSACTION, 'add') && !sd && (
             <button
               className="btn btn-primary"
