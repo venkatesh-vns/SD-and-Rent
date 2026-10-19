@@ -194,7 +194,7 @@ export default function SdBalanceReport() {
                     <th colSpan={2} className="tone-fill-head">Balances</th>
                   </tr>
                   <tr>
-                    <th>SD Code</th><th>Lease / Agreement</th><th>Cost Center</th><th>Location</th><th>Landlord</th>
+                    <th>SD Code</th><th>Lease / Agreement</th><th>Cost Center</th><th>Floor</th><th>Landlord</th>
                     <th>Status</th><th>Lease End</th>
                     <th className={`num tone-head tone-${AMOUNTS.agreement.tone}`}>{AMOUNTS.agreement.label}</th>
                     <th>Agreement Status</th>
@@ -217,10 +217,7 @@ export default function SdBalanceReport() {
                               <td rowSpan={span}>{canTxn ? <Link to={`/sd-transactions?sd=${r.sd_id}`}>{r.sd_code}</Link> : r.sd_code}</td>
                               <td rowSpan={span}>{[r.lease_id, r.agreement_no].filter(Boolean).join(' / ') || '—'}</td>
                               <td rowSpan={span}>{r.cost_center_name}</td>
-                              <td rowSpan={span}>
-                                <strong>{r.l3_name}</strong>
-                                <div className="hint">{r.l1_name} › {r.l2_name} · Floor {r.floor}</div>
-                              </td>
+                              <td rowSpan={span}>{r.floor}</td>
                               <td rowSpan={span}>{r.landlord_name || '—'}</td>
                               <td rowSpan={span}>
                                 {r.landlord_status === 'Active' && r.building_status === 'Active'
