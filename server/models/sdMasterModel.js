@@ -81,23 +81,6 @@ async function findByCode(sdCode, db = pool) {
   return result.rows[0];
 }
 
-// Another record with the same Lease ID + Agreement No. + Floor, if any
-async function findByBusinessKey({ lease_id, agreement_no, floor }, excludeId = null) {
-  if (!lease_id && !agreement_no) return null;
-  const params = [lease_id || '', agreement_no || '', floor];
-  let query = `SELECT sd_id, sd_code FROM sd_master
-               WHERE LOWER(COALESCE(lease_id, '')) = LOWER($1)
-                 AND LOWER(COALESCE(agreement_no, '')) = LOWER($2)
-                 AND LOWER(floor) = LOWER($3)
-                 AND (lease_id IS NOT NULL OR agreement_no IS NOT NULL)`;
-  if (excludeId) {
-    params.push(excludeId);
-    query += ` AND sd_id <> $4`;
-  }
-  const result = await pool.query(query, params);
-  return result.rows[0] || null;
-}
-
 // data uses the column names in FIELDS; the SD Code is generated
 async function create(data, createdBy, { uploaded = false } = {}, db = pool) {
   const columns = [...FIELDS, 'created_by', 'uploaded_by', 'uploaded_date'];
@@ -145,6 +128,6 @@ async function getStatusHistory(sdId) {
 }
 
 module.exports = {
-  FIELDS, filterClause, getAll, findById, findByCode, findByBusinessKey, create, update, remove,
+  FIELDS, filterClause, getAll, findById, findByCode, create, update, remove,
   addStatusHistory, getStatusHistory,
 };

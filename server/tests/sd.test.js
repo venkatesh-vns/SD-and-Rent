@@ -42,11 +42,13 @@ describe('SD Master and transactions', () => {
       assert.equal(Number(sd.agreement_value), 1000000);
     });
 
-    it('rejects a duplicate Lease ID + Agreement No. + Floor, ignoring case', async () => {
+    it('allows the same Lease ID, Agreement No. and Floor on another SD record', async () => {
       const dup = await ctx.api('POST', '/sd-master', sdBody(m, { leaseId: 'l-1', agreementNo: 'ag-1', floor: '1' }));
-      assert.equal(dup.status, 400);
-      assert.match(dup.body.message, /already used by/);
-      assert.equal((await ctx.api('POST', '/sd-master', sdBody(m))).status, 201, 'no key when Lease ID and Agreement No. are blank');
+      assert.equal(dup.status, 201);
+      assert.equal(dup.body.data.lease_id, 'l-1', 'saved as entered, not combined');
+      assert.equal(dup.body.data.agreement_no, 'ag-1');
+      await ctx.api('DELETE', `/sd-master/${dup.body.data.sd_id}`);
+      assert.equal((await ctx.api('POST', '/sd-master', sdBody(m))).status, 201, 'blank Lease ID and Agreement No.');
     });
 
     it('reports every invalid field at once', async () => {
@@ -83,9 +85,10 @@ describe('SD Master and transactions', () => {
         ['SD999999', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
       ]);
       assert.equal(res.status, 200);
-      assert.equal(res.body.data.passed, 2);
-      assert.equal(res.body.data.failed, 3);
-      const u1 = (await ctx.api('GET', '/sd-master?search=U-1')).body.data[0];
+      assert.equal(res.body.data.passed, 3, 'the repeated Lease ID + Agreement No. is allowed');
+      assert.equal(res.body.data.failed, 2);
+      assert.equal((await ctx.api('GET', '/sd-master?search=AG-U1')).body.total, 2);
+      const u1 = (await ctx.api('GET', '/sd-master?search=U-1')).body.data.find((r) => Number(r.agreement_value) === 250000);
       assert.equal(u1.lease_commencement_date, '2025-01-15', 'real Excel date cell');
       const updated = (await ctx.api('GET', `/sd-master/${sd.sd_id}`)).body.data;
       assert.equal(Number(updated.agreement_value), 1200000);

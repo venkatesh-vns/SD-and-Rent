@@ -115,14 +115,7 @@ async function validateRecord(rec, raw = {}, before = null) {
     fail('l3_id', `Location Level 3 '${found[3].l3_name}' does not belong to the selected Level 2.`, found[3].l3_name);
   }
 
-  // Duplicate business key
-  if (rec.floor && (rec.lease_id || rec.agreement_no)) {
-    const dup = await sdMasterModel.findByBusinessKey(rec, before?.sd_id);
-    if (dup) {
-      fail('lease_id', `Lease ID + Agreement No. + Floor already used by ${dup.sd_code}.`,
-        [rec.lease_id, rec.agreement_no, rec.floor].filter(Boolean).join(' / '));
-    }
-  }
+  // Lease ID and Agreement No. may repeat across SD records (no combined-key check)
 
   return errors;
 }

@@ -267,19 +267,11 @@ async function bulkUpload(req, res, next) {
         if (!rec) return errors;
         errors.push(...(await service.validateRecord(rec, raw, before)));
 
-        // Duplicates within this file
-        let repeated = false;
+        // The same SD Code twice in one file (Lease ID / Agreement No. may repeat)
         if (before) {
           const key = `code:${before.sd_code}`;
-          repeated = seen.has(key);
-          if (repeated) errors.push({ field: 'SD Code', value: before.sd_code, error: `SD Code repeated from row ${seen.get(key)}.` });
+          if (seen.has(key)) errors.push({ field: 'SD Code', value: before.sd_code, error: `SD Code repeated from row ${seen.get(key)}.` });
           else seen.set(key, rowNumber);
-        }
-        if (!repeated && rec.floor && (rec.lease_id || rec.agreement_no)) {
-          const key = `bk:${[rec.lease_id, rec.agreement_no, rec.floor].map((v) => String(v || '').toLowerCase()).join('|')}`;
-          if (seen.has(key)) {
-            errors.push({ field: LABELS.lease_id, value: [rec.lease_id, rec.agreement_no, rec.floor].filter(Boolean).join(' / '), error: `Same Lease ID + Agreement No. + Floor as row ${seen.get(key)}.` });
-          } else seen.set(key, rowNumber);
         }
 
         if (errors.length === 0) resolved.set(rowNumber, { rec, before });
