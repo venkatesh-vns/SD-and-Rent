@@ -1,4 +1,5 @@
-// The nine rent / charge components of a Rent Agreement (scope document 3.2).
+// The rent / charge components of a Rent Agreement (scope document 3.2, plus
+// Rent Other Charges, which works like Solar).
 // unit: 'sqft' (Sq.Ft x Rate x %), 'count' (No. x Rate x %) or 'month'
 // (Rate / Month x %, no quantity). Maintenance Charges run from the LCD,
 // every other component from the RCD; all end on the LED.
@@ -12,6 +13,7 @@ const COMPONENTS = [
   { code: 'SOLAR', label: 'Rent to Landlord - Solar', short: 'Solar', unit: 'month' },
   { code: 'TERRACE', label: 'Rent to Landlord - Terrace', short: 'Terrace', unit: 'sqft' },
   { code: 'MAINTENANCE', label: 'Maintenance Charges - Landlord', short: 'Maintenance Charges', unit: 'sqft' },
+  { code: 'OTHER_CHARGES', label: 'Rent Other Charges', short: 'Other Charges', unit: 'month', section: 'Rent Other Charges' },
 ].map((c) => ({ ...c, startsFrom: c.code === 'MAINTENANCE' ? 'LCD' : 'RCD' }));
 
 const BY_CODE = Object.fromEntries(COMPONENTS.map((c) => [c.code, c]));
@@ -26,7 +28,7 @@ function excelHeaders(c) {
     : { trigger: `${c.short} ${triggerName(c)}`, rate: `${c.short} Rate`, percentage: `${c.short} %` };
 }
 
-// Monthly amount: Quantity x Rate x Percentage (Signage / Solar: Rate x Percentage)
+// Monthly amount: Quantity x Rate x Percentage (Signage / Solar / Other Charges: Rate x Percentage)
 function monthlyAmount({ quantity, rate, percentage }) {
   const q = quantity === null || quantity === undefined || quantity === '' ? 1 : Number(quantity);
   return q * Number(rate) * (Number(percentage) / 100);

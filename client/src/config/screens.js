@@ -46,7 +46,7 @@ export const MENU = [
     group: 'Rent Transaction',
     items: [
       { screen: SCREENS.RENT_MASTER, label: 'Rent Master', path: '/rent/master', description: 'Links a landlord to an SD Code and creates the Rent Code.' },
-      { screen: SCREENS.RENT_AGREEMENT, label: 'Rent Agreement Master', path: '/rent/agreements', description: 'The nine rent and charge components of each Rent Code.' },
+      { screen: SCREENS.RENT_AGREEMENT, label: 'Rent Agreement Master', path: '/rent/agreements', description: 'The rent and charge components of each Rent Code, including Rent Other Charges.' },
       { screen: SCREENS.RENT_RULE, label: 'Rule Master', path: '/rent/rules', description: 'Escalation rules (RCD, LCD or Normal Day) and percentages.' },
       { screen: SCREENS.RENT_WAIVER, label: 'Waiver Master', path: '/rent/waivers', description: 'Rent-free periods that override every other calculation.' },
       { screen: SCREENS.RENT_SCHEDULE, label: 'Rent Schedule', path: '/rent/schedule', description: 'Generate, view and export the month-wise rent per component.' },

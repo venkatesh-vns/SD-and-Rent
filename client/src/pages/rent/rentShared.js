@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import api from '../../services/api';
 import { formatAmount, formatDate } from '../../utils/format';
 
-// The nine Rent Agreement components (same order and codes as the server)
+// The Rent Agreement components (same order and codes as the server)
 export const COMPONENTS = [
   { code: 'ADDITIONAL_PARKING', label: 'Additional Parking Charges', unit: 'count' },
   { code: 'FITOUTS', label: 'Rent - Fitouts (Exp)', unit: 'sqft' },
@@ -13,6 +13,8 @@ export const COMPONENTS = [
   { code: 'SOLAR', label: 'Rent to Landlord - Solar', unit: 'month' },
   { code: 'TERRACE', label: 'Rent to Landlord - Terrace', unit: 'sqft' },
   { code: 'MAINTENANCE', label: 'Maintenance Charges - Landlord', unit: 'sqft' },
+  // Own section in the agreement form; Rate / Month x %, from the RCD (like Solar)
+  { code: 'OTHER_CHARGES', label: 'Rent Other Charges', unit: 'month', section: 'Rent Other Charges' },
 ];
 export const COMPONENT_LABEL = Object.fromEntries(COMPONENTS.map((c) => [c.code, c.label]));
 // "Applies to" of a rule / waiver: no list = all components
@@ -21,7 +23,7 @@ export const COMPONENT_OPTIONS = COMPONENTS.map((c) => ({ value: c.code, label: 
 
 export const triggerName = (c) => (c.unit === 'sqft' ? 'Sq.Ft' : c.unit === 'count' ? 'No.' : 'Rate / Month');
 
-// Quantity x Rate x % (Signage / Solar: Rate x %)
+// Quantity x Rate x % (Signage / Solar / Other Charges: Rate x %)
 export function monthlyAmount({ quantity, rate, percentage }) {
   const n = (v) => Number(String(v ?? '').replace(/[,\s₹%]/g, ''));
   const q = quantity === undefined || quantity === null || quantity === '' ? 1 : n(quantity);

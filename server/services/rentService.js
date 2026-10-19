@@ -144,7 +144,7 @@ function parseComponents(input, errors) {
   return out;
 }
 
-// Comparable fingerprint of the nine trigger values (scope 3.4)
+// Comparable fingerprint of the components' trigger values (scope 3.4)
 const triggerKey = (components) => COMPONENTS.map((c) => {
   const x = components.find((y) => y.component_code === c.code);
   if (!x) return '';

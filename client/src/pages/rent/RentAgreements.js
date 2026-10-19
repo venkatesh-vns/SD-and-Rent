@@ -263,13 +263,19 @@ export default function RentAgreements() {
                         const v = form.components[c.code] || {};
                         const monthly = c.unit === 'month' ? monthlyAmount({ rate: v.rate, percentage: v.percentage }) : monthlyAmount(v);
                         const used = c.unit === 'month' ? v.rate : v.quantity;
+                        // A component with its own section (Rent Other Charges) gets a heading row and named fields
+                        const names = c.section ? { trigger: 'Other Charges Rate', pct: 'Other Charges %' } : { trigger: triggerName(c), pct: '%' };
                         return (
-                          <tr key={c.code} className={used ? 'is-used' : undefined}>
+                          <React.Fragment key={c.code}>
+                          {c.section && (
+                            <tr className="component-section"><th colSpan={6}>{c.section} <small>Rate per month × %, from the RCD</small></th></tr>
+                          )}
+                          <tr className={used ? 'is-used' : undefined}>
                             <th scope="row">{c.label}</th>
                             <td>{c.code === 'MAINTENANCE' ? 'LCD' : 'RCD'}</td>
                             <td>
                               <input
-                                aria-label={`${c.label} ${triggerName(c)}`} placeholder={triggerName(c)} inputMode="decimal" disabled={locked}
+                                aria-label={c.section ? names.trigger : `${c.label} ${triggerName(c)}`} placeholder={names.trigger} inputMode="decimal" disabled={locked}
                                 value={c.unit === 'month' ? v.rate || '' : v.quantity || ''}
                                 onChange={(e) => setComp(c.code, c.unit === 'month' ? 'rate' : 'quantity', e.target.value)}
                               />
@@ -280,10 +286,11 @@ export default function RentAgreements() {
                               )}
                             </td>
                             <td>
-                              <input aria-label={`${c.label} %`} placeholder="%" inputMode="decimal" disabled={locked || !used} value={v.percentage || ''} onChange={(e) => setComp(c.code, 'percentage', e.target.value)} />
+                              <input aria-label={c.section ? names.pct : `${c.label} %`} placeholder={names.pct} inputMode="decimal" disabled={locked || !used} value={v.percentage || ''} onChange={(e) => setComp(c.code, 'percentage', e.target.value)} />
                             </td>
                             <td className="num">{used && monthly ? money(monthly) : '—'}</td>
                           </tr>
+                          </React.Fragment>
                         );
                       })}
                     </tbody>
