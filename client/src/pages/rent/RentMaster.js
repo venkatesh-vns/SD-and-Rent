@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import DataTable from '../../components/DataTable';
 import MultiSelect from '../../components/MultiSelect';
+import useCascadeOptions from '../../hooks/useCascadeOptions';
 import Modal from '../../components/Modal';
 import ExcelUpload from '../../components/ExcelUpload';
 import Pager from '../../components/Pager';
@@ -14,7 +15,7 @@ import { formatDate } from '../../utils/format';
 import { useRentLookups, DateInput, FormErrors, LeaseDates, money, agreementTotal } from './rentShared';
 
 const PAGE_SIZE = 50;
-const EMPTY_FILTERS = { search: '', costCenterId: [], llStatus: [], floor: [] };
+const EMPTY_FILTERS = { search: '', costCenterId: [], landlordName: [], floor: [], llStatus: [] };
 const EMPTY_FORM = { sdId: '', landlordName: '', llStatus: 'Active', inactiveEndDate: '' };
 
 const columns = [
@@ -81,6 +82,8 @@ export default function RentMaster() {
   useEffect(() => { fetchRows(); }, [fetchRows]);
   useEffect(() => { api.get('/lookups/cost-centers').then((res) => setCostCenters(res.data.data)).catch(() => {}); }, []);
 
+  // Landlord choices follow Cost Center; Floor choices follow Cost Center and Landlord
+  const cascade = useCascadeOptions('rent', filters, setFilters);
   const setFilter = (patch) => { setFilters((f) => ({ ...f, ...patch })); setPage(1); };
 
   const openModal = async (row = null) => {
@@ -167,7 +170,8 @@ export default function RentMaster() {
         <div className="filter-bar">
           <input type="search" placeholder="Search Rent Code, SD Code, Landlord, Floor, Cost Center" value={filters.search} onChange={(e) => setFilter({ search: e.target.value })} />
           <MultiSelect allLabel="All cost centers" noun="cost centers" options={costCenters.map((c) => ({ value: c.id, label: c.name }))} value={filters.costCenterId} onChange={(v) => setFilter({ costCenterId: v })} />
-          <MultiSelect allLabel="All floors" noun="floors" options={lookups.floors} value={filters.floor} onChange={(v) => setFilter({ floor: v })} />
+          <MultiSelect allLabel="All landlords" noun="landlords" options={cascade.landlords} value={filters.landlordName} onChange={(v) => setFilter({ landlordName: v })} />
+          <MultiSelect allLabel="All floors" noun="floors" options={cascade.floors} value={filters.floor} onChange={(v) => setFilter({ floor: v })} />
           <MultiSelect allLabel="LL Status: all" noun="statuses" options={['Active', 'Inactive']} value={filters.llStatus} onChange={(v) => setFilter({ llStatus: v })} />
           <button type="button" className="btn btn-secondary" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); }}>Clear</button>
           <button type="button" className="btn btn-secondary" onClick={() => downloadFile('/rent/master/export', query, 'Rent_Master.xlsx').catch(() => setError('Export failed.'))}>Export to Excel</button>

@@ -40,6 +40,8 @@ function filterClause(f) {
   if (listOf(f.fy).length) add('l.fy = ANY(?)', listOf(f.fy));
   if (listOf(f.agreementStatus).length) add('l.agreement_status = ANY(?)', listOf(f.agreementStatus));
   if (idsOf(f.costCenterId).length) add('s.cost_center_id = ANY(?::int[])', idsOf(f.costCenterId));
+  if (listOf(f.landlordName).length) add("COALESCE(NULLIF(TRIM(s.landlord_name), ''), '(Not given)') = ANY(?)", listOf(f.landlordName));
+  if (listOf(f.floor).length) add('s.floor = ANY(?)', listOf(f.floor));
   if (f.dateFrom) add('l.txn_date >= ?', f.dateFrom);
   if (f.dateTo) add('l.txn_date <= ?', f.dateTo);
   const types = listOf(f.entryType);

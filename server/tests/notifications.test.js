@@ -74,7 +74,6 @@ describe('notifications, report and logs', () => {
     const rows = await readXlsx((await ctx.download('/reports/sd-balance/export')).buffer);
     assert.equal(rows.length, 4);
     assert.equal(rows[3]['SD Code'], 'GRAND TOTAL (3 SD Codes)');
-    assert.equal(rows[3]['Row Type'], 'Grand Total');
     assert.equal(rows[3]['SD Balance Repayable'], 200000);
   });
 

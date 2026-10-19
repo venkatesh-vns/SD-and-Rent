@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import MultiSelect from '../components/MultiSelect';
+import useCascadeOptions from '../hooks/useCascadeOptions';
 import DateRangeFilter from '../components/DateRangeFilter';
 import { DonutChart, BarChart, compactAmount } from '../components/Charts';
 import api, { downloadFile, errorMessage } from '../services/api';
@@ -20,7 +21,7 @@ const C = { agreement: '#334155', paid: '#15803d', balance: '#1d4ed8', repayable
 
 // Multi-select filters hold arrays (empty = all); dates are DD/MM/YYYY
 const EMPTY_FILTERS = {
-  sdId: [], costCenterId: [], l1Id: [], l2Id: [], l3Id: [], landlordName: [], sdType: [], fy: [],
+  sdId: [], costCenterId: [], l1Id: [], l2Id: [], l3Id: [], landlordName: [], floor: [], sdType: [], fy: [],
   landlordStatus: [], buildingStatus: [], agreementStatus: [], dateFrom: '', dateTo: '',
 };
 
@@ -149,6 +150,8 @@ export default function SdDashboard() {
   }, [l3List]);
 
   const setFilter = (patch) => setFilters((f) => ({ ...f, ...patch }));
+  // Landlord choices follow Cost Center; Floor choices follow Cost Center and Landlord
+  const cascade = useCascadeOptions('sd', filters, setFilters);
   const activeCount = Object.entries(filters).filter(([, v]) => (Array.isArray(v) ? v.length : v)).length;
 
   const handleExport = async () => {
@@ -253,7 +256,8 @@ export default function SdDashboard() {
               <MultiSelect allLabel="All Level 1" noun="Level 1" options={l1List.map((l) => ({ value: l.id, label: l.name }))} value={filters.l1Id} onChange={(v) => setFilter({ l1Id: v })} />
               <MultiSelect allLabel={filters.l1Id.length ? 'All Level 2' : 'Level 2'} noun="Level 2" disabled={!filters.l1Id.length} options={l2List.map((l) => ({ value: l.id, label: l.name }))} value={filters.l2Id} onChange={(v) => setFilter({ l2Id: v })} />
               <MultiSelect allLabel={filters.l2Id.length ? 'All Level 3' : 'Level 3'} noun="Level 3" disabled={!filters.l2Id.length} options={l3List.map((l) => ({ value: l.id, label: l.name }))} value={filters.l3Id} onChange={(v) => setFilter({ l3Id: v })} />
-              <MultiSelect allLabel="All landlords" noun="landlords" options={options.landlords || []} value={filters.landlordName} onChange={(v) => setFilter({ landlordName: v })} />
+              <MultiSelect allLabel="All landlords" noun="landlords" options={cascade.landlords} value={filters.landlordName} onChange={(v) => setFilter({ landlordName: v })} />
+              <MultiSelect allLabel="All floors" noun="floors" options={cascade.floors} value={filters.floor} onChange={(v) => setFilter({ floor: v })} />
               <MultiSelect allLabel="All SD Types" noun="SD Types" options={SD_TYPES} value={filters.sdType} onChange={(v) => setFilter({ sdType: v })} />
               <MultiSelect allLabel="All FY" noun="FYs" options={fyList} value={filters.fy} onChange={(v) => setFilter({ fy: v })} />
               <MultiSelect allLabel="LL Status: all" noun="statuses" options={STATUSES.map((s) => ({ value: s, label: `Landlord: ${s}` }))} value={filters.landlordStatus} onChange={(v) => setFilter({ landlordStatus: v })} />

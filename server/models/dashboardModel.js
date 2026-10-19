@@ -25,6 +25,7 @@ function baseCtes(f) {
   ids('s.l3_id', f.l3Id);
   any('s.landlord_status', f.landlordStatus);
   any('s.building_status', f.buildingStatus);
+  any('s.floor', f.floor);
   if (listOf(f.landlordName).length) {
     sdWhere.push(`COALESCE(NULLIF(TRIM(s.landlord_name), ''), '(Not given)') = ANY(${p(listOf(f.landlordName))})`);
   }

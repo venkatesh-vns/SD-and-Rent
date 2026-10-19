@@ -33,25 +33,15 @@ async function sdBalance(req, res, next) {
   }
 }
 
-// GET /api/reports/sd-balance/options - Floor and Landlord Name filter choices
-async function sdBalanceOptions(req, res, next) {
-  try {
-    res.json({ success: true, data: await reportModel.sdBalanceOptions() });
-  } catch (err) {
-    next(err);
-  }
-}
-
 // GET /api/reports/sd-balance/export
-// One row per SD Code and Agreement Status. SD details (Floor, not Location),
-// Agreement Value and SD Balance appear once per SD Code (its first row); no
-// subtotals; the Grand Total at the bottom counts each Agreement Value once.
-// "Row Type" (Line / Grand Total) lets users filter in Excel.
+// One row per SD Code and Agreement Status. SD details, Agreement Value and SD
+// Balance appear once per SD Code (its first row); the Grand Total at the bottom
+// counts each Agreement Value once. No subtotal rows.
 async function sdBalanceExport(req, res, next) {
   try {
     const { rows, totals } = await reportModel.sdBalance(withDates(req.query, ['leaseEndFrom', 'leaseEndTo']), { pageSize: 0 });
     const headers = [
-      'Row Type', 'SD Code', 'Lease ID', 'Agreement No.', 'Cost Center', 'Floor',
+      'SD Code', 'Lease ID', 'Agreement No.', 'Cost Center', 'Location Level 1', 'Location Level 2', 'Location Level 3', 'Floor',
       'Landlord Name', 'Landlord Status', 'Building Status',
       'Lease Commencement Date', 'Rent Commencement Date', 'Lease End Date',
       'Agreement Value', 'Agreement Status', 'SD Paid (payments)', 'SD Paid Reversals', 'Net SD Paid',
@@ -68,24 +58,24 @@ async function sdBalanceExport(req, res, next) {
       lines.forEach((l, i) => {
         const first = i === 0;
         ws.addRow([
-          'Line', r.sd_code,
-          ...(first ? [r.lease_id, r.agreement_no, r.cost_center_name, r.floor, r.landlord_name,
+          r.sd_code,
+          ...(first ? [r.lease_id, r.agreement_no, r.cost_center_name, r.l1_name, r.l2_name, r.l3_name, r.floor, r.landlord_name,
             r.landlord_status, r.building_status, formatDMY(r.lease_commencement_date), formatDMY(r.rent_commencement_date),
-            formatDMY(r.lease_end_date), num(r.agreement_value)] : Array(11).fill(null)),
+            formatDMY(r.lease_end_date), num(r.agreement_value)] : Array(14).fill(null)),
           l.agreement_status, ...amounts(l),
           first ? num(r.sd_balance) : null, num(l.sd_balance_repayable), first ? formatDMY(r.last_txn_date) : null,
         ]);
       });
     });
     const grand = ws.addRow([
-      'Grand Total', `GRAND TOTAL (${totals.count} SD Codes)`, ...Array(10).fill(null), num(totals.agreement_value), 'All statuses',
+      `GRAND TOTAL (${totals.count} SD Codes)`, ...Array(13).fill(null), num(totals.agreement_value), 'All statuses',
       ...amounts(totals), num(totals.sd_balance), num(totals.sd_balance_repayable), null,
     ]);
     grand.font = { bold: true };
     shade(grand, 'FFDCFCE7');
     ws.columns.forEach((col, i) => {
       col.width = Math.max(12, headers[i].length + 3);
-      if (i >= 12 && i <= 21 && i !== 13) col.numFmt = '#,##,##0.00';
+      if (i >= 14 && i <= 23 && i !== 15) col.numFmt = '#,##,##0.00';
     });
     await sendWorkbook(res, `SD_Balance_Report_${dateStamp()}.xlsx`, Buffer.from(await wb.xlsx.writeBuffer()));
   } catch (err) {
@@ -162,4 +152,4 @@ async function runReminders(req, res, next) {
   }
 }
 
-module.exports = { sdBalance, sdBalanceOptions, sdBalanceExport, emailLog, emailLogExport, auditLog, auditLogExport, runReminders };
+module.exports = { sdBalance, sdBalanceExport, emailLog, emailLogExport, auditLog, auditLogExport, runReminders };

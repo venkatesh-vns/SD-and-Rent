@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import MultiSelect from '../../components/MultiSelect';
+import useCascadeOptions from '../../hooks/useCascadeOptions';
 import DateRangeFilter from '../../components/DateRangeFilter';
 import Pager from '../../components/Pager';
 import Toast from '../../components/Toast';
@@ -77,6 +78,8 @@ export default function RentSchedule() {
   const loadRuns = () => api.get('/rent/schedule/runs').then((res) => setRuns(res.data.data)).catch(() => {});
   useEffect(() => { if (showRuns) loadRuns(); }, [showRuns]);
 
+  // Landlord choices follow Cost Center; Floor choices follow Cost Center and Landlord
+  const cascade = useCascadeOptions('rent', filters, setFilters);
   const setFilter = (patch) => { setFilters((f) => ({ ...f, ...patch })); setPage(1); };
 
   const generate = async () => {
@@ -139,8 +142,8 @@ export default function RentSchedule() {
         <div className="filter-bar">
           <DateRangeFilter label="Period" from={filters.fromDate} to={filters.toDate} onChange={({ from, to }) => setFilter({ fromDate: from, toDate: to })} />
           <MultiSelect allLabel="All cost centers" noun="cost centers" options={costCenters.map((c) => ({ value: c.id, label: c.name }))} value={filters.costCenterId} onChange={(v) => setFilter({ costCenterId: v })} />
-          <MultiSelect allLabel="All floors" noun="floors" options={lookups.floors} value={filters.floor} onChange={(v) => setFilter({ floor: v })} />
-          <MultiSelect allLabel="All landlords" noun="landlords" options={lookups.landlords} value={filters.landlordName} onChange={(v) => setFilter({ landlordName: v })} />
+          <MultiSelect allLabel="All landlords" noun="landlords" options={cascade.landlords} value={filters.landlordName} onChange={(v) => setFilter({ landlordName: v })} />
+          <MultiSelect allLabel="All floors" noun="floors" options={cascade.floors} value={filters.floor} onChange={(v) => setFilter({ floor: v })} />
           <MultiSelect allLabel="LL Status: all" noun="statuses" options={['Active', 'Inactive']} value={filters.llStatus} onChange={(v) => setFilter({ llStatus: v })} />
           <MultiSelect allLabel="All Rent Codes" noun="Rent Codes" options={lookups.rents.map((r) => ({ value: r.id, label: rentLabel(r) }))} value={filters.rentId} onChange={(v) => setFilter({ rentId: v })} />
           <MultiSelect allLabel="All Agreement Status" noun="statuses" options={['Individual', 'Transfer']} value={filters.agreementStatus} onChange={(v) => setFilter({ agreementStatus: v })} />

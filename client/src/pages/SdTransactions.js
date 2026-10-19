@@ -13,6 +13,7 @@ import api, { downloadFile, errorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { SCREENS } from '../config/screens';
 import useDebounce from '../hooks/useDebounce';
+import useCascadeOptions from '../hooks/useCascadeOptions';
 import { formatAmount, formatDate } from '../utils/format';
 import AmountTiles from '../components/AmountTiles';
 import { amountClass } from '../config/amounts';
@@ -36,7 +37,9 @@ const EMPTY_FORM = {
 };
 
 // Multi-select filters hold arrays of values (empty = all)
-const EMPTY_FILTERS = { search: '', sdType: [], fy: [], agreementStatus: [], entryType: [], dateFrom: '', dateTo: '' };
+const EMPTY_FILTERS = {
+  search: '', costCenterId: [], landlordName: [], floor: [], sdType: [], fy: [], agreementStatus: [], entryType: [], dateFrom: '', dateTo: '',
+};
 
 // Indian financial year (April-March) for a DD/MM/YYYY date, e.g. '2024-2025'
 function fyFor(dmy) {
@@ -64,14 +67,18 @@ export default function SdTransactions() {
   const [notice, setNotice] = useState('');
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [fyList, setFyList] = useState([]);
+  const [costCenters, setCostCenters] = useState([]);
   const [modal, setModal] = useState(null); // null | { editing: txn | null, sd }
   const [form, setForm] = useState(EMPTY_FORM);
   const [payments, setPayments] = useState([]); // this SD Code's payments, for a reversal's link
   const [formErrors, setFormErrors] = useState([]);
   const [saving, setSaving] = useState(false);
   const search = useDebounce(filters.search);
+  // Landlord choices follow Cost Center; Floor choices follow Cost Center and Landlord
+  const cascade = useCascadeOptions('sd', filters, setFilters);
 
-  const query = { ...filters, search, sdId };
+  // One SD Code selected: its own filters (Cost Center / Landlord / Floor) do not apply
+  const query = sdId ? { ...filters, costCenterId: [], landlordName: [], floor: [], search, sdId } : { ...filters, search, sdId };
 
   const fetchSummary = useCallback(async () => {
     if (!sdId) {
@@ -101,6 +108,8 @@ export default function SdTransactions() {
         txnNoText: t.txn_no,
         rowClass: Number(t.paid_amount) < 0 ? 'row-reversal' : undefined,
         sdCode: t.sd_code,
+        floor: t.floor,
+        landlord: t.landlord_name || '—',
         txnDate: formatDate(t.txn_date),
         fy: t.fy,
         sdType: t.sd_type,
@@ -133,6 +142,9 @@ export default function SdTransactions() {
 
   useEffect(() => { fetchSummary(); }, [fetchSummary]);
   useEffect(() => { fetchRows(); }, [fetchRows]);
+  useEffect(() => {
+    api.get('/lookups/cost-centers').then((res) => setCostCenters(res.data.data)).catch(() => {});
+  }, []);
   // Financial years in use (refreshed with the list, so a new FY appears after a save)
   useEffect(() => {
     api.get('/lookups/fys').then((res) => setFyList(res.data.data)).catch(() => setFyList([]));
@@ -226,7 +238,7 @@ export default function SdTransactions() {
 
   const columns = [
     { key: 'txnNo', label: 'Txn No.' },
-    ...(sdId ? [] : [{ key: 'sdCode', label: 'SD Code' }]),
+    ...(sdId ? [] : [{ key: 'sdCode', label: 'SD Code' }, { key: 'floor', label: 'Floor' }, { key: 'landlord', label: 'Landlord Name' }]),
     { key: 'txnDate', label: 'Date' },
     { key: 'fy', label: 'FY' },
     { key: 'sdType', label: 'SD Type' },
@@ -308,9 +320,6 @@ export default function SdTransactions() {
             </div>
             <dl className="sd-sticky-fields">
               <div><dt>Cost Center</dt><dd>{sd.cost_center_name}</dd></div>
-              <div><dt>Location Level 1</dt><dd>{sd.l1_name}</dd></div>
-              <div><dt>Location Level 2</dt><dd>{sd.l2_name}</dd></div>
-              <div><dt>Location Level 3</dt><dd>{sd.l3_name}</dd></div>
               <div><dt>Floor</dt><dd>{sd.floor}</dd></div>
               <div><dt>Landlord Name</dt><dd>{sd.landlord_name || '—'}</dd></div>
               <div>
@@ -367,6 +376,13 @@ export default function SdTransactions() {
 
         <div className="filter-bar">
           <input type="search" placeholder="Search Txn No., SD Code or Remarks" value={filters.search} onChange={(e) => setFilter({ search: e.target.value })} />
+          {!sdId && (
+            <>
+              <MultiSelect allLabel="All cost centers" noun="cost centers" options={costCenters.map((c) => ({ value: c.id, label: c.name }))} value={filters.costCenterId} onChange={(v) => setFilter({ costCenterId: v })} />
+              <MultiSelect allLabel="All landlords" noun="landlords" options={cascade.landlords} value={filters.landlordName} onChange={(v) => setFilter({ landlordName: v })} />
+              <MultiSelect allLabel="All floors" noun="floors" options={cascade.floors} value={filters.floor} onChange={(v) => setFilter({ floor: v })} />
+            </>
+          )}
           <MultiSelect allLabel="All SD Types" noun="SD Types" options={SD_TYPES} value={filters.sdType} onChange={(v) => setFilter({ sdType: v })} />
           <MultiSelect allLabel="All FY" noun="FYs" options={fyList} value={filters.fy} onChange={(v) => setFilter({ fy: v })} />
           <MultiSelect allLabel="All Agreement Status" noun="statuses" options={AGREEMENT_STATUSES} value={filters.agreementStatus} onChange={(v) => setFilter({ agreementStatus: v })} />

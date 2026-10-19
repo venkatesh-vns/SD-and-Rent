@@ -8,6 +8,7 @@ import api, { downloadFile, errorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { SCREENS } from '../config/screens';
 import useDebounce from '../hooks/useDebounce';
+import useCascadeOptions from '../hooks/useCascadeOptions';
 import { formatAmount, formatDate } from '../utils/format';
 import AmountTiles from '../components/AmountTiles';
 import { AMOUNTS, amountClass } from '../config/amounts';
@@ -57,7 +58,6 @@ export default function SdBalanceReport() {
   const [costCenters, setCostCenters] = useState([]);
   const [l1List, setL1List] = useState([]);
   const [l2List, setL2List] = useState([]);
-  const [options, setOptions] = useState({ floors: [], landlords: [] }); // Floor / Landlord Name filter choices
   const search = useDebounce(filters.search);
   const query = { ...filters, search };
 
@@ -81,7 +81,6 @@ export default function SdBalanceReport() {
   useEffect(() => {
     api.get('/lookups/cost-centers').then((res) => setCostCenters(res.data.data)).catch(() => {});
     api.get('/lookups/locations/1').then((res) => setL1List(res.data.data)).catch(() => {});
-    api.get('/reports/sd-balance/options').then((res) => setOptions(res.data.data)).catch(() => {});
   }, []);
 
   // Level 2 choices follow the chosen Level 1s; picks outside them are dropped
@@ -102,6 +101,9 @@ export default function SdBalanceReport() {
     setFilters((f) => ({ ...f, ...patch }));
     setPage(1);
   };
+
+  // Landlord choices follow Cost Center; Floor choices follow Cost Center and Landlord
+  const options = useCascadeOptions('sd', filters, setFilters);
 
   const canTxn = can(SCREENS.SD_TRANSACTION, 'view');
 

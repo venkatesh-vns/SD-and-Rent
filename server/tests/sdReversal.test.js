@@ -144,26 +144,27 @@ describe('SD Paid reversal entries', () => {
     const col = (row, name) => row[head.indexOf(name)];
     const data = [];
     ws.eachRow((row, n) => { if (n > 1 && row.getCell(1).value) data.push(row.values); });
-    assert.deepEqual(data.map((x) => col(x, 'Row Type')), ['Line', 'Line', 'Grand Total'], 'no subtotal rows');
+    assert.deepEqual(data.map((x) => col(x, 'SD Code')), [sd.sd_code, sd.sd_code, 'GRAND TOTAL (1 SD Codes)'], 'no subtotal rows');
+    assert.ok(!head.includes('Row Type'));
     assert.equal(col(data[0], 'Agreement Value'), 100000);
-    assert.equal(col(data[0], 'Floor'), '1');
     assert.equal(col(data[1], 'Agreement Value'), undefined, 'not repeated on the second status line');
     assert.equal(col(data[2], 'Net SD Paid'), 10950);
     assert.equal(col(data[2], 'Agreement Value'), 100000, 'grand total counts the Agreement Value once');
+    assert.ok(head.includes('Location Level 1') && head.includes('Floor'), 'Location columns kept in the report');
     assert.ok(!head.includes('Transactions') && !head.includes('Reversal Entries'), 'columns removed');
-    assert.ok(head.includes('Floor') && !head.some((h) => /Location/.test(String(h))), 'Floor instead of Location in the report');
   });
 
-  it('SD Balance Report: Floor and Landlord Name filters', async () => {
-    const opts = (await ctx.api('GET', '/reports/sd-balance/options')).body.data;
-    assert.ok(opts.floors.includes('1'));
-    assert.ok(opts.landlords.includes('(Not given)'));
+  it('Floor and Landlord Name filters, with Cost Center -> Landlord -> Floor choices', async () => {
     await ctx.api('PUT', `/sd-master/${sd.sd_id}`, sdBody(m, { leaseId: 'NEG-1', agreementValue: '100000', floor: '7', landlordName: 'Prestige Estates' }));
-    const byFloor = (await ctx.api('GET', '/reports/sd-balance?floor=7')).body;
-    assert.deepEqual(byFloor.data.map((r) => r.sd_code), [sd.sd_code]);
-    const byLandlord = (await ctx.api('GET', '/reports/sd-balance?landlordName=Prestige Estates,Nobody')).body;
-    assert.deepEqual(byLandlord.data.map((r) => r.sd_code), [sd.sd_code]);
-    assert.equal((await ctx.api('GET', '/reports/sd-balance?floor=7&landlordName=Nobody')).body.total, 0);
+    const combos = (await ctx.api('GET', '/lookups/filter-combos?source=sd')).body.data;
+    assert.ok(combos.some((c) => c.costCenterId === sd.cost_center_id && c.landlord === 'Prestige Estates' && c.floor === '7'));
+    assert.ok(combos.some((c) => c.landlord === '(Not given)'), 'blank landlords grouped');
+    for (const path of ['/reports/sd-balance', '/sd-master', '/sd-transactions']) {
+      const ll = encodeURIComponent('Prestige Estates,Nobody');
+      const hit = (await ctx.api('GET', `${path}?floor=7&landlordName=${ll}&costCenterId=${sd.cost_center_id}`)).body;
+      assert.ok(hit.total > 0 && hit.data.every((r) => r.sd_code === sd.sd_code), path);
+      assert.equal((await ctx.api('GET', `${path}?floor=7&landlordName=Nobody`)).body.total, 0, path);
+    }
   });
 
   it('exports transactions grouped by SD Code with the Agreement Value once', async () => {

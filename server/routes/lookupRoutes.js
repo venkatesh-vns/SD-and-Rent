@@ -11,6 +11,29 @@ const { httpError } = require('../utils/httpError');
 
 router.use(authenticateToken);
 
+// GET /api/lookups/filter-combos?source=sd|rent|all
+// Every Cost Center + Landlord Name + Floor combination, so screens can narrow the
+// Landlord list by Cost Center and the Floor list by Cost Center and Landlord.
+//   sd   - SD Master landlords (blank = "(Not given)")
+//   rent - Rent Master landlords (with their SD's cost center and floor)
+//   all  - both
+router.get('/filter-combos', async (req, res, next) => {
+  try {
+    const source = ['sd', 'rent', 'all'].includes(req.query.source) ? req.query.source : 'sd';
+    const parts = [];
+    if (source !== 'rent') {
+      parts.push(`SELECT s.cost_center_id, COALESCE(NULLIF(TRIM(s.landlord_name), ''), '(Not given)') AS landlord_name, s.floor FROM sd_master s`);
+    }
+    if (source !== 'sd') {
+      parts.push('SELECT s.cost_center_id, r.landlord_name, s.floor FROM rent_master r JOIN sd_master s ON s.sd_id = r.sd_id');
+    }
+    const rows = (await pool.query(`SELECT DISTINCT * FROM (${parts.join(' UNION ')}) c ORDER BY landlord_name, floor`)).rows;
+    res.json({ success: true, data: rows.map((r) => ({ costCenterId: r.cost_center_id, landlord: r.landlord_name, floor: r.floor })) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GET /api/lookups/cost-centers
 router.get('/cost-centers', async (req, res, next) => {
   try {

@@ -12,6 +12,7 @@ import api, { downloadFile, errorMessage } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { SCREENS } from '../config/screens';
 import useDebounce from '../hooks/useDebounce';
+import useCascadeOptions from '../hooks/useCascadeOptions';
 import { formatAmount, formatDate, formatDateTime, daysUntil } from '../utils/format';
 import { AMOUNTS, amountClass } from '../config/amounts';
 
@@ -22,9 +23,6 @@ const columns = [
   { key: 'leaseId', label: 'Lease ID' },
   { key: 'agreementNo', label: 'Agreement No.' },
   { key: 'costCenter', label: 'Cost Center' },
-  { key: 'l1', label: 'Location Level 1' },
-  { key: 'l2', label: 'Location Level 2' },
-  { key: 'l3', label: 'Location Level 3' },
   { key: 'floor', label: 'Floor' },
   { key: 'landlordName', label: 'Landlord Name' },
   { key: 'landlordStatus', label: 'Landlord Status', badge: true },
@@ -52,7 +50,7 @@ const EMPTY_FORM = {
 
 // Multi-select filters hold arrays of values (empty = all)
 const EMPTY_FILTERS = {
-  search: '', costCenterId: [], l1Id: [], l2Id: [], landlordStatus: [], buildingStatus: [], leaseEndFrom: '', leaseEndTo: '',
+  search: '', costCenterId: [], landlordName: [], floor: [], landlordStatus: [], buildingStatus: [], leaseEndFrom: '', leaseEndTo: '',
 };
 const SD_STATUSES = ['Active', 'Passive'];
 
@@ -63,9 +61,6 @@ function toRow(r) {
     leaseId: r.lease_id || '—',
     agreementNo: r.agreement_no || '—',
     costCenter: r.cost_center_name,
-    l1: r.l1_name,
-    l2: r.l2_name,
-    l3: r.l3_name,
     floor: r.floor,
     landlordName: r.landlord_name || '—',
     landlordStatus: r.landlord_status,
@@ -142,17 +137,9 @@ export default function SdMaster() {
   const search = useDebounce(filters.search);
 
   const l1List = useLocations(1);
-  const filterL2 = useLocations(2, filters.l1Id.join(','));
   const formL2 = useLocations(2, form.l1Id);
-
-  // Drop Level 2 picks that no longer belong to the chosen Level 1s
-  useEffect(() => {
-    setFilters((f) => {
-      const valid = new Set(filterL2.map((l) => String(l.id)));
-      const kept = f.l2Id.filter((id) => valid.has(String(id)));
-      return kept.length === f.l2Id.length ? f : { ...f, l2Id: kept };
-    });
-  }, [filterL2]);
+  // Landlord choices follow Cost Center; Floor choices follow Cost Center and Landlord
+  const cascade = useCascadeOptions('sd', filters, setFilters);
   const formL3 = useLocations(3, form.l2Id);
 
   const query = { ...filters, search };
@@ -299,16 +286,8 @@ export default function SdMaster() {
             options={costCenters.map((c) => ({ value: c.id, label: c.name }))}
             value={filters.costCenterId} onChange={(v) => setFilter({ costCenterId: v })}
           />
-          <MultiSelect
-            allLabel="All Level 1" noun="Level 1"
-            options={l1List.map((l) => ({ value: l.id, label: l.name }))}
-            value={filters.l1Id} onChange={(v) => setFilter({ l1Id: v })}
-          />
-          <MultiSelect
-            allLabel={filters.l1Id.length ? 'All Level 2' : 'Level 2'} noun="Level 2" disabled={!filters.l1Id.length}
-            options={filterL2.map((l) => ({ value: l.id, label: l.name }))}
-            value={filters.l2Id} onChange={(v) => setFilter({ l2Id: v })}
-          />
+          <MultiSelect allLabel="All landlords" noun="landlords" options={cascade.landlords} value={filters.landlordName} onChange={(v) => setFilter({ landlordName: v })} />
+          <MultiSelect allLabel="All floors" noun="floors" options={cascade.floors} value={filters.floor} onChange={(v) => setFilter({ floor: v })} />
           <MultiSelect
             allLabel="Landlord: all" noun="statuses"
             options={SD_STATUSES.map((s) => ({ value: s, label: `Landlord: ${s}` }))}

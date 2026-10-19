@@ -29,7 +29,7 @@ const LIST_SELECT = SELECT.replace(
 
 // Builds the WHERE clause shared by the list and the export. The id and
 // status filters accept one or more values (a record matches any of them).
-function filterClause({ search, costCenterId, l1Id, l2Id, l3Id, landlordStatus, buildingStatus, leaseEndFrom, leaseEndTo }) {
+function filterClause({ search, costCenterId, l1Id, l2Id, l3Id, landlordStatus, buildingStatus, leaseEndFrom, leaseEndTo, landlordName, floor }) {
   const where = [];
   const params = [];
   const add = (sql, value) => {
@@ -48,6 +48,9 @@ function filterClause({ search, costCenterId, l1Id, l2Id, l3Id, landlordStatus, 
   ids('s.l1_id', l1Id);
   ids('s.l2_id', l2Id);
   ids('s.l3_id', l3Id);
+  // Landlord Name (blank = "(Not given)") and Floor, one or more each
+  any("COALESCE(NULLIF(TRIM(s.landlord_name), ''), '(Not given)')", landlordName);
+  any('s.floor', floor);
   any('s.landlord_status', landlordStatus);
   any('s.building_status', buildingStatus);
   if (leaseEndFrom) add('s.lease_end_date >= ?', leaseEndFrom);
