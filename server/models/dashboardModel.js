@@ -83,6 +83,8 @@ async function getDashboard(f = {}, { alertDays = 15 } = {}) {
            COALESCE(SUM(b.transfer), 0) AS transfer, COALESCE(SUM(b.adjustment), 0) AS adjustment,
            COALESCE(SUM(b.refund), 0) AS refund, COALESCE(SUM(b.balance), 0) AS balance,
            COALESCE(SUM(b.repayable), 0) AS repayable,
+           COALESCE((SELECT -SUM(tx.paid_amount) FROM tx WHERE tx.paid_amount < 0), 0) AS reversal_amount,
+           (SELECT COUNT(*) FROM tx WHERE tx.paid_amount < 0)::int AS reversal_count,
            COUNT(*)::int AS sd_count,
            COUNT(*) FILTER (WHERE NOT sd.is_passive)::int AS active_count,
            COUNT(*) FILTER (WHERE sd.is_passive)::int AS passive_count,

@@ -7,6 +7,7 @@ const { logAudit } = require('../utils/audit');
 const { httpError } = require('../utils/httpError');
 const { parseDMY, formatDMY } = require('../utils/dates');
 const { processUpload } = require('../utils/bulkUpload');
+const ExcelJS = require('exceljs');
 const { buildWorkbook, sendWorkbook, dateStamp } = require('../utils/excel');
 const { SCREENS } = require('../middleware/rightsMiddleware');
 const userRightsModel = require('../models/userRightsModel');
@@ -207,26 +208,86 @@ async function downloadTemplate(req, res, next) {
 }
 
 // GET /api/sd-transactions/export  (same filters as the list, all pages)
+// Grouped by SD Code: the Agreement Value shows once per SD Code (its first row),
+// and a "By SD Code" sheet totals each SD Code (payments, reversals, net SD Paid,
+// movements, closing balances) with its single Agreement Value.
 async function exportAll(req, res, next) {
   try {
-    const { rows } = await txnModel.getAll(listFilters(req.query), { pageSize: 0 });
-    const buffer = buildWorkbook(
-      'SD Transactions',
-      [
-        ...TEMPLATE_COLUMNS.map((c) => c.header),
-        'Entry Type', 'Agreement Value', 'SD Balance (running)', 'SD Balance Repayable (running)',
-        'Cost Center', 'Location', 'Created By', 'Created Date', 'Modified By', 'Modified Date',
-      ],
-      rows.map((r) => [
+    const { rows } = await txnModel.getAll(listFilters(req.query), { pageSize: 0, groupBySd: true });
+    const MONEY = '#,##,##0.00';
+    const wb = new ExcelJS.Workbook();
+
+    const headers = [
+      ...TEMPLATE_COLUMNS.map((c) => c.header),
+      'Entry Type', 'Agreement Value', 'SD Balance (running)', 'SD Balance Repayable (running)',
+      'Cost Center', 'Location', 'Created By', 'Created Date', 'Modified By', 'Modified Date',
+    ];
+    const ws = wb.addWorksheet('SD Transactions', { views: [{ state: 'frozen', ySplit: 1 }] });
+    ws.addRow(headers).font = { bold: true };
+    let band = false;
+    rows.forEach((r, i) => {
+      const firstOfSd = i === 0 || rows[i - 1].sd_id !== r.sd_id;
+      if (firstOfSd) band = !band;
+      const row = ws.addRow([
         r.txn_no, r.sd_code, r.sd_type, r.fy, formatDMY(r.txn_date), r.agreement_status,
-        ...AMOUNT_FIELDS.map((f) => Number(r[f])), r.remarks, r.reverses_txn_no || '',
+        ...AMOUNT_FIELDS.map((f) => Number(r[f])), r.remarks || '', r.reverses_txn_no || '',
         Number(r.paid_amount) < 0 ? 'Reversal (negative SD Paid)' : 'Payment',
-        Number(r.agreement_value), Number(r.running_sd_balance), Number(r.running_repayable),
+        firstOfSd ? Number(r.agreement_value) : null,
+        Number(r.running_sd_balance), Number(r.running_repayable),
         r.cost_center_name, `${r.l1_name} > ${r.l2_name} > ${r.l3_name}`,
         r.created_by, r.created_date, r.modified_by, r.modified_date,
-      ])
-    );
-    await sendWorkbook(res, `SD_Transactions_${dateStamp()}.xlsx`, buffer);
+      ]);
+      if (band) row.eachCell({ includeEmpty: true }, (c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F8F6' } }; });
+      if (Number(r.paid_amount) < 0) row.getCell(7).font = { color: { argb: 'FFB91C1C' }, bold: true };
+    });
+    ws.columns.forEach((col, i) => {
+      col.width = Math.max(14, headers[i].length + 3);
+      if ([7, 8, 9, 10, 14, 15, 16].includes(i + 1)) col.numFmt = MONEY;
+    });
+
+    // One row per SD Code
+    const groups = new Map();
+    rows.forEach((r) => {
+      const g = groups.get(r.sd_id) || {
+        sd_code: r.sd_code, cost_center: r.cost_center_name, landlord: r.landlord_name || '', agreement: Number(r.agreement_value),
+        payments: 0, reversals: 0, reversalCount: 0, transfer: 0, adjustment: 0, refund: 0, count: 0, last: null,
+      };
+      const paid = Number(r.paid_amount);
+      if (paid >= 0) g.payments += paid; else { g.reversals += paid; g.reversalCount += 1; }
+      g.transfer += Number(r.transfer_amount);
+      g.adjustment += Number(r.adjustment_amount);
+      g.refund += Number(r.refund_amount);
+      g.count += 1;
+      g.last = r; // ledger order: the last row holds the closing running balances
+      groups.set(r.sd_id, g);
+    });
+    const sh = wb.addWorksheet('By SD Code', { views: [{ state: 'frozen', ySplit: 1 }] });
+    const sHeaders = ['SD Code', 'Cost Center', 'Landlord Name', 'Agreement Value', 'SD Paid (payments)', 'Reversals', 'Net SD Paid',
+      'SD Transfer', 'SD Adjustment', 'SD Refund', 'SD Balance (closing)', 'SD Balance Repayable (closing)', 'Transactions', 'Reversal Entries'];
+    sh.addRow(sHeaders).font = { bold: true };
+    const tot = { agreement: 0, payments: 0, reversals: 0, transfer: 0, adjustment: 0, refund: 0, balance: 0, repayable: 0, count: 0, rc: 0 };
+    groups.forEach((g) => {
+      const balance = Number(g.last.running_sd_balance);
+      const repayable = Number(g.last.running_repayable);
+      const row = sh.addRow([g.sd_code, g.cost_center, g.landlord, g.agreement, g.payments, g.reversals, g.payments + g.reversals,
+        g.transfer, g.adjustment, g.refund, balance, repayable, g.count, g.reversalCount]);
+      if (g.reversals < 0) row.getCell(6).font = { color: { argb: 'FFB91C1C' }, bold: true };
+      Object.assign(tot, {
+        agreement: tot.agreement + g.agreement, payments: tot.payments + g.payments, reversals: tot.reversals + g.reversals,
+        transfer: tot.transfer + g.transfer, adjustment: tot.adjustment + g.adjustment, refund: tot.refund + g.refund,
+        balance: tot.balance + balance, repayable: tot.repayable + repayable, count: tot.count + g.count, rc: tot.rc + g.reversalCount,
+      });
+    });
+    sh.addRow([`TOTAL (${groups.size} SD Codes)`, '', '', tot.agreement, tot.payments, tot.reversals, tot.payments + tot.reversals,
+      tot.transfer, tot.adjustment, tot.refund, tot.balance, tot.repayable, tot.count, tot.rc]).font = { bold: true };
+    sh.columns.forEach((col, i) => {
+      col.width = Math.max(14, sHeaders[i].length + 3);
+      if (i >= 3 && i <= 11) col.numFmt = MONEY;
+    });
+    sh.addRow([]);
+    sh.addRow(['Filtered transactions only. Closing balances are the running balances after the last exported transaction of each SD Code.']).font = { italic: true, color: { argb: 'FF66756E' } };
+
+    await sendWorkbook(res, `SD_Transactions_${dateStamp()}.xlsx`, Buffer.from(await wb.xlsx.writeBuffer()));
   } catch (err) {
     next(err);
   }

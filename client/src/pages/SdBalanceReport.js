@@ -19,10 +19,14 @@ const EMPTY_FILTERS = {
   leaseEndFrom: '', leaseEndTo: '', balanceDue: '', repayableDue: '',
 };
 
-// Report column -> kind of amount (colour and meaning in config/amounts.js)
+// Report column -> kind of amount (colour and meaning in config/amounts.js), optional label.
+// SD Paid shows payments, reversals (negative SD Paid entries) and the net that the
+// balances use; the tiles take the net (last 'paid' column).
 const MONEY = [
   ['agreement_value', 'agreement'],
-  ['total_paid', 'paid'],
+  ['total_payments', 'paid', 'SD Paid (payments)', 'Positive SD Paid entries'],
+  ['total_reversal', 'paid', 'Reversals', 'Negative SD Paid (reversal) entries'],
+  ['total_paid', 'paid', 'Net SD Paid', 'Payments less reversals - used for SD Balance and Repayable'],
   ['total_transfer', 'transfer'],
   ['total_adjustment', 'adjustment'],
   ['total_refund', 'refund'],
@@ -150,6 +154,12 @@ export default function SdBalanceReport() {
         {totals && (
           <div className="report-totals">
             <AmountTiles values={tileValues(totals)} lead={{ label: 'SD Codes', value: totals.count, hint: 'Matching the filters' }} />
+            {Number(totals.reversal_count) > 0 && (
+              <p className="hint reversal-note">
+                Paid is net of <strong>₹{formatAmount(-Number(totals.total_reversal))}</strong> in {totals.reversal_count} reversal
+                {totals.reversal_count === 1 ? ' entry' : ' entries'} (negative SD Paid) on payments of ₹{formatAmount(totals.total_payments)}.
+              </p>
+            )}
           </div>
         )}
 
@@ -161,15 +171,15 @@ export default function SdBalanceReport() {
                   <tr className="group-row">
                     <th colSpan={7}>SD details</th>
                     <th className="tone-agreement">Agreed</th>
-                    <th colSpan={4}>Payments and movements</th>
+                    <th colSpan={6}>Payments and movements</th>
                     <th colSpan={2} className="tone-fill-head">Balances</th>
                     <th />
                   </tr>
                   <tr>
                     <th>SD Code</th><th>Lease / Agreement</th><th>Cost Center</th><th>Location</th><th>Landlord</th>
                     <th>Status</th><th>Lease End</th>
-                    {MONEY.map(([col, kind]) => (
-                      <th key={col} className={`num tone-head tone-${AMOUNTS[kind].tone}`} title={AMOUNTS[kind].hint}>{AMOUNTS[kind].label}</th>
+                    {MONEY.map(([col, kind, label, hint]) => (
+                      <th key={col} className={`num tone-head tone-${AMOUNTS[kind].tone}`} title={hint || AMOUNTS[kind].hint}>{label || AMOUNTS[kind].label}</th>
                     ))}
                     <th className="num">Txns</th>
                   </tr>
@@ -191,7 +201,9 @@ export default function SdBalanceReport() {
                           : <span className="badge badge-passive">Passive</span>}
                       </td>
                       <td>{formatDate(r.lease_end_date) || '—'}</td>
-                      {MONEY.map(([col, kind]) => <td key={col} className={amountClass(kind, r[col])}>{formatAmount(r[col])}</td>)}
+                      {MONEY.map(([col, kind]) => (
+                        <td key={col} className={`${amountClass(kind, r[col])}${Number(r[col]) < 0 ? ' amount-negative' : ''}`}>{formatAmount(r[col])}</td>
+                      ))}
                       <td className="num">{r.txn_count}</td>
                     </tr>
                   ))}

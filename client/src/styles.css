@@ -1214,6 +1214,8 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
   background: var(--danger-bg); color: var(--text-2); font-size: 0.86rem;
 }
 .reversal-box strong { color: var(--danger); }
+.amount-negative-text { color: var(--danger); font-weight: 700; }
+.reversal-note { margin: 0.5rem 0 0; }
 /* SD & Rent Transaction Summary Report */
 .category-chip {
   display: inline-block; padding: 0.08rem 0.5rem; border-radius: 999px; font-size: 0.74rem; font-weight: 600; white-space: nowrap;

@@ -7,7 +7,8 @@ const SELECT = `
          s.lease_commencement_date, s.rent_commencement_date, s.lease_end_date,
          cc.cost_center_code, cc.cost_center_name, l1.l1_name, l2.l2_name, l3.l3_name,
          b.agreement_value, b.total_paid, b.total_transfer, b.total_adjustment, b.total_refund,
-         b.sd_balance, b.sd_balance_repayable, b.txn_count, b.last_txn_date`;
+         b.sd_balance, b.sd_balance_repayable, b.txn_count, b.last_txn_date,
+         b.total_payments, b.total_reversal, b.reversal_count`;
 
 const FROM = `
   FROM sd_master s
@@ -36,6 +37,9 @@ async function sdBalance(filters = {}, { page = 1, pageSize = 50 } = {}) {
     `SELECT COUNT(*)::int AS count,
             COALESCE(SUM(b.agreement_value), 0) AS agreement_value,
             COALESCE(SUM(b.total_paid), 0) AS total_paid,
+            COALESCE(SUM(b.total_payments), 0) AS total_payments,
+            COALESCE(SUM(b.total_reversal), 0) AS total_reversal,
+            COALESCE(SUM(b.reversal_count), 0)::int AS reversal_count,
             COALESCE(SUM(b.total_transfer), 0) AS total_transfer,
             COALESCE(SUM(b.total_adjustment), 0) AS total_adjustment,
             COALESCE(SUM(b.total_refund), 0) AS total_refund,

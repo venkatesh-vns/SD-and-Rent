@@ -102,4 +102,43 @@ describe('SD Paid reversal entries', () => {
     const ok = await ctx.upload('/sd-transactions/bulk-upload', [TXN_HEADERS, row]);
     assert.equal(ok.body.data.passed, 1, JSON.stringify(ok.body.data.report));
   });
+
+  // By now NEG-1 has payments 10,000 + 2,000 + 100 and reversals -2,000 - 100 - 50
+  it('reflects reversals in the SD Balance Report and SD Dashboard', async () => {
+    const report = (await ctx.api('GET', '/reports/sd-balance?search=NEG-1')).body;
+    const r = report.data[0];
+    assert.deepEqual([r.total_payments, r.total_reversal, r.total_paid].map(Number), [12100, -2150, 9950]);
+    assert.equal(Number(r.sd_balance), 100000 - 9950, 'outstanding SD balance uses net SD Paid');
+    assert.equal(r.reversal_count, 3);
+    assert.equal(Number(report.totals.total_reversal), -2150);
+
+    const dash = (await ctx.api('GET', `/dashboard?sdId=${sd.sd_id}`)).body.data;
+    assert.equal(Number(dash.kpi.paid), 9950);
+    assert.equal(Number(dash.kpi.balance), 90050);
+    assert.equal(Number(dash.kpi.reversal_amount), 2150);
+    assert.equal(dash.kpi.reversal_count, 3);
+    assert.ok(dash.recent.some((t) => Number(t.paid_amount) < 0), 'recent transactions include reversals');
+  });
+
+  it('exports transactions grouped by SD Code with the Agreement Value once', async () => {
+    const ExcelJS = require('exceljs');
+    const file = await ctx.download('/sd-transactions/export');
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(file.buffer);
+    const rows = await readXlsx(file.buffer);
+    const codes = rows.map((x) => x['SD Code']);
+    assert.deepEqual(codes, [...codes].sort(), 'grouped by SD Code');
+    const neg1 = rows.filter((x) => x['SD Code'] === sd.sd_code);
+    assert.equal(neg1[0]['Agreement Value'], 100000, 'shown on the first row of the SD Code');
+    assert.ok(neg1.slice(1).every((x) => x['Agreement Value'] === undefined || x['Agreement Value'] === null || x['Agreement Value'] === ''), 'not repeated');
+
+    const by = wb.getWorksheet('By SD Code');
+    const head = by.getRow(1).values;
+    const line = [];
+    by.eachRow((row) => { if (row.getCell(1).value === sd.sd_code) line.push(row.values); });
+    const col = (name) => line[0][head.indexOf(name)];
+    assert.equal(col('Agreement Value'), 100000);
+    assert.deepEqual([col('SD Paid (payments)'), col('Reversals'), col('Net SD Paid')], [12100, -2150, 9950]);
+    assert.equal(col('SD Balance (closing)'), 90050);
+  });
 });

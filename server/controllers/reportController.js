@@ -40,20 +40,20 @@ async function sdBalanceExport(req, res, next) {
       r.sd_code, r.lease_id, r.agreement_no, r.cost_center_name, r.l1_name, r.l2_name, r.l3_name, r.floor,
       r.landlord_name, r.landlord_status, r.building_status,
       formatDMY(r.lease_commencement_date), formatDMY(r.rent_commencement_date), formatDMY(r.lease_end_date),
-      num(r.agreement_value), num(r.total_paid), num(r.total_transfer), num(r.total_adjustment), num(r.total_refund),
-      num(r.sd_balance), num(r.sd_balance_repayable), r.txn_count, formatDMY(r.last_txn_date),
+      num(r.agreement_value), num(r.total_payments), num(r.total_reversal), num(r.total_paid), num(r.total_transfer), num(r.total_adjustment), num(r.total_refund),
+      num(r.sd_balance), num(r.sd_balance_repayable), r.txn_count, r.reversal_count, formatDMY(r.last_txn_date),
     ]);
     data.push([
       `TOTAL (${totals.count})`, '', '', '', '', '', '', '', '', '', '', '', '', '',
-      num(totals.agreement_value), num(totals.total_paid), num(totals.total_transfer), num(totals.total_adjustment),
-      num(totals.total_refund), num(totals.sd_balance), num(totals.sd_balance_repayable), '', '',
+      num(totals.agreement_value), num(totals.total_payments), num(totals.total_reversal), num(totals.total_paid), num(totals.total_transfer), num(totals.total_adjustment),
+      num(totals.total_refund), num(totals.sd_balance), num(totals.sd_balance_repayable), '', totals.reversal_count, '',
     ]);
     const buffer = buildWorkbook('SD Balance', [
       'SD Code', 'Lease ID', 'Agreement No.', 'Cost Center', 'Location Level 1', 'Location Level 2', 'Location Level 3', 'Floor',
       'Landlord Name', 'Landlord Status', 'Building Status',
       'Lease Commencement Date', 'Rent Commencement Date', 'Lease End Date',
-      'Agreement Value', 'Total SD Paid', 'Total SD Transfer', 'Total SD Adjustment', 'Total SD Refund',
-      'SD Balance', 'SD Balance Repayable', 'Transactions', 'Last Transaction Date',
+      'Agreement Value', 'SD Paid (payments)', 'SD Paid Reversals', 'Net SD Paid', 'Total SD Transfer', 'Total SD Adjustment', 'Total SD Refund',
+      'SD Balance', 'SD Balance Repayable', 'Transactions', 'Reversal Entries', 'Last Transaction Date',
     ], data);
     await sendWorkbook(res, `SD_Balance_Report_${dateStamp()}.xlsx`, buffer);
   } catch (err) {

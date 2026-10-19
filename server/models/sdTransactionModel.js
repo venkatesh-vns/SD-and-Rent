@@ -49,12 +49,13 @@ function filterClause(f) {
 
 // Paged list with running balances: { rows, total }. pageSize 0 = all.
 // One SD Code reads oldest first (a ledger); across SD Codes, newest first.
-async function getAll(filters = {}, { page = 1, pageSize = 50 } = {}) {
+// groupBySd: SD Code by SD Code, each as a ledger (reports / export).
+async function getAll(filters = {}, { page = 1, pageSize = 50, groupBySd = false } = {}) {
   const { sql, params } = filterClause(filters);
   const total = (await pool.query(
     `SELECT COUNT(*)::int AS n FROM v_sd_ledger l JOIN sd_master s ON s.sd_id = l.sd_id ${sql}`, params
   )).rows[0].n;
-  const order = filters.sdId ? 'l.txn_date, l.txn_id' : 'l.txn_date DESC, l.txn_id DESC';
+  const order = groupBySd ? 'l.sd_code, l.txn_date, l.txn_id' : filters.sdId ? 'l.txn_date, l.txn_id' : 'l.txn_date DESC, l.txn_id DESC';
   let paging = '';
   if (pageSize > 0) {
     params.push(pageSize, (Math.max(page, 1) - 1) * pageSize);

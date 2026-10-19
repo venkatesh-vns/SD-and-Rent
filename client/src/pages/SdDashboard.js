@@ -277,7 +277,7 @@ export default function SdDashboard() {
             {/* ---------------- KPIs ---------------- */}
             <div className="kpi-grid money">
               <Kpi label="Total Agreement Value" tone="agreement" value={money(k.agreement_value)} hint={`${k.sd_count} SD record${k.sd_count === 1 ? '' : 's'}`} />
-              <Kpi label="Total SD Paid" tone="paid" value={money(k.paid)} hint="Deposit paid to landlords" />
+              <Kpi label="Total SD Paid" tone="paid" value={money(k.paid)} hint={Number(k.reversal_count) > 0 ? `Net of ${money(k.reversal_amount)} reversals (${k.reversal_count})` : 'Deposit paid to landlords'} />
               <Kpi label="Total SD Balance" tone="balance" value={money(k.balance)} hint="Agreement Value − SD Paid" />
               <Kpi label="Total SD Balance Repayable" tone="repayable" value={money(k.repayable)} hint="Paid − Transfer − Adjustment − Refund" />
             </div>
@@ -487,7 +487,7 @@ export default function SdDashboard() {
                   { key: 'sd_code', label: 'SD Code', render: sdLink },
                   { key: 'txn_date', label: 'Transaction Date', render: (r) => formatDate(r.txn_date) },
                   { key: 'sd_type', label: 'SD Type', render: (r) => <span className="type-chip" style={{ '--tc': TYPE_COLORS[r.sd_type] }}>{r.sd_type}</span> },
-                  { key: 'paid_amount', label: 'SD Paid', money: true, tone: 'paid' },
+                  { key: 'paid_amount', label: 'SD Paid', money: true, tone: 'paid', render: (r) => (Number(r.paid_amount) < 0 ? <span className="amount-negative-text">{formatAmount(r.paid_amount)} <span className="reversal-tag">Reversal</span></span> : formatAmount(r.paid_amount)) },
                   { key: 'transfer_amount', label: 'SD Transfer', money: true, tone: 'out' },
                   { key: 'adjustment_amount', label: 'SD Adjustment', money: true, tone: 'out' },
                   { key: 'refund_amount', label: 'SD Refund', money: true, tone: 'out' },
