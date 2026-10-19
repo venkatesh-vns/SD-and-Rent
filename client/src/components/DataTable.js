@@ -35,7 +35,11 @@ export default function DataTable({ columns, rows, onEdit, editLabel = 'Edit', o
           {rows.map((row) => (
             <tr key={row.id} className={row.rowClass}>
               {columns.map((col) => (
-                <td key={col.key} className={row.cellClass?.[col.key] || (col.align === 'right' ? 'num' : undefined)}>
+                <td
+                  key={col.key} className={row.cellClass?.[col.key] || (col.align === 'right' ? 'num' : undefined)}
+                  // Full text on hover, for values cut short with "…" in frozen tables
+                  title={typeof row[col.key] === 'string' && row[col.key] !== '—' ? row[col.key] : undefined}
+                >
                   {(col.key === 'status' || col.badge) && typeof row[col.key] === 'string' ? (
                     <span className={`badge badge-${row[col.key]?.toLowerCase()}`}>{row[col.key]}</span>
                   ) : (
