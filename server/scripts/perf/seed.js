@@ -7,7 +7,7 @@
  *
  * Per landlord: 1.2 SD records (some landlords hold two), SD transactions, one Rent
  * Code with an Office + Maintenance + Car Park agreement, three yearly 5% RCD
- * escalations, a two-month rent-free waiver and audit history. Users perf01..perf20
+ * escalations, a two-month rent-free waiver and audit history. Users perf01..perf60
  * (password Perf@12345) are created for the load test.
  */
 const path = require('path');
@@ -134,8 +134,8 @@ async function main() {
   // Users for the load test
   const hash = await bcrypt.hash('Perf@12345', 10);
   await q(`INSERT INTO users (user_name, user_email, password_hash, status, is_admin, created_by)
-           SELECT 'perf' || lpad(g::text, 2, '0'), 'perf' || g || '@example.test', $1, 'Active', TRUE, 'perf' FROM generate_series(1, 20) g`, [hash]);
-  step('audit history and 20 users');
+           SELECT 'perf' || lpad(g::text, 2, '0'), 'perf' || g || '@example.test', $1, 'Active', TRUE, 'perf' FROM generate_series(1, 60) g`, [hash]);
+  step('audit history and 60 users');
 
   // Rent Schedule through the application's own generator (timed)
   const schedule = require('../../services/rentScheduleService');

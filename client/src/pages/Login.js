@@ -25,9 +25,11 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const sessionNote = params.get('idle')
-    ? 'You were logged out after a period of inactivity.'
-    : params.get('expired') ? 'Your session has ended. Please log in again.' : '';
+  const reason = params.get('reason');
+  const sessionNote = params.get('idle') || reason === 'Idle timeout'
+    ? 'You were logged out after 30 minutes without activity. Please log in again.'
+    : reason === 'Ended by administrator' ? 'An administrator ended your session. Please log in again.'
+      : params.get('expired') ? 'Your session has ended. Please log in again.' : '';
 
   const handleSubmit = async (e) => {
     e.preventDefault();

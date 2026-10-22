@@ -4,7 +4,7 @@
  *
  *   node scripts/perf/loadtest.js --url=http://localhost:5300 --users=20 --duration=120 --think=2000 [--jobs] [--out=result.json]
  *
- * Each user logs in (perf01..perfNN) and keeps opening screens: a "page" is the set of
+ * Each user logs in as its own User ID (perf01..perf59; one session per User ID) and keeps opening screens: a "page" is the set of
  * API calls the screen makes when it opens, sent together; the page time is the
  * slowest of them. Between pages the user "thinks" for --think ms (+/- 50%).
  * Some pages export to Excel or save an SD transaction.
@@ -124,7 +124,10 @@ async function virtualUser(n, until) {
     await openPage(token, pickPage());
     await sleep(THINK * (0.5 + Math.random()));
   }
+  await logout(token); // frees the User ID for the next run (one session per User ID)
 }
+
+const logout = (token) => fetch(`${BASE}/api/auth/logout`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
 
 // ------------------------------------------------------------------ heavy jobs
 const jobs = [];
@@ -149,7 +152,7 @@ async function runJobs(token, start) {
 
 // ------------------------------------------------------------------ run
 (async () => {
-  const admin = await login('perf01');
+  const admin = await login('perf60');
   sdIds = (await (await fetch(`${BASE}/api/sd-master?page=1&pageSize=200`, { headers: { Authorization: `Bearer ${admin}` } })).json()).data.map((s) => s.sd_id);
   ctxLookups.cc = (await (await fetch(`${BASE}/api/lookups/cost-centers`, { headers: { Authorization: `Bearer ${admin}` } })).json()).data.map((c) => c.id);
   delete samples['api /api/auth/login'];
@@ -158,10 +161,11 @@ async function runJobs(token, start) {
   const until = start + DURATION;
   console.log(`${USERS} users, ${DURATION / 1000}s, think ${THINK}ms${JOBS ? ', with heavy jobs' : ''} -> ${BASE}`);
   await Promise.all([
-    ...Array.from({ length: USERS }, (_, i) => virtualUser((i % 20) + 1, until)),
+    ...Array.from({ length: Math.min(USERS, 59) }, (_, i) => virtualUser(i + 1, until)),
     ...(JOBS ? [runJobs(admin, start)] : []),
   ]);
   const seconds = (Date.now() - start) / 1000;
+  await logout(admin);
 
   const rows = Object.entries(samples).filter(([k]) => !k.startsWith('job')).map(([name, list]) => ({ name, ...summarise(list) }))
     .sort((a, b) => (a.name.startsWith('page') === b.name.startsWith('page') ? b.p95 - a.p95 : a.name.startsWith('page') ? -1 : 1));

@@ -71,7 +71,9 @@ describe('authentication and rights', () => {
   });
 
   it('ends sessions on deactivation and logout; inactive users cannot log in', async () => {
-    const other = await ctx.login('admin', ctx.adminPassword);
+    // A second admin login is refused while the first session is live (one session per User ID)
+    assert.equal((await ctx.api('POST', '/auth/login', { userName: 'admin', password: ctx.adminPassword }, null)).status, 409);
+    const other = ctx.adminToken;
     await ctx.api('PUT', `/users/${userId}`, { userName: 'clerk', userEmail: 'clerk@example.test', status: 'Inactive' });
     assert.equal((await ctx.api('GET', '/auth/me', undefined, userToken)).status, 401);
     const login = await ctx.api('POST', '/auth/login', { userName: 'clerk', password: `${PW}x` }, null);

@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { withTransaction } = require('../config/db');
 const userModel = require('../models/userModel');
+const sessionModel = require('../models/sessionModel');
 const { logAudit } = require('../utils/audit');
 const { STATUSES, isValidEmail, passwordPolicyError } = require('../utils/validators');
 const { processUpload } = require('../utils/bulkUpload');
@@ -93,6 +94,9 @@ async function updateUser(req, res, next) {
 
     const updated = await withTransaction(async (db) => {
       const after = await userModel.update(id, { userName, userEmail, status, modifiedBy: req.user.userName }, db);
+      if (before.status === 'Active' && after.status === 'Inactive') {
+        await sessionModel.endForUser(id, 'User deactivated', req.user.userName, {}, db);
+      }
       await logAudit({
         tableName: 'users', recordId: id,
         action: before.status !== after.status ? 'STATUS_CHANGE' : 'UPDATE',
@@ -122,6 +126,7 @@ async function resetUserPassword(req, res, next) {
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await withTransaction(async (db) => {
       await userModel.updatePassword(id, passwordHash, req.user.userName, db);
+      await sessionModel.endForUser(id, 'Password reset by administrator', req.user.userName, {}, db);
       await logAudit({
         tableName: 'users', recordId: id, action: 'PASSWORD_RESET',
         actionBy: req.user.userName, details: 'Reset by administrator',
@@ -250,7 +255,45 @@ async function bulkUploadUsers(req, res, next) {
   }
 }
 
+// GET /api/users/sessions  - administrators: who is logged in now
+async function listSessions(req, res, next) {
+  try {
+    const rows = await sessionModel.listOpen();
+    res.json({
+      success: true,
+      data: rows.map((s) => ({ ...s, is_current: s.session_id === req.user.sessionId })),
+      idleMinutes: sessionModel.idleMinutes(),
+      liveMinutes: sessionModel.liveMinutes(),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/users/sessions/:sid/end  - administrators end a user's login session
+async function endSession(req, res, next) {
+  try {
+    const s = await sessionModel.find(req.params.sid);
+    if (!s || s.ended_at) return res.status(404).json({ success: false, message: 'That session has already ended.' });
+    if (s.session_id === req.user.sessionId) {
+      return res.status(400).json({ success: false, message: 'This is your own session. Use Logout instead.' });
+    }
+    const user = await userModel.findById(s.user_id);
+    await withTransaction(async (db) => {
+      await sessionModel.end(s.session_id, 'Ended by administrator', req.user.userName, db);
+      await logAudit({
+        tableName: 'users', recordId: s.user_id, action: 'SESSION_END', actionBy: req.user.userName,
+        details: `Ended ${user.user_name}'s session on ${s.client_label} (${s.ip_address})`,
+      }, db);
+    });
+    res.json({ success: true, message: `${user.user_name}'s session on ${s.client_label} has been ended. They can log in again now.` });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
+  listSessions, endSession,
   getAllUsers, createUser, updateUser, resetUserPassword, deleteUser,
   downloadTemplate, exportUsers, bulkUploadUsers,
 };

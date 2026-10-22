@@ -3,14 +3,16 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { pool, withTransaction } = require('../config/db');
 const userModel = require('../models/userModel');
+const sessionModel = require('../models/sessionModel');
 const userRightsModel = require('../models/userRightsModel');
 const { sendPasswordResetEmail } = require('../utils/emailService');
 const { logAudit } = require('../utils/audit');
 const { passwordPolicyError } = require('../utils/validators');
 
-function signToken(user, tokenVersion) {
+// sid = the login session (user_sessions) this token belongs to
+function signToken(user, tokenVersion, sid) {
   return jwt.sign(
-    { userId: user.user_id, userName: user.user_name, tokenVersion },
+    { userId: user.user_id, userName: user.user_name, tokenVersion, sid },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
   );
@@ -51,12 +53,41 @@ async function login(req, res, next) {
       return res.status(403).json({ success: false, message: 'Your account is inactive. Please contact the administrator.' });
     }
 
-    await logAudit({ tableName: 'users', recordId: user.user_id, action: 'LOGIN', actionBy: user.user_name });
+    // One live session per User ID: refuse while another browser / PC has one.
+    // The advisory lock stops two simultaneous logins from both getting in.
+    const result = await withTransaction(async (db) => {
+      await db.query('SELECT pg_advisory_xact_lock(7300, $1)', [user.user_id]);
+      const live = await sessionModel.liveSession(user.user_id, db);
+      if (live) return { live };
+      const session = await sessionModel.start({ userId: user.user_id, ip: req.ip, userAgent: req.get('user-agent') }, db);
+      await logAudit({
+        tableName: 'users', recordId: user.user_id, action: 'LOGIN', actionBy: user.user_name,
+        details: `${session.client_label}, ${session.ip_address}`,
+      }, db);
+      return { session };
+    });
+
+    if (result.live) {
+      const s = result.live;
+      const since = new Date(s.started_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true });
+      const idleMin = Math.floor((Date.now() - new Date(s.last_activity_at).getTime()) / 60000);
+      await logAudit({
+        tableName: 'users', recordId: user.user_id, action: 'LOGIN_BLOCKED', actionBy: user.user_name,
+        details: `Already logged in on ${s.client_label} (${s.ip_address}); attempt from ${sessionModel.describeAgent(req.get('user-agent'))} (${sessionModel.cleanIp(req.ip)})`,
+      });
+      return res.status(409).json({
+        success: false,
+        code: 'ALREADY_LOGGED_IN',
+        message: `User ID "${user.user_name}" is already logged in on ${s.client_label} (${s.ip_address}) since ${since}`
+          + `, last active ${idleMin < 1 ? 'just now' : `${idleMin} minute(s) ago`}. Log out there first, or ask an administrator to end that session.`
+          + ` If that browser was closed without logging out, you can log in again after ${sessionModel.liveMinutes()} minutes.`,
+      });
+    }
 
     res.json({
       success: true,
       message: 'Login successful.',
-      token: signToken(user, user.token_version),
+      token: signToken(user, user.token_version, result.session.session_id),
       user: await sessionUser(user),
     });
   } catch (err) {
@@ -68,6 +99,7 @@ async function login(req, res, next) {
 async function logout(req, res, next) {
   try {
     await withTransaction(async (db) => {
+      await sessionModel.endForUser(req.user.userId, 'Logged out', req.user.userName, {}, db);
       await userModel.bumpTokenVersion(req.user.userId, db);
       await logAudit({ tableName: 'users', recordId: req.user.userId, action: 'LOGOUT', actionBy: req.user.userName }, db);
     });
@@ -139,6 +171,7 @@ async function resetPassword(req, res, next) {
     await withTransaction(async (db) => {
       const user = await userModel.findById(resetRecord.user_id, db);
       await userModel.updatePassword(resetRecord.user_id, passwordHash, user.user_name, db);
+      await sessionModel.endForUser(resetRecord.user_id, 'Password reset', user.user_name, {}, db);
       // Single use: this link and any other outstanding links for the user
       await db.query('UPDATE password_reset_tokens SET used=TRUE WHERE user_id=$1 AND used=FALSE', [resetRecord.user_id]);
       await logAudit({
@@ -177,6 +210,7 @@ async function changePassword(req, res, next) {
     const passwordHash = await bcrypt.hash(newPassword, 10);
     const tokenVersion = await withTransaction(async (db) => {
       const version = await userModel.updatePassword(user.user_id, passwordHash, user.user_name, db);
+      await sessionModel.endForUser(user.user_id, 'Password changed', user.user_name, { except: req.user.sessionId }, db);
       await logAudit({ tableName: 'users', recordId: user.user_id, action: 'PASSWORD_CHANGE', actionBy: user.user_name }, db);
       return version;
     });
@@ -185,7 +219,7 @@ async function changePassword(req, res, next) {
     res.json({
       success: true,
       message: 'Password changed successfully.',
-      token: signToken(user, tokenVersion),
+      token: signToken(user, tokenVersion, req.user.sessionId),
     });
   } catch (err) {
     next(err);
@@ -202,4 +236,10 @@ async function getMe(req, res, next) {
   }
 }
 
-module.exports = { login, logout, forgotPassword, resetPassword, changePassword, getMe };
+// POST /api/auth/heartbeat { active }  - sent every minute while the app is open;
+// keeps the session live (the check itself is in authenticateToken)
+function heartbeat(req, res) {
+  res.json({ success: true });
+}
+
+module.exports = { login, logout, forgotPassword, resetPassword, changePassword, getMe, heartbeat };

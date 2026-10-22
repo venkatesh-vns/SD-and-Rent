@@ -37,7 +37,8 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       if (window.location.pathname !== '/login') {
-        window.location.href = '/login?expired=1';
+        const reason = error.response.data?.reason;
+        window.location.href = `/login?expired=1${reason ? `&reason=${encodeURIComponent(reason)}` : ''}`;
       }
     }
     return Promise.reject(error);

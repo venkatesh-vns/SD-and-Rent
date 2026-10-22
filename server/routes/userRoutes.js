@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const { authenticateToken } = require('../middleware/authMiddleware');
-const { requireRight, SCREENS } = require('../middleware/rightsMiddleware');
+const { requireRight, requireAdmin, SCREENS } = require('../middleware/rightsMiddleware');
 const { upload } = require('../middleware/uploadMiddleware');
 
 const can = (action) => requireRight(SCREENS.USER, action);
@@ -10,6 +10,9 @@ const can = (action) => requireRight(SCREENS.USER, action);
 router.use(authenticateToken); // all User Master routes require a valid login
 
 router.get('/', can('view'), userController.getAllUsers);
+// Login sessions: administrators only
+router.get('/sessions', requireAdmin, userController.listSessions);
+router.post('/sessions/:sid/end', requireAdmin, userController.endSession);
 router.get('/export', can('view'), userController.exportUsers);
 router.get('/template', can('upload'), userController.downloadTemplate);
 router.post('/', can('add'), userController.createUser);

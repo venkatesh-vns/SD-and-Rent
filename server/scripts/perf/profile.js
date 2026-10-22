@@ -53,7 +53,7 @@ const requests = process.argv.slice(2).filter((a) => !a.startsWith('--'));
   const server = app.listen(0);
   const base = `http://localhost:${server.address().port}`;
   const login = await (await fetch(`${base}/api/auth/login`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userName: 'perf01', password: 'Perf@12345' }),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userName: 'perf59', password: 'Perf@12345' }),
   })).json();
   const auth = { Authorization: `Bearer ${login.token}` };
 
@@ -82,6 +82,7 @@ const requests = process.argv.slice(2).filter((a) => !a.startsWith('--'));
     [...stats.entries()].sort((a, b) => b[1].ms - a[1].ms).slice(0, 6)
       .forEach(([k, s]) => console.log(`  ${Math.round(s.ms).toString().padStart(6)} ms ${String(s.n).padStart(5)}x  ${k}`));
   }
+  await fetch(`${base}/api/auth/logout`, { method: 'POST', headers: auth }); // one session per User ID
   server.close();
   process.exit(0);
 })().catch((err) => { console.error(err); process.exit(1); });

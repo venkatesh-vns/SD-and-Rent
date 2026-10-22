@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
+import ActiveSessions from '../components/ActiveSessions';
 import ExcelUpload from '../components/ExcelUpload';
 import FilterBar from '../components/FilterBar';
 import api, { downloadFile, errorMessage } from '../services/api';
@@ -143,6 +144,8 @@ export default function UserMaster() {
             ) : null}
           />
         )}
+
+        {me.isAdmin && <ActiveSessions onNotice={setNotice} />}
 
         {modal && (
           <Modal

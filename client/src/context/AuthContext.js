@@ -82,6 +82,25 @@ export function AuthProvider({ children }) {
     [user]
   );
 
+  // Heartbeat every minute while logged in: keeps this login session live (a closed
+  // browser stops sending, which frees the User ID after a few minutes) and says
+  // whether the user was active since the last one
+  useEffect(() => {
+    if (!user) return undefined;
+    let active = true;
+    const mark = () => { active = true; };
+    ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, mark, { passive: true }));
+    const timer = setInterval(() => {
+      const wasActive = active;
+      active = false;
+      api.post('/auth/heartbeat', { active: wasActive }).catch(() => {}); // 401 is handled by the api interceptor
+    }, 60 * 1000);
+    return () => {
+      clearInterval(timer);
+      ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, mark));
+    };
+  }, [user]);
+
   // Idle timeout
   useEffect(() => {
     if (!user) return undefined;

@@ -144,3 +144,16 @@ Maintenance Charges (scope 3.3).
   25% of RAM up to 1 GB, etc.). Separate PostgreSQL server: see `database/tuning/postgresql_performance.sql`
   (DBA to apply and restart PostgreSQL; affects every database on that server).
 - Load test results and how to repeat them: `docs/Performance_Test_Report.md`.
+
+## 10. One login session per User ID (22/10/2026)
+
+- A User ID can be logged in on one browser / PC at a time. A second login (another browser,
+  another PC, incognito, the desktop app) is refused with a message saying where and since when
+  it is logged in. Tabs of the same browser share one session.
+- The login is freed by Logout, after 30 minutes without activity (`SESSION_IDLE_MINUTES`), or
+  about 3 minutes after the browser was closed (`SESSION_LIVE_MINUTES`; the app sends a heartbeat
+  every minute while open).
+- Administrators: User Master > Active sessions lists who is logged in (browser, IP, since, last
+  activity) with End session. Deactivating a user, resetting or changing a password also ends sessions.
+- Refused logins (LOGIN_BLOCKED) and ended sessions (SESSION_END) are in the Audit Log.
+- Migration 020 (user_sessions). After this update everyone must log in again once.
