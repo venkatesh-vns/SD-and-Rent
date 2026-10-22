@@ -82,18 +82,18 @@ async function verifyConnection(settings) {
 async function sendPasswordResetEmail(toEmail, userName, resetLink) {
   return sendMail({
     to: toEmail,
-    subject: 'SD and Rent Maintenance - Password Reset Request',
+    subject: 'Security Deposit & Rent Management - Password Reset Request',
     notificationType: 'PASSWORD_RESET',
     triggerEvent: 'Forgot Password request',
     html: `
       <p>Hello ${escapeHtml(userName)},</p>
-      <p>We received a request to reset your password for the SD and Rent Maintenance Application.</p>
+      <p>We received a request to reset your password for the Security Deposit &amp; Rent Management Application.</p>
       <p>Click the link below to reset your password. This link is valid for
       ${process.env.RESET_TOKEN_EXPIRES_MINUTES || 30} minutes.</p>
       <p><a href="${escapeHtml(resetLink)}">${escapeHtml(resetLink)}</a></p>
       <p>If you did not request this, please ignore this email.</p>
       <br/>
-      <p>SD and Rent Maintenance Application Team</p>
+      <p>Security Deposit &amp; Rent Management Application Team</p>
     `,
   });
 }

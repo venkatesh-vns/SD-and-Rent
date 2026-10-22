@@ -50,7 +50,7 @@ $('server-form').addEventListener('submit', async (e) => {
 
 $('client-test').addEventListener('click', async () => {
   const res = await window.sdm.testServer($('server-address').value);
-  message($('client-msg'), res.ok ? `Connected: SD and Rent Maintenance is running at ${res.url}.` : res.message, res.ok ? 'ok' : 'error');
+  message($('client-msg'), res.ok ? `Connected: Security Deposit & Rent Management is running at ${res.url}.` : res.message, res.ok ? 'ok' : 'error');
 });
 
 $('client-form').addEventListener('submit', async (e) => {

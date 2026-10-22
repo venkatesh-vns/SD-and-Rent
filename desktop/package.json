@@ -2,7 +2,7 @@
   "name": "sd-maintenance-desktop",
   "productName": "SD Maintenance",
   "version": "1.0.0",
-  "description": "SD and Rent Maintenance Application (IndiQube) - Windows desktop app",
+  "description": "Security Deposit & Rent Management Application (IndiQube) - Windows desktop app",
   "author": "IndiQube",
   "private": true,
   "main": "main.js",
@@ -63,7 +63,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "SD and Rent Maintenance",
+      "shortcutName": "Security Deposit & Rent Management",
       "include": "build/installer.nsh",
       "deleteAppDataOnUninstall": false
     }

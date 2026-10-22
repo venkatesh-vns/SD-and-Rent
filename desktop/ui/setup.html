@@ -3,21 +3,21 @@
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self'" />
-  <title>SD and Rent Maintenance - Setup</title>
+  <title>Security Deposit &amp; Rent Management - Setup</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="panel">
-    <div class="brand"><img src="icon.png" alt="" /><strong>SD and Rent Maintenance</strong></div>
+    <div class="brand"><img src="icon.png" alt="" /><strong>Security Deposit &amp; Rent Management</strong></div>
     <h1>How is this PC used?</h1>
     <p class="lead">Choose once. You can change it later from Settings &gt; Connection settings.</p>
-    <p class="msg ok" id="uat-note" hidden>UAT (test) version: it keeps its own test data, separate from the live SD and Rent Maintenance app, and emails are only logged, never sent.</p>
+    <p class="msg ok" id="uat-note" hidden>UAT (test) version: it keeps its own test data, separate from the live Security Deposit &amp; Rent Management app, and emails are only logged, never sent.</p>
 
     <div class="choices">
       <button type="button" class="choice" id="pick-server">
         <span class="tag">One PC in the office</span>
         <h2>This PC holds the data</h2>
-        <p>Keeps the SD and Rent Maintenance database on this PC. Other PCs connect to this one. Keep this PC on, with the app open, while others work.</p>
+        <p>Keeps the Security Deposit &amp; Rent Management database on this PC. Other PCs connect to this one. Keep this PC on, with the app open, while others work.</p>
       </button>
       <button type="button" class="choice" id="pick-client">
         <span class="tag">Every other PC</span>
@@ -42,7 +42,7 @@
           </div>
         </div>
       </div>
-      <p class="hint" id="existing-data" hidden>The SD and Rent Maintenance data already on this PC will be opened.</p>
+      <p class="hint" id="existing-data" hidden>The Security Deposit &amp; Rent Management data already on this PC will be opened.</p>
       <div class="msg" id="server-msg" hidden></div>
       <div class="actions">
         <button type="submit" class="btn primary" id="server-go">Set up this PC</button>

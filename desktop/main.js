@@ -232,7 +232,7 @@ async function backupDatabase() {
   const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
   const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
     title: `Back up ${APP_NAME} database`,
-    defaultPath: path.join(app.getPath('documents'), `${APP_NAME.replace(/ /g, '_')}_backup_${stamp}.dump`),
+    defaultPath: path.join(app.getPath('documents'), `${APP_NAME.replace(/[^A-Za-z0-9]+/g, '_')}_backup_${stamp}.dump`),
     filters: [{ name: 'PostgreSQL backup', extensions: ['dump'] }],
   });
   if (canceled || !filePath) return;

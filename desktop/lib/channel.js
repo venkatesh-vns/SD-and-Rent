@@ -8,7 +8,7 @@ const UAT = pkg.sdmChannel === 'uat';
 
 module.exports = {
   UAT,
-  APP_NAME: UAT ? 'SD and Rent UAT' : 'SD and Rent Maintenance', // shown in windows and dialogs
+  APP_NAME: UAT ? 'SD and Rent UAT' : 'Security Deposit & Rent Management', // shown in windows and dialogs
   HTTP_PORT: UAT ? 5250 : 5050,
   PG_PORT: UAT ? 5545 : 5544,
   EMAIL_DRY_RUN: UAT,

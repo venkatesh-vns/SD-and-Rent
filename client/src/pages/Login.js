@@ -53,7 +53,7 @@ export default function Login() {
     <AuthLayout>
       <form className="auth-form" onSubmit={handleSubmit} noValidate>
         <h2>Welcome back</h2>
-        <p className="auth-subtitle">Sign in to the SD and Rent Maintenance Application with your company account.</p>
+        <p className="auth-subtitle">Sign in to the Security Deposit &amp; Rent Management Application with your company account.</p>
 
         {sessionNote && !error && <div className="alert alert-info">{sessionNote}</div>}
         {error && <div className="alert alert-error" role="alert">{error}</div>}

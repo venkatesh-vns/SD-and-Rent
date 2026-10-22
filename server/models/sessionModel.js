@@ -11,9 +11,9 @@ const { pool } = require('../config/db');
 const idleMinutes = () => Number(process.env.SESSION_IDLE_MINUTES) || 30;
 const liveMinutes = () => Number(process.env.SESSION_LIVE_MINUTES) || 3;
 
-// 'Chrome on Windows', 'SD and Rent Maintenance app on Windows', ...
+// 'Chrome on Windows', 'Security Deposit & Rent Management app on Windows', ...
 function describeAgent(ua = '') {
-  const browser = /Electron\//.test(ua) ? 'SD and Rent Maintenance app'
+  const browser = /Electron\//.test(ua) ? 'Security Deposit & Rent Management app'
     : /Edg\//.test(ua) ? 'Edge'
       : /OPR\//.test(ua) ? 'Opera'
         : /Firefox\//.test(ua) ? 'Firefox'

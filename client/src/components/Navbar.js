@@ -36,7 +36,7 @@ export default function Navbar() {
     <nav className="navbar">
       <div className="navbar-brand">
         <img src={mark} alt="IndiQube" className="navbar-logo" />
-        <span>SD and Rent Maintenance</span>
+        <span>Security Deposit & Rent Management</span>
       </div>
       <div className="navbar-links">
         <NavLink to="/dashboard" className="nav-link">Dashboard</NavLink>

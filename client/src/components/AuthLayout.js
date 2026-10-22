@@ -16,13 +16,13 @@ export default function AuthLayout({ children }) {
         <header className="auth-brand-head">
           <img src={mark} alt="" className="auth-logo" />
           <div>
-            <strong>SD and Rent Maintenance</strong>
+            <strong>Security Deposit & Rent Management</strong>
             <span>by IndiQube</span>
           </div>
         </header>
 
         <div className="auth-brand-copy">
-          <p className="auth-eyebrow">Security Deposit &amp; Lease Management</p>
+          <p className="auth-eyebrow">Deposits · Rent · Leases</p>
           <h1>Every deposit, lease and balance in one controlled place.</h1>
           <p>
             Track SD payments, transfers, adjustments and refunds against every lease,
@@ -47,7 +47,7 @@ export default function AuthLayout({ children }) {
         </div>
 
         <footer className="auth-brand-foot">
-          <span>&copy; {year} IndiQube · SD and Rent Maintenance Application</span>
+          <span>&copy; {year} IndiQube · Security Deposit & Rent Management Application</span>
           <span>Authorised users only</span>
         </footer>
       </section>
