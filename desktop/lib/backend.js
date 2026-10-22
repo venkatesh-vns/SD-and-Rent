@@ -57,6 +57,22 @@ async function startBackend({ backendDir, uploadDir, httpPort, pgPort, dbUser, d
     log('Administrator user "admin" created');
   }
 
+  // Several web workers share the port (load balancing over the PC's cores; see
+  // server/cluster.js). They run this app's executable as plain Node.
+  const { startCluster, workerCount } = server('cluster');
+  const workers = workerCount();
+  if (workers > 1) {
+    process.env.HOST = '0.0.0.0';
+    const web = await startCluster({ count: workers, env: { ELECTRON_RUN_AS_NODE: '1' }, log });
+    log(`SD Maintenance server listening on port ${httpPort}`);
+    return {
+      close: async () => {
+        await web.stop();
+        await pool.end().catch(() => {});
+      },
+    };
+  }
+
   const app = server('app');
   const { startReminderScheduler } = server('services/notificationService');
   const httpServer = await new Promise((resolve, reject) => {

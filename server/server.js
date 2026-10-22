@@ -1,8 +1,7 @@
 require('dotenv').config();
 
-const app = require('./app');
 const { pool } = require('./config/db');
-const { startReminderScheduler } = require('./services/notificationService');
+const { startCluster, workerCount } = require('./cluster');
 
 // Test PostgreSQL connection
 async function testDatabaseConnection() {
@@ -40,17 +39,24 @@ async function startServer() {
     process.exit(1);
   }
 
-  startReminderScheduler();
+  // Several web workers share the port (WEB_WORKERS, default one per core up to 4);
+  // WEB_WORKERS=1 runs everything in this process
+  const workers = workerCount();
+  if (workers > 1) {
+    await pool.end();
+    await startCluster({ count: workers });
+  } else {
+    process.env.RUN_REMINDERS = 'true';
+    require('./worker');
+  }
 
-  app.listen(PORT, () => {
-    console.log('');
-    console.log('==============================================');
-    console.log(`SD Maintenance server running on port ${PORT}`);
-    console.log(`API: http://localhost:${PORT}`);
-    console.log(`Health: http://localhost:${PORT}/api/health`);
-    console.log('==============================================');
-    console.log('');
-  });
+  console.log('');
+  console.log('==============================================');
+  console.log(`SD Maintenance server running on port ${PORT} (${workers} web worker${workers > 1 ? 's' : ''})`);
+  console.log(`API: http://localhost:${PORT}`);
+  console.log(`Health: http://localhost:${PORT}/api/health`);
+  console.log('==============================================');
+  console.log('');
 }
 
 startServer();

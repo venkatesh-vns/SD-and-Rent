@@ -35,6 +35,25 @@ function freePort(start, host = '127.0.0.1') {
   });
 }
 
+// Performance settings from this PC's memory (PostgreSQL's defaults suit a very
+// small machine): shared buffers 25% of RAM (256 MB - 1 GB), planner cache estimate
+// half of RAM (up to 8 GB), larger sort / maintenance memory, SSD costs, and
+// connections for the web workers (each keeps up to 10).
+const TUNING_MARK = '# SD Maintenance performance settings (set on every start)';
+function performanceSettings(totalBytes = os.totalmem()) {
+  const mb = Math.floor(totalBytes / 1024 / 1024);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  return {
+    max_connections: '100',
+    shared_buffers: `${clamp(Math.floor(mb / 4), 256, 1024)}MB`,
+    effective_cache_size: `${clamp(Math.floor(mb / 2), 512, 8192)}MB`,
+    work_mem: '16MB',
+    maintenance_work_mem: '256MB',
+    random_page_cost: '1.1',
+    effective_io_concurrency: '0', // not supported on Windows
+  };
+}
+
 class Database {
   constructor({ pgHome, dataDir, logDir, log }) {
     this.bin = (name) => path.join(pgHome, 'bin', `${name}.exe`);
@@ -83,11 +102,23 @@ class Database {
     }
   }
 
+  // Writes the performance settings into postgresql.auto.conf (replacing earlier values)
+  applyPerformanceSettings() {
+    const file = path.join(this.dataDir, 'postgresql.auto.conf');
+    const settings = performanceSettings();
+    const keys = Object.keys(settings);
+    const kept = fs.readFileSync(file, 'utf8').split(/\r?\n/)
+      .filter((l) => l !== TUNING_MARK && !keys.some((k) => new RegExp(`^\\s*${k}\\s*=`).test(l)));
+    while (kept.length && kept[kept.length - 1] === '') kept.pop();
+    fs.writeFileSync(file, [...kept, '', TUNING_MARK, ...keys.map((k) => `${k} = '${settings[k]}'`), ''].join('\n'));
+  }
+
   async start() {
     if (await this.isRunning()) {
       this.log('PostgreSQL already running');
       return;
     }
+    this.applyPerformanceSettings();
     // No pipes here: the postgres process pg_ctl launches inherits them and keeps
     // them open, so waiting for pg_ctl's output would never finish. Its messages
     // go to the log file (-l) instead.
@@ -132,4 +163,4 @@ class Database {
   }
 }
 
-module.exports = { Database, freePort, DB_USER, DB_NAME };
+module.exports = { Database, freePort, performanceSettings, DB_USER, DB_NAME };

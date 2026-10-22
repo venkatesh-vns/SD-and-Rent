@@ -76,10 +76,23 @@ const ALERTS = [
  */
 async function getDashboard(f = {}, { alertDays = 15 } = {}) {
   const { sql: ctes, params } = baseCtes(f);
-  const q = async (body, extra = []) => (await pool.query(`${ctes} ${body}`, [...params, ...extra])).rows;
+  // The sections' queries run up to 4 at a time (not one after another, and not all
+  // at once, which would take every connection of this web worker)
+  const queue = [];
+  let active = 0;
+  const pump = () => {
+    while (active < 4 && queue.length) {
+      const { body, extra, resolve, reject } = queue.shift();
+      active += 1;
+      pool.query(`${ctes} ${body}`, [...params, ...extra])
+        .then((r) => resolve(r.rows), reject)
+        .finally(() => { active -= 1; pump(); });
+    }
+  };
+  const q = (body, extra = []) => new Promise((resolve, reject) => { queue.push({ body, extra, resolve, reject }); pump(); });
   const next = `$${params.length + 1}`; // placeholder for the first extra parameter
 
-  const [kpi] = await q(`
+  const kpiP = q(`
     SELECT COALESCE(SUM(b.agreement_value), 0) AS agreement_value, COALESCE(SUM(b.paid), 0) AS paid,
            COALESCE(SUM(b.transfer), 0) AS transfer, COALESCE(SUM(b.adjustment), 0) AS adjustment,
            COALESCE(SUM(b.refund), 0) AS refund, COALESCE(SUM(b.balance), 0) AS balance,
@@ -93,9 +106,9 @@ async function getDashboard(f = {}, { alertDays = 15 } = {}) {
            COUNT(DISTINCT sd.cost_center_id)::int AS cost_center_count
     FROM bal b JOIN sd ON sd.sd_id = b.sd_id`);
 
-  const alerts = {};
+  const alertsP = {};
   for (const [key, col] of ALERTS) {
-    alerts[key] = await q(`
+    alertsP[key] = q(`
       SELECT sd.sd_id, sd.sd_code, sd.lease_id, sd.agreement_no, sd.landlord_name, cc.cost_center_name,
              sd.${col} AS due_date, (sd.${col} - CURRENT_DATE)::int AS days_left,
              sd.landlord_status, sd.building_status
@@ -104,14 +117,14 @@ async function getDashboard(f = {}, { alertDays = 15 } = {}) {
       ORDER BY sd.${col}, sd.sd_code`, [alertDays]);
   }
 
-  const sdTypes = await q(`
+  const sdTypesP = q(`
     SELECT tx.sd_type, SUM(tx.paid_amount) AS paid, SUM(tx.transfer_amount) AS transfer,
            SUM(tx.adjustment_amount) AS adjustment, SUM(tx.refund_amount) AS refund,
            SUM(tx.paid_amount - tx.transfer_amount - tx.adjustment_amount - tx.refund_amount) AS repayable,
            COUNT(*)::int AS txn_count
     FROM tx GROUP BY tx.sd_type ORDER BY SUM(tx.paid_amount) DESC`);
 
-  const locations = await q(`
+  const locationsP = q(`
     SELECT sd.l1_id, l1.l1_name, sd.l2_id, l2.l2_name, sd.l3_id, l3.l3_name, ${SUMS}
     FROM bal b JOIN sd ON sd.sd_id = b.sd_id
     JOIN location_l1 l1 ON l1.l1_id = sd.l1_id
@@ -120,29 +133,29 @@ async function getDashboard(f = {}, { alertDays = 15 } = {}) {
     GROUP BY sd.l1_id, l1.l1_name, sd.l2_id, l2.l2_name, sd.l3_id, l3.l3_name
     ORDER BY l1.l1_name, l2.l2_name, l3.l3_name`);
 
-  const costCenters = await q(`
+  const costCentersP = q(`
     SELECT sd.cost_center_id, cc.cost_center_name, ${SUMS}
     FROM bal b JOIN sd ON sd.sd_id = b.sd_id JOIN cost_centers cc ON cc.cost_center_id = sd.cost_center_id
     GROUP BY sd.cost_center_id, cc.cost_center_name
     ORDER BY SUM(b.agreement_value) DESC, cc.cost_center_name`);
 
-  const landlords = await q(`
+  const landlordsP = q(`
     SELECT COALESCE(NULLIF(TRIM(sd.landlord_name), ''), '(Not given)') AS landlord_name, ${SUMS}
     FROM bal b JOIN sd ON sd.sd_id = b.sd_id
     GROUP BY 1 ORDER BY SUM(b.agreement_value) DESC, 1`);
 
-  const recent = await q(`
+  const recentP = q(`
     SELECT tx.txn_id, tx.txn_no, sd.sd_id, sd.sd_code, tx.txn_date, tx.sd_type, tx.paid_amount, tx.transfer_amount,
            tx.adjustment_amount, tx.refund_amount, tx.remarks, COALESCE(tx.created_by, tx.uploaded_by) AS created_by
     FROM tx JOIN sd ON sd.sd_id = tx.sd_id
     ORDER BY tx.txn_date DESC, tx.txn_id DESC LIMIT 10`);
 
-  const pending = await q(`
+  const pendingP = q(`
     SELECT sd.sd_id, sd.sd_code, sd.lease_id, sd.landlord_name, cc.cost_center_name, b.agreement_value, b.repayable
     FROM bal b JOIN sd ON sd.sd_id = b.sd_id JOIN cost_centers cc ON cc.cost_center_id = sd.cost_center_id
     WHERE b.repayable > 0 ORDER BY b.repayable DESC, sd.sd_code`);
 
-  const [status] = await q(`
+  const statusP = q(`
     SELECT COUNT(*) FILTER (WHERE landlord_status = 'Active')::int AS landlord_active,
            COUNT(*) FILTER (WHERE landlord_status = 'Passive')::int AS landlord_passive,
            COUNT(*) FILTER (WHERE building_status = 'Active')::int AS building_active,
@@ -151,16 +164,21 @@ async function getDashboard(f = {}, { alertDays = 15 } = {}) {
 
   // Financial years (April-March): amounts from transactions in the FY;
   // Agreement Value from SD records whose Lease Commencement falls in it
-  const fyTx = await q(`
+  const fyTxP = q(`
     SELECT tx.fy, SUM(tx.paid_amount) AS paid, SUM(tx.transfer_amount) AS transfer,
            SUM(tx.adjustment_amount) AS adjustment, SUM(tx.refund_amount) AS refund
     FROM tx GROUP BY tx.fy`);
-  const fyAgreement = await q(`
+  const fyAgreementP = q(`
     SELECT CASE WHEN EXTRACT(MONTH FROM lease_commencement_date) >= 4
                 THEN EXTRACT(YEAR FROM lease_commencement_date)::int
                 ELSE EXTRACT(YEAR FROM lease_commencement_date)::int - 1 END AS start_year,
            SUM(agreement_value) AS agreement_value
     FROM sd WHERE lease_commencement_date IS NOT NULL GROUP BY 1`);
+  const [[kpi], sdTypes, locations, costCenters, landlords, recent, pending, [status], fyTx, fyAgreement] = await Promise.all([
+    kpiP, sdTypesP, locationsP, costCentersP, landlordsP, recentP, pendingP, statusP, fyTxP, fyAgreementP,
+  ]);
+  const alerts = Object.fromEntries(await Promise.all(Object.entries(alertsP).map(async ([k, p]) => [k, await p])));
+
   const fyMap = new Map();
   const fyRow = (fy) => {
     if (!fyMap.has(fy)) fyMap.set(fy, { fy, agreement_value: 0, paid: 0, transfer: 0, adjustment: 0, refund: 0 });

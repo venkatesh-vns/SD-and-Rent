@@ -93,21 +93,18 @@ async function replaceLines({ rentIds, agreementIds, fromMonth, toMonth, keepPas
        AND (l.agreement_id = ANY($4::int[]) OR (a.status = 'Inactive' AND l.rent_month >= $5::date))`,
     [rentIds, fromMonth, toMonth, agreementIds, keepPastBefore]
   );
-  for (let i = 0; i < lines.length; i += 500) {
-    const chunk = lines.slice(i, i + 500);
-    const values = [];
-    const params = [];
-    chunk.forEach((l) => {
-      const base = params.length;
-      params.push(l.rent_id, l.agreement_id, l.component_code, l.rent_month, l.period_from, l.period_to, l.days_charged,
-        l.base_amount, l.rule_percentage, l.escalated_amount, l.waiver_amount, l.final_amount, runId, by);
-      values.push(`(${Array.from({ length: 14 }, (_, k) => `$${base + k + 1}`).join(', ')})`);
-    });
+  // One column array per field, 5,000 lines per statement (far fewer round trips
+  // and parameters than a VALUES list)
+  const COLS = ['rent_id', 'agreement_id', 'component_code', 'rent_month', 'period_from', 'period_to', 'days_charged',
+    'base_amount', 'rule_percentage', 'escalated_amount', 'waiver_amount', 'final_amount'];
+  const TYPES = ['int', 'int', 'varchar', 'date', 'date', 'date', 'int', 'numeric', 'numeric', 'numeric', 'numeric', 'numeric'];
+  for (let i = 0; i < lines.length; i += 5000) {
+    const chunk = lines.slice(i, i + 5000);
     await db.query(
-      `INSERT INTO rent_schedule_lines (rent_id, agreement_id, component_code, rent_month, period_from, period_to, days_charged,
-                                        base_amount, rule_percentage, escalated_amount, waiver_amount, final_amount, run_id, generated_by)
-       VALUES ${values.join(', ')}`,
-      params
+      `INSERT INTO rent_schedule_lines (${COLS.join(', ')}, run_id, generated_by)
+       SELECT *, $${COLS.length + 1}::int, $${COLS.length + 2}::varchar
+       FROM unnest(${COLS.map((c, k) => `$${k + 1}::${TYPES[k]}[]`).join(', ')})`,
+      [...COLS.map((c) => chunk.map((l) => l[c] ?? null)), runId, by]
     );
   }
 }

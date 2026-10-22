@@ -50,7 +50,9 @@ async function generateFor(rentIds, { fromMonth, toMonth, agreementStatus = [], 
   const messages = [];
   const doneRents = [];
   const agreementIds = [];
-  for (const rent of inputs.rents) {
+  for (const [i, rent] of inputs.rents.entries()) {
+    // Let other requests on this web worker run between batches of the calculation
+    if (i % 25 === 24) await new Promise((resolve) => setImmediate(resolve));
     const agreements = (inputs.agreements[rent.rent_id] || [])
       .filter((a) => !agreementStatus.length || agreementStatus.includes(a.agreement_status));
     const active = agreements.filter((a) => a.status === 'Active');

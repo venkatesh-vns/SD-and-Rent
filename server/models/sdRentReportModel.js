@@ -111,17 +111,17 @@ async function getSummary(f = {}, groupBy = 'costCenter') {
 
 // Choices for the filters (from both SD and Rent data)
 async function getOptions() {
-  const rows = (await pool.query(`SELECT DISTINCT landlord_name, floor FROM (${DATA}) d`)).rows;
   const sds = (await pool.query('SELECT sd_id AS id, sd_code AS name FROM sd_master ORDER BY sd_code')).rows;
   const extraLandlords = (await pool.query(
     `SELECT COALESCE(NULLIF(TRIM(landlord_name), ''), '(Not given)') AS n FROM sd_master
      UNION SELECT landlord_name FROM rent_master`
   )).rows.map((r) => r.n);
   const floors = (await pool.query('SELECT DISTINCT floor FROM sd_master')).rows.map((r) => r.floor);
+  // (report rows take their landlord and floor from these masters)
   const sort = (list) => [...new Set(list.filter(Boolean))].sort((a, b) => a.localeCompare(b));
   return {
-    landlords: sort([...rows.map((r) => r.landlord_name), ...extraLandlords]),
-    floors: sort([...rows.map((r) => r.floor), ...floors]),
+    landlords: sort(extraLandlords),
+    floors: sort(floors),
     sdCodes: sds,
     expenseHeads: EXPENSE_HEADS,
     categories: CATEGORIES,

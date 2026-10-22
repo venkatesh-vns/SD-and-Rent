@@ -67,15 +67,18 @@ async function getAll(filters = {}, { page = 1, pageSize = 50, groupBySd = false
   return { rows, total };
 }
 
-async function findById(txnId, db = pool) {
-  const result = await db.query(`${SELECT} WHERE l.txn_id = $1`, [txnId]);
+// One transaction with its running totals. The ledger view is partitioned by SD
+// Code, so it is read for the transaction's own SD Code only (filtering by
+// txn_id alone would compute the running totals of every SD Code first).
+async function findOne(where, value, db) {
+  const key = (await db.query(`SELECT txn_id, sd_id FROM sd_transactions WHERE ${where}`, [value])).rows[0];
+  if (!key) return undefined;
+  const result = await db.query(`${SELECT} WHERE l.sd_id = $1 AND l.txn_id = $2`, [key.sd_id, key.txn_id]);
   return result.rows[0];
 }
 
-async function findByNo(txnNo, db = pool) {
-  const result = await db.query(`${SELECT} WHERE UPPER(l.txn_no) = UPPER($1)`, [txnNo]);
-  return result.rows[0];
-}
+const findById = (txnId, db = pool) => findOne('txn_id = $1', txnId, db);
+const findByNo = (txnNo, db = pool) => findOne('UPPER(txn_no) = UPPER($1)', String(txnNo ?? ''), db);
 
 // All transactions of one SD Code (amounts as numbers) for ledger checks
 async function getLedger(sdId, db = pool) {
@@ -129,9 +132,12 @@ async function remove(txnId, db = pool) {
 }
 
 // Locks an SD Code's master row so concurrent saves check the ledger in turn
+// Serialises ledger changes of one SD Code. NO KEY UPDATE (not UPDATE): it does not
+// wait for other sessions that only reference the SD record (e.g. a bulk upload
+// inserting transactions), while two ledger changes of the same SD still queue.
 async function lockSd(sdId, db) {
   const result = await db.query(
-    'SELECT sd_id, sd_code, agreement_value FROM sd_master WHERE sd_id = $1 FOR UPDATE',
+    'SELECT sd_id, sd_code, agreement_value FROM sd_master WHERE sd_id = $1 FOR NO KEY UPDATE',
     [sdId]
   );
   return result.rows[0];

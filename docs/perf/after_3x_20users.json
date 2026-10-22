@@ -1,0 +1,449 @@
+{
+  "config": {
+    "url": "http://localhost:5300",
+    "users": 20,
+    "seconds": 125,
+    "thinkMs": 2000,
+    "jobs": true
+  },
+  "totals": {
+    "pages": 1066,
+    "apiCalls": 3553,
+    "apiPerSecond": 28.4,
+    "errors": 4,
+    "allPages": {
+      "count": 1066,
+      "errors": 4,
+      "avg": 241,
+      "p50": 55,
+      "p95": 1262,
+      "p99": 2313,
+      "max": 3563
+    }
+  },
+  "duringJobs": {
+    "count": 196,
+    "errors": 0,
+    "avg": 246,
+    "p50": 49,
+    "p95": 1298,
+    "p99": 2595,
+    "max": 2654
+  },
+  "jobs": [
+    {
+      "job": "Rent Schedule generate (1 FY, all Rent Codes)",
+      "start": 20007,
+      "ms": 15042,
+      "ok": true
+    },
+    {
+      "job": "SD transaction bulk upload (1,000 rows)",
+      "start": 45276,
+      "ms": 6898,
+      "ok": true
+    }
+  ],
+  "rows": [
+    {
+      "name": "page Export to Excel",
+      "count": 39,
+      "errors": 0,
+      "avg": 1489,
+      "p50": 797,
+      "p95": 3538,
+      "p99": 3563,
+      "max": 3563
+    },
+    {
+      "name": "page SD & Rent Report",
+      "count": 72,
+      "errors": 0,
+      "avg": 1065,
+      "p50": 1162,
+      "p95": 1567,
+      "p99": 1999,
+      "max": 1999
+    },
+    {
+      "name": "page SD Dashboard",
+      "count": 140,
+      "errors": 0,
+      "avg": 302,
+      "p50": 335,
+      "p95": 590,
+      "p99": 1072,
+      "max": 1186
+    },
+    {
+      "name": "page SD Balance Report",
+      "count": 116,
+      "errors": 0,
+      "avg": 222,
+      "p50": 215,
+      "p95": 495,
+      "p99": 569,
+      "max": 1310
+    },
+    {
+      "name": "page Rent Schedule",
+      "count": 124,
+      "errors": 0,
+      "avg": 232,
+      "p50": 192,
+      "p95": 484,
+      "p99": 1366,
+      "max": 2457
+    },
+    {
+      "name": "page SD Transaction (all)",
+      "count": 132,
+      "errors": 0,
+      "avg": 72,
+      "p50": 52,
+      "p95": 149,
+      "p99": 381,
+      "max": 650
+    },
+    {
+      "name": "page Rent Masters (lists)",
+      "count": 73,
+      "errors": 0,
+      "avg": 58,
+      "p50": 50,
+      "p95": 91,
+      "p99": 401,
+      "max": 401
+    },
+    {
+      "name": "page SD Master list",
+      "count": 155,
+      "errors": 0,
+      "avg": 43,
+      "p50": 21,
+      "p95": 65,
+      "p99": 507,
+      "max": 1651
+    },
+    {
+      "name": "page Save SD transaction",
+      "count": 28,
+      "errors": 4,
+      "avg": 21,
+      "p50": 21,
+      "p95": 36,
+      "p99": 38,
+      "max": 38
+    },
+    {
+      "name": "page SD Transaction (one SD)",
+      "count": 153,
+      "errors": 0,
+      "avg": 24,
+      "p50": 11,
+      "p95": 23,
+      "p99": 408,
+      "max": 740
+    },
+    {
+      "name": "page Audit Log",
+      "count": 34,
+      "errors": 0,
+      "avg": 13,
+      "p50": 12,
+      "p95": 19,
+      "p99": 22,
+      "max": 22
+    },
+    {
+      "name": "api job Rent Schedule generate (1 FY, all Rent Codes)",
+      "count": 1,
+      "errors": 0,
+      "avg": 15042,
+      "p50": 15042,
+      "p95": 15042,
+      "p99": 15042,
+      "max": 15042
+    },
+    {
+      "name": "api job SD transaction upload (1,000 rows)",
+      "count": 1,
+      "errors": 0,
+      "avg": 6898,
+      "p50": 6898,
+      "p95": 6898,
+      "p99": 6898,
+      "max": 6898
+    },
+    {
+      "name": "api export Rent Schedule (quarter)",
+      "count": 12,
+      "errors": 0,
+      "avg": 2208,
+      "p50": 2313,
+      "p95": 3563,
+      "p99": 3563,
+      "max": 3563
+    },
+    {
+      "name": "api export SD & Rent (quarter)",
+      "count": 5,
+      "errors": 0,
+      "avg": 2451,
+      "p50": 2267,
+      "p95": 3031,
+      "p99": 3031,
+      "max": 3031
+    },
+    {
+      "name": "api export SD Balance",
+      "count": 5,
+      "errors": 0,
+      "avg": 2228,
+      "p50": 2248,
+      "p95": 2595,
+      "p99": 2595,
+      "max": 2595
+    },
+    {
+      "name": "api /api/reports/sd-rent",
+      "count": 72,
+      "errors": 0,
+      "avg": 885,
+      "p50": 1162,
+      "p95": 1567,
+      "p99": 1999,
+      "max": 1999
+    },
+    {
+      "name": "api /api/auth/login",
+      "count": 20,
+      "errors": 0,
+      "avg": 844,
+      "p50": 863,
+      "p95": 1003,
+      "p99": 1019,
+      "max": 1019
+    },
+    {
+      "name": "api /api/reports/sd-rent/summary",
+      "count": 72,
+      "errors": 0,
+      "avg": 621,
+      "p50": 643,
+      "p95": 803,
+      "p99": 865,
+      "max": 865
+    },
+    {
+      "name": "api export Dashboard",
+      "count": 7,
+      "errors": 0,
+      "avg": 596,
+      "p50": 552,
+      "p95": 797,
+      "p99": 797,
+      "max": 797
+    },
+    {
+      "name": "api export SD Master",
+      "count": 10,
+      "errors": 0,
+      "avg": 402,
+      "p50": 345,
+      "p95": 643,
+      "p99": 643,
+      "max": 643
+    },
+    {
+      "name": "api /api/reports/sd-balance",
+      "count": 116,
+      "errors": 0,
+      "avg": 207,
+      "p50": 207,
+      "p95": 494,
+      "p99": 553,
+      "max": 569
+    },
+    {
+      "name": "api /api/dashboard",
+      "count": 140,
+      "errors": 0,
+      "avg": 273,
+      "p50": 331,
+      "p95": 426,
+      "p99": 756,
+      "max": 1062
+    },
+    {
+      "name": "api /api/rent/schedule/summary",
+      "count": 124,
+      "errors": 0,
+      "avg": 145,
+      "p50": 172,
+      "p95": 279,
+      "p99": 374,
+      "max": 536
+    },
+    {
+      "name": "api /api/rent/schedule",
+      "count": 124,
+      "errors": 0,
+      "avg": 140,
+      "p50": 168,
+      "p95": 277,
+      "p99": 341,
+      "max": 497
+    },
+    {
+      "name": "api /api/rent/lookups",
+      "count": 197,
+      "errors": 0,
+      "avg": 85,
+      "p50": 56,
+      "p95": 121,
+      "p99": 1365,
+      "max": 2456
+    },
+    {
+      "name": "api /api/sd-transactions",
+      "count": 285,
+      "errors": 0,
+      "avg": 36,
+      "p50": 17,
+      "p95": 98,
+      "p99": 218,
+      "max": 318
+    },
+    {
+      "name": "api /api/lookups/filter-combos",
+      "count": 739,
+      "errors": 0,
+      "avg": 34,
+      "p50": 19,
+      "p95": 52,
+      "p99": 397,
+      "max": 1309
+    },
+    {
+      "name": "api /api/rent/waivers",
+      "count": 19,
+      "errors": 0,
+      "avg": 17,
+      "p50": 16,
+      "p95": 52,
+      "p99": 52,
+      "max": 52
+    },
+    {
+      "name": "api /api/sd-master",
+      "count": 155,
+      "errors": 0,
+      "avg": 32,
+      "p50": 20,
+      "p95": 46,
+      "p99": 65,
+      "max": 1651
+    },
+    {
+      "name": "api /api/reports/sd-rent/options",
+      "count": 72,
+      "errors": 0,
+      "avg": 36,
+      "p50": 21,
+      "p95": 43,
+      "p99": 617,
+      "max": 617
+    },
+    {
+      "name": "api /api/rent/agreements",
+      "count": 13,
+      "errors": 0,
+      "avg": 18,
+      "p50": 14,
+      "p95": 40,
+      "p99": 40,
+      "max": 40
+    },
+    {
+      "name": "api /api/dashboard/options",
+      "count": 140,
+      "errors": 0,
+      "avg": 41,
+      "p50": 21,
+      "p95": 40,
+      "p99": 743,
+      "max": 1186
+    },
+    {
+      "name": "api save SD transaction",
+      "count": 28,
+      "errors": 4,
+      "avg": 21,
+      "p50": 21,
+      "p95": 36,
+      "p99": 38,
+      "max": 38
+    },
+    {
+      "name": "api /api/lookups/cost-centers",
+      "count": 543,
+      "errors": 0,
+      "avg": 17,
+      "p50": 8,
+      "p95": 20,
+      "p99": 337,
+      "max": 1071
+    },
+    {
+      "name": "api /api/rent/rules",
+      "count": 20,
+      "errors": 0,
+      "avg": 16,
+      "p50": 16,
+      "p95": 20,
+      "p99": 21,
+      "max": 21
+    },
+    {
+      "name": "api /api/logs/audit",
+      "count": 34,
+      "errors": 0,
+      "avg": 13,
+      "p50": 12,
+      "p95": 19,
+      "p99": 22,
+      "max": 22
+    },
+    {
+      "name": "api /api/rent/master",
+      "count": 21,
+      "errors": 0,
+      "avg": 11,
+      "p50": 10,
+      "p95": 16,
+      "p99": 18,
+      "max": 18
+    },
+    {
+      "name": "api /api/lookups/fys",
+      "count": 425,
+      "errors": 0,
+      "avg": 12,
+      "p50": 6,
+      "p95": 15,
+      "p99": 108,
+      "max": 945
+    },
+    {
+      "name": "api /api/sd-transactions/summary/:id",
+      "count": 153,
+      "errors": 0,
+      "avg": 16,
+      "p50": 8,
+      "p95": 14,
+      "p99": 408,
+      "max": 740
+    }
+  ]
+}

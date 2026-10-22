@@ -9,6 +9,7 @@ const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const compression = require('compression');
 const { pool } = require('./config/db');
 
 const authRoutes = require('./routes/authRoutes');
@@ -65,6 +66,9 @@ app.use(
     exposedHeaders: ['Content-Disposition'], // lets the client read download file names
   })
 );
+
+// gzip responses (JSON lists, the screens' files): far less to send over the office network
+app.use(compression());
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

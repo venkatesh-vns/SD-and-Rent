@@ -133,3 +133,14 @@ Maintenance Charges (scope 3.3).
   sheet counts Pass / Fail / Blocked / Not Run automatically).
 - Feedback, bugs and enhancements are fixed in the next UAT release (uat.2, ...);
   production is deployed only after final approval.
+
+## 9. Performance and load balancing (22/10/2026)
+
+- The server runs several web workers sharing one port (load balancing over CPU cores):
+  `WEB_WORKERS` in `.env` (default one per core, up to 4; `1` = single process). The daily
+  reminders run in one worker only. The desktop app's main PC does the same.
+- Migration 019 adds performance indexes (applied automatically by `npm run migrate` / on start).
+- Desktop app: PostgreSQL performance settings are written on every start (shared buffers
+  25% of RAM up to 1 GB, etc.). Separate PostgreSQL server: see `database/tuning/postgresql_performance.sql`
+  (DBA to apply and restart PostgreSQL; affects every database on that server).
+- Load test results and how to repeat them: `docs/Performance_Test_Report.md`.
