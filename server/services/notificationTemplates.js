@@ -9,7 +9,7 @@ const REMINDER_TYPES = ['LEASE_COMMENCEMENT_REMINDER', 'RENT_COMMENCEMENT_REMIND
 const STATUS_TYPES = ['LANDLORD_STATUS_PASSIVE', 'BUILDING_STATUS_PASSIVE'];
 const DEFAULT_DAYS_BEFORE = Number(process.env.NOTIFY_DAYS_BEFORE) || 15;
 
-const SIGN_OFF = '\n\nRegards,\nSD Maintenance Application';
+const SIGN_OFF = '\n\nRegards,\nSD and Rent Maintenance Application';
 
 const reminderBody = (action) =>
   `Dear Team,\n\nThe {{event_label}} for {{sd_code}} ({{landlord_name}}, {{location}}) is on {{due_date}} - {{days_left_text}}.\n\n${action}${SIGN_OFF}`;
@@ -157,7 +157,7 @@ function render(tpl, vars) {
   const html = `<div style="font-family:Arial,sans-serif;font-size:14px;color:#1f2937;line-height:1.55">
     <div>${body}</div>
     ${tpl.include_details ? sdTable(vars) : ''}
-    <p style="color:#888;font-size:12px;margin-top:16px">Automated message from the SD Maintenance Application.</p>
+    <p style="color:#888;font-size:12px;margin-top:16px">Automated message from the SD and Rent Maintenance Application.</p>
   </div>`;
   return { subject, html };
 }

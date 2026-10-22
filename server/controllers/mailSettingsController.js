@@ -89,12 +89,12 @@ async function test(req, res, next) {
     try {
       await sendMail({
         to,
-        subject: 'SD Maintenance Application - test email',
+        subject: 'SD and Rent Maintenance Application - test email',
         notificationType: 'TEST_EMAIL',
         triggerEvent: `Test from Mail Server settings by ${req.user.userName}`,
         settings: s,
         html: `<div style="font-family:Arial,sans-serif;font-size:14px">
-          <p>This is a test email from the SD Maintenance Application.</p>
+          <p>This is a test email from the SD and Rent Maintenance Application.</p>
           <p>If you received it, the mail server settings are working.</p>
           <p style="color:#777;font-size:12px">Sent by ${escapeHtml(req.user.userName)} via ${escapeHtml(s.host || 'dry run')}:${s.port}
           as ${escapeHtml(s.from || '(no sender)')}.</p></div>`,

@@ -16,7 +16,7 @@ export default function AuthLayout({ children }) {
         <header className="auth-brand-head">
           <img src={mark} alt="" className="auth-logo" />
           <div>
-            <strong>SD Maintenance</strong>
+            <strong>SD and Rent Maintenance</strong>
             <span>by IndiQube</span>
           </div>
         </header>
@@ -47,7 +47,7 @@ export default function AuthLayout({ children }) {
         </div>
 
         <footer className="auth-brand-foot">
-          <span>&copy; {year} IndiQube · SD Maintenance Application</span>
+          <span>&copy; {year} IndiQube · SD and Rent Maintenance Application</span>
           <span>Authorised users only</span>
         </footer>
       </section>

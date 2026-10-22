@@ -52,7 +52,7 @@ async function startServer() {
 
   console.log('');
   console.log('==============================================');
-  console.log(`SD Maintenance server running on port ${PORT} (${workers} web worker${workers > 1 ? 's' : ''})`);
+  console.log(`SD and Rent Maintenance server running on port ${PORT} (${workers} web worker${workers > 1 ? 's' : ''})`);
   console.log(`API: http://localhost:${PORT}`);
   console.log(`Health: http://localhost:${PORT}/api/health`);
   console.log('==============================================');

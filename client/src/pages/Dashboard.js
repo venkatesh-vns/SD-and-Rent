@@ -28,7 +28,7 @@ export default function Dashboard() {
             <p className="eyebrow">{today}</p>
             <h1>{greeting(now.getHours())}, {user?.userName}</h1>
             <p className="welcome-sub">
-              {user?.isAdmin ? 'Administrator' : 'User'} · SD Maintenance Application
+              {user?.isAdmin ? 'Administrator' : 'User'} · SD and Rent Maintenance Application
             </p>
           </div>
           <div className="welcome-mark" aria-hidden="true">

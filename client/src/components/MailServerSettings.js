@@ -121,7 +121,7 @@ export default function MailServerSettings() {
       <div className="form-grid">
         <div>
           <label htmlFor="ms-from-name">Sender name</label>
-          <input id="ms-from-name" type="text" maxLength={150} value={form.from_name} onChange={set('from_name')} placeholder={env.from_name || 'e.g. SD Maintenance'} />
+          <input id="ms-from-name" type="text" maxLength={150} value={form.from_name} onChange={set('from_name')} placeholder={env.from_name || 'e.g. SD and Rent Maintenance'} />
           <span className="hint">Shown as "From" in the recipient's inbox.</span>
         </div>
         <div>

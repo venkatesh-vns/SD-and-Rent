@@ -123,13 +123,13 @@ app.get('/api/health', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'SD Maintenance API is running.',
+      message: 'SD and Rent Maintenance API is running.',
       database: 'connected',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'SD Maintenance API is running, but database connection failed.',
+      message: 'SD and Rent Maintenance API is running, but database connection failed.',
       database: 'disconnected',
     });
   }

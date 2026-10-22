@@ -74,11 +74,11 @@ function createWindow() {
     if (quitting || config.mode !== 'server' || !backend) return;
     const choice = dialog.showMessageBoxSync(mainWindow, {
       type: 'question',
-      buttons: ['Close SD Maintenance', 'Cancel'],
+      buttons: [`Close ${APP_NAME}`, 'Cancel'],
       defaultId: 1,
       cancelId: 1,
       title: `Close ${APP_NAME}`,
-      message: 'This PC holds the SD Maintenance data.',
+      message: `This PC holds the ${APP_NAME} data.`,
       detail: 'Other PCs connected to this one cannot use the application until you open it again.',
     });
     if (choice === 1) e.preventDefault();
@@ -121,7 +121,7 @@ async function startServerMode(firstAdmin) {
 async function startClientMode() {
   const url = config.client?.url;
   if (!(await reachable(url))) {
-    showError(`Cannot reach the SD Maintenance server at ${url}.`, 'Check that the main PC is switched on, the SD Maintenance app is open on it, and this PC is on the same network.');
+    showError(`Cannot reach the ${APP_NAME} server at ${url}.`, `Check that the main PC is switched on, the ${APP_NAME} app is open on it, and this PC is on the same network.`);
     return;
   }
   mainWindow.loadURL(`${url}/login`);
@@ -150,7 +150,7 @@ async function boot() {
     }
   } catch (err) {
     log('Start-up failed', err);
-    showError('SD Maintenance could not start.', err.message);
+    showError(`${APP_NAME} could not start.`, err.message);
   }
 }
 
@@ -186,7 +186,7 @@ function buildMenu() {
     {
       label: 'Help',
       submenu: [{
-        label: 'About SD Maintenance',
+        label: `About ${APP_NAME}`,
         click: () => dialog.showMessageBox(mainWindow, {
           type: 'info', title: 'About', message: `${APP_NAME} ${app.getVersion()}`,
           detail: `IndiQube Security Deposit and Lease Management\n\nMode: ${server ? 'This PC holds the data' : config.mode === 'client' ? `Connected to ${config.client.url}` : 'Not set up'}\nData and logs: ${USER_DIR}`,
@@ -203,8 +203,8 @@ function showAddresses() {
   dialog.showMessageBox(mainWindow, {
     type: 'info',
     title: 'Address for other PCs',
-    message: 'On the other PCs, install SD Maintenance, choose "Connect to the main PC" and enter:',
-    detail: `${list.length ? list.join('\n') : `http://<this PC's name>:${port}`}\n\nThey can also open this address in a web browser.\nThis PC must be on, with SD Maintenance open.`,
+    message: `On the other PCs, install ${APP_NAME}, choose "Connect to the main PC" and enter:`,
+    detail: `${list.length ? list.join('\n') : `http://<this PC's name>:${port}`}\n\nThey can also open this address in a web browser.\nThis PC must be on, with ${APP_NAME} open.`,
   });
 }
 
@@ -215,7 +215,7 @@ async function changeConnection() {
     defaultId: 1,
     cancelId: 1,
     title: 'Connection settings',
-    message: 'Change how this PC connects to SD Maintenance?',
+    message: `Change how this PC connects to ${APP_NAME}?`,
     detail: config.mode === 'server'
       ? 'The data on this PC is kept. Choosing "This PC holds the data" again later reopens it.'
       : 'The app will restart with the setup screen.',
@@ -265,14 +265,14 @@ ipcMain.handle('sdm:test-server', async (event, input) => {
   if (!fromLocalPage(event)) throw new Error('Not allowed');
   const url = configStore.normalizeServerUrl(input, DEFAULT_HTTP_PORT);
   if (!url) return { ok: false, message: 'Enter the main PC address, for example 192.168.1.20' };
-  return (await reachable(url)) ? { ok: true, url } : { ok: false, url, message: `No SD Maintenance server answered at ${url}.` };
+  return (await reachable(url)) ? { ok: true, url } : { ok: false, url, message: `No ${APP_NAME} server answered at ${url}.` };
 });
 
 ipcMain.handle('sdm:setup-client', async (event, input) => {
   if (!fromLocalPage(event)) throw new Error('Not allowed');
   const url = configStore.normalizeServerUrl(input, DEFAULT_HTTP_PORT);
   if (!url) return { ok: false, message: 'Enter the main PC address, for example 192.168.1.20' };
-  if (!(await reachable(url))) return { ok: false, message: `No SD Maintenance server answered at ${url}. Check the address and that the app is open on the main PC.` };
+  if (!(await reachable(url))) return { ok: false, message: `No ${APP_NAME} server answered at ${url}. Check the address and that the app is open on the main PC.` };
   config = { ...config, mode: 'client', client: { url } };
   configStore.save(CONFIG_FILE, config);
   buildMenu();
