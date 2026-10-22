@@ -6,6 +6,7 @@ import Modal from '../../components/Modal';
 import ExcelUpload from '../../components/ExcelUpload';
 import Pager from '../../components/Pager';
 import Toast from '../../components/Toast';
+import { gridKeyDown } from '../../utils/gridKeys';
 import api, { downloadFile, errorMessage } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { SCREENS } from '../../config/screens';
@@ -252,14 +253,14 @@ export default function RentAgreements() {
                   </>
                 )}
 
-                <h4 className="form-section">Rent and charge components <small>fill the first field to use a component</small></h4>
-                <div className="table-wrap">
+                <h4 className="form-section">Rent and charge components <small>fill the first field to use a component · Tab moves along the row, arrow keys move between cells</small></h4>
+                <div className="table-wrap" data-grid="components">
                   <table className="data-table compact component-grid">
                     <thead>
                       <tr><th>Component</th><th>Starts from</th><th>Sq.Ft / No. / Rate per Month</th><th>Rate</th><th>%</th><th className="num">Monthly Amount</th></tr>
                     </thead>
                     <tbody>
-                      {COMPONENTS.map((c) => {
+                      {COMPONENTS.map((c, rowIndex) => {
                         const v = form.components[c.code] || {};
                         const monthly = c.unit === 'month' ? monthlyAmount({ rate: v.rate, percentage: v.percentage }) : monthlyAmount(v);
                         const used = c.unit === 'month' ? v.rate : v.quantity;
@@ -276,17 +277,18 @@ export default function RentAgreements() {
                             <td>
                               <input
                                 aria-label={c.section ? names.trigger : `${c.label} ${triggerName(c)}`} placeholder={names.trigger} inputMode="decimal" disabled={locked}
+                                data-row={rowIndex} data-col={0} onKeyDown={gridKeyDown}
                                 value={c.unit === 'month' ? v.rate || '' : v.quantity || ''}
                                 onChange={(e) => setComp(c.code, c.unit === 'month' ? 'rate' : 'quantity', e.target.value)}
                               />
                             </td>
                             <td>
                               {c.unit === 'month' ? <span className="hint">—</span> : (
-                                <input aria-label={`${c.label} Rate`} placeholder="Rate" inputMode="decimal" disabled={locked || !used} value={v.rate || ''} onChange={(e) => setComp(c.code, 'rate', e.target.value)} />
+                                <input aria-label={`${c.label} Rate`} placeholder="Rate" inputMode="decimal" disabled={locked} data-row={rowIndex} data-col={1} onKeyDown={gridKeyDown} value={v.rate || ''} onChange={(e) => setComp(c.code, 'rate', e.target.value)} />
                               )}
                             </td>
                             <td>
-                              <input aria-label={c.section ? names.pct : `${c.label} %`} placeholder={names.pct} inputMode="decimal" disabled={locked || !used} value={v.percentage || ''} onChange={(e) => setComp(c.code, 'percentage', e.target.value)} />
+                              <input aria-label={c.section ? names.pct : `${c.label} %`} placeholder={names.pct} inputMode="decimal" disabled={locked} data-row={rowIndex} data-col={2} onKeyDown={gridKeyDown} value={v.percentage || ''} onChange={(e) => setComp(c.code, 'percentage', e.target.value)} />
                             </td>
                             <td className="num">{used && monthly ? money(monthly) : '—'}</td>
                           </tr>
