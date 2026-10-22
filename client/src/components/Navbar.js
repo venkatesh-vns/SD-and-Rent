@@ -34,9 +34,10 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      <div className="navbar-brand">
+      <div className="navbar-brand" title="Security Deposit & Rent Management">
         <img src={mark} alt="IndiQube" className="navbar-logo" />
-        <span>Security Deposit & Rent Management</span>
+        {/* Two short lines, so the menu and Logout fit on one row */}
+        <span className="navbar-name"><span>Security Deposit &amp;</span><span>Rent Management</span></span>
       </div>
       <div className="navbar-links">
         <NavLink to="/dashboard" className="nav-link">Dashboard</NavLink>
