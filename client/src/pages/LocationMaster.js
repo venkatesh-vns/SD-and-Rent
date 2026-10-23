@@ -3,6 +3,7 @@ import Toast from '../components/Toast';
 import { useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
+import Pager from '../components/Pager';
 import Modal from '../components/Modal';
 import ExcelUpload from '../components/ExcelUpload';
 import FilterBar from '../components/FilterBar';
@@ -61,6 +62,9 @@ export default function LocationMaster() {
   const level = LEVELS.includes(Number(params.get('level'))) ? Number(params.get('level')) : 1;
 
   const [rows, setRows] = useState([]);
+  // Newest first, 10 per page (the list API also serves dropdowns, so paging is done here)
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -78,7 +82,7 @@ export default function LocationMaster() {
       const res = await api.get(`/locations/${level}`, {
         params: { search, status: filters.status, l1Id: filters.l1Id, l2Id: filters.l2Id },
       });
-      setRows(res.data.data.map((r) => toRow(level, r)));
+      setRows(res.data.data.map((r) => toRow(level, r)).sort((a, b) => b.id - a.id));
     } catch (err) {
       setError(errorMessage(err, 'Failed to load locations.'));
     } finally {
@@ -96,6 +100,11 @@ export default function LocationMaster() {
   }, []);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
+  useEffect(() => { setPage(1); }, [level, search, filters.status, filters.l1Id, filters.l2Id]);
+  // Stay on a page that still exists after a delete
+  const pages = Math.max(Math.ceil(rows.length / PAGE_SIZE), 1);
+  useEffect(() => { if (page > pages) setPage(pages); }, [page, pages]);
+  const pageRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   useEffect(() => { fetchL1(); }, [fetchL1]);
 
   // Level 3 filter: Level 2 choices follow the chosen Level 1
@@ -150,6 +159,7 @@ export default function LocationMaster() {
         ? await api.put(`/locations/${level}/${modal.editing.id}`, form)
         : await api.post(`/locations/${level}`, form);
       setModal(null);
+      if (!modal.editing) setPage(1);
       afterChange(res.data.message);
     } catch (err) {
       setError(errorMessage(err, 'Failed to save location.'));
@@ -237,12 +247,15 @@ export default function LocationMaster() {
         />
 
         {loading ? <p>Loading...</p> : (
-          <DataTable
-            columns={COLUMNS[level]}
-            rows={rows}
-            onEdit={can(SCREENS.LOCATION, 'edit') ? openModal : null}
-            onDelete={can(SCREENS.LOCATION, 'delete') ? handleDelete : null}
-          />
+          <>
+            <DataTable
+              columns={COLUMNS[level]}
+              rows={pageRows}
+              onEdit={can(SCREENS.LOCATION, 'edit') ? openModal : null}
+              onDelete={can(SCREENS.LOCATION, 'delete') ? handleDelete : null}
+            />
+            <Pager page={page} pageSize={PAGE_SIZE} total={rows.length} onChange={setPage} />
+          </>
         )}
 
         {modal && (
