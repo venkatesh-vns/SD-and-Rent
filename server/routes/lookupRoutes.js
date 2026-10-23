@@ -8,6 +8,7 @@ const locationModel = require('../models/locationModel');
 const { pool } = require('../config/db');
 const { authenticateToken } = require('../middleware/authMiddleware');
 const { httpError } = require('../utils/httpError');
+const { cacheResponse } = require('../utils/cache');
 
 router.use(authenticateToken);
 
@@ -17,7 +18,7 @@ router.use(authenticateToken);
 //   sd   - SD Master landlords (blank = "(Not given)")
 //   rent - Rent Master landlords (with their SD's cost center and floor)
 //   all  - both
-router.get('/filter-combos', async (req, res, next) => {
+router.get('/filter-combos', cacheResponse(['sd_master', 'rent_master']), async (req, res, next) => {
   try {
     const source = ['sd', 'rent', 'all'].includes(req.query.source) ? req.query.source : 'sd';
     const parts = [];
@@ -35,7 +36,7 @@ router.get('/filter-combos', async (req, res, next) => {
 });
 
 // GET /api/lookups/cost-centers
-router.get('/cost-centers', async (req, res, next) => {
+router.get('/cost-centers', cacheResponse(['cost_centers']), async (req, res, next) => {
   try {
     const rows = (await costCenterModel.getAll()).sort((a, b) => a.cost_center_name.localeCompare(b.cost_center_name));
     res.json({
@@ -48,7 +49,7 @@ router.get('/cost-centers', async (req, res, next) => {
 });
 
 // GET /api/lookups/fys - financial years used by SD transactions, newest first
-router.get('/fys', async (req, res, next) => {
+router.get('/fys', cacheResponse(['sd_transactions']), async (req, res, next) => {
   try {
     const rows = (await pool.query('SELECT DISTINCT fy FROM sd_transactions WHERE fy IS NOT NULL ORDER BY fy DESC')).rows;
     res.json({ success: true, data: rows.map((r) => r.fy) });
@@ -59,7 +60,7 @@ router.get('/fys', async (req, res, next) => {
 
 // GET /api/lookups/locations/:level?parentId=   (parent = Level 1 for level 2, Level 2 for level 3;
 // several parents may be given as a comma-separated list)
-router.get('/locations/:level', async (req, res, next) => {
+router.get('/locations/:level', cacheResponse(['location_l1', 'location_l2', 'location_l3']), async (req, res, next) => {
   try {
     const level = Number(req.params.level);
     if (![1, 2, 3].includes(level)) throw httpError(404, 'Location level must be 1, 2 or 3.');

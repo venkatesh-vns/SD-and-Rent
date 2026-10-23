@@ -27,6 +27,7 @@ import RentRules from './pages/rent/RentRules';
 import RentWaivers from './pages/rent/RentWaivers';
 import RentSchedule from './pages/rent/RentSchedule';
 import SdRentReport from './pages/SdRentReport';
+import SystemHealth from './pages/SystemHealth';
 
 function App() {
   return (
@@ -58,6 +59,7 @@ function App() {
           <Route path="/reports/sd-rent" element={<ProtectedRoute screen={SCREENS.SD_RENT_REPORT}><SdRentReport /></ProtectedRoute>} />
           <Route path="/rent/schedule" element={<ProtectedRoute screen={SCREENS.RENT_SCHEDULE}><RentSchedule /></ProtectedRoute>} />
 
+          <Route path="/system-health" element={<ProtectedRoute><SystemHealth /></ProtectedRoute>} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

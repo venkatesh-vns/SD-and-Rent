@@ -27,6 +27,8 @@ const mailSettingsRoutes = require('./routes/mailSettingsRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const rentRoutes = require('./routes/rentRoutes');
 const sdRentReportRoutes = require('./routes/sdRentReportRoutes');
+const systemRoutes = require('./routes/systemRoutes');
+const { requestMetrics } = require('./utils/metrics');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -67,10 +69,15 @@ app.use(
   })
 );
 
+// Response times, slow requests and errors for System Health (utils/metrics.js)
+app.use(requestMetrics);
+
 // gzip responses (JSON lists, the screens' files): far less to send over the office network
 app.use(compression());
 
 app.use(express.json());
+// Any change request clears this worker's response cache (utils/cache.js)
+app.use(require('./utils/cache').clearAfterWrites);
 app.use(express.urlencoded({ extended: true }));
 
 
@@ -91,6 +98,16 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/forgot-password', authLimiter);
 app.use('/api/auth/change-password', authLimiter);
 
+// Safety net against a runaway client or script: requests per minute per IP address
+// and web worker (API_RATE_LIMIT; a busy user makes well under 300)
+app.use('/api', rateLimit({
+  windowMs: 60 * 1000,
+  max: Number(process.env.API_RATE_LIMIT) || 3000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests from this computer. Please wait a minute and try again.' },
+}));
+
 
 // ============================================================
 // Routes
@@ -110,6 +127,7 @@ app.use('/api/mail-settings', mailSettingsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/rent', rentRoutes); // Rent Transaction menu
 app.use('/api/reports/sd-rent', sdRentReportRoutes); // SD & Rent Transaction Summary Report
+app.use('/api/system', systemRoutes); // System Health (administrators)
 app.use('/api', reportRoutes); // /api/reports, /api/logs, /api/notifications
 
 

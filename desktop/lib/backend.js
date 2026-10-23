@@ -17,7 +17,7 @@ function lanAddresses() {
  * firstAdmin = { email, password } creates the admin user on an empty database.
  * Returns { close() }.
  */
-async function startBackend({ backendDir, uploadDir, httpPort, pgPort, dbUser, dbName, dbPassword, jwtSecret, settingsSecret, emailDryRun = false, firstAdmin, log }) {
+async function startBackend({ backendDir, uploadDir, backupDir, pgBin, logDir, httpPort, pgPort, dbUser, dbName, dbPassword, jwtSecret, settingsSecret, emailDryRun = false, firstAdmin, log }) {
   fs.mkdirSync(uploadDir, { recursive: true });
   const lan = lanAddresses()[0];
   Object.assign(process.env, {
@@ -34,6 +34,9 @@ async function startBackend({ backendDir, uploadDir, httpPort, pgPort, dbUser, d
     CLIENT_BUILD_DIR: path.join(backendDir, 'client', 'build'),
     MIGRATIONS_DIR: path.join(backendDir, 'database', 'migrations'),
     UPLOAD_DIR: uploadDir,
+    ...(backupDir ? { BACKUP_DIR: backupDir } : {}), // nightly backups (server/services/backupService.js)
+    ...(pgBin ? { PG_BIN: pgBin } : {}),
+    ...(logDir ? { LOG_DIR: logDir } : {}),
     NOTIFY_ENABLED: 'true',
     EMAIL_DRY_RUN: emailDryRun ? 'true' : 'false', // UAT build: emails are logged, never sent
   });
@@ -75,11 +78,13 @@ async function startBackend({ backendDir, uploadDir, httpPort, pgPort, dbUser, d
 
   const app = server('app');
   const { startReminderScheduler } = server('services/notificationService');
+  const { startJobs } = server('services/jobs');
   const httpServer = await new Promise((resolve, reject) => {
     const s = app.listen(httpPort, '0.0.0.0', () => resolve(s));
     s.once('error', reject);
   });
   startReminderScheduler();
+  startJobs(); // nightly backup, housekeeping
   log(`SD Maintenance server listening on port ${httpPort}`);
 
   return {

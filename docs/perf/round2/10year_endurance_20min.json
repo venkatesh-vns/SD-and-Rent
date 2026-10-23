@@ -1,0 +1,1362 @@
+{
+  "config": {
+    "url": "http://localhost:5300",
+    "users": 20,
+    "seconds": 1205,
+    "thinkMs": 3000,
+    "jobs": true
+  },
+  "totals": {
+    "pages": 7255,
+    "apiCalls": 24108,
+    "apiPerSecond": 20,
+    "errors": 0,
+    "validationRefusals": 35,
+    "allPages": {
+      "count": 7255,
+      "errors": 0,
+      "avg": 283,
+      "p50": 67,
+      "p95": 997,
+      "p99": 3634,
+      "max": 11597
+    }
+  },
+  "duringJobs": {
+    "count": 269,
+    "errors": 0,
+    "avg": 524,
+    "p50": 195,
+    "p95": 1851,
+    "p99": 5581,
+    "max": 7657
+  },
+  "jobs": [
+    {
+      "job": "Rent Schedule generate (1 FY, all Rent Codes)",
+      "start": 20290,
+      "ms": 36185,
+      "ok": true
+    },
+    {
+      "job": "SD transaction bulk upload (1,000 rows)",
+      "start": 66697,
+      "ms": 12522,
+      "ok": true
+    }
+  ],
+  "killed": {
+    "pid": 18748,
+    "second": 481
+  },
+  "timeline": [
+    {
+      "minute": 1,
+      "pages": 344,
+      "errors": 0,
+      "p50": 113,
+      "p95": 1468
+    },
+    {
+      "minute": 2,
+      "pages": 347,
+      "errors": 0,
+      "p50": 76,
+      "p95": 1587
+    },
+    {
+      "minute": 3,
+      "pages": 383,
+      "errors": 0,
+      "p50": 39,
+      "p95": 785
+    },
+    {
+      "minute": 4,
+      "pages": 375,
+      "errors": 0,
+      "p50": 34,
+      "p95": 571
+    },
+    {
+      "minute": 5,
+      "pages": 381,
+      "errors": 0,
+      "p50": 36,
+      "p95": 569
+    },
+    {
+      "minute": 6,
+      "pages": 378,
+      "errors": 0,
+      "p50": 34,
+      "p95": 561
+    },
+    {
+      "minute": 7,
+      "pages": 363,
+      "errors": 0,
+      "p50": 38,
+      "p95": 792
+    },
+    {
+      "minute": 8,
+      "pages": 344,
+      "errors": 0,
+      "p50": 97,
+      "p95": 1537
+    },
+    {
+      "minute": 9,
+      "pages": 362,
+      "errors": 0,
+      "p50": 68,
+      "p95": 917
+    },
+    {
+      "minute": 10,
+      "pages": 367,
+      "errors": 0,
+      "p50": 90,
+      "p95": 1008
+    },
+    {
+      "minute": 11,
+      "pages": 367,
+      "errors": 0,
+      "p50": 61,
+      "p95": 1125
+    },
+    {
+      "minute": 12,
+      "pages": 345,
+      "errors": 0,
+      "p50": 102,
+      "p95": 1595
+    },
+    {
+      "minute": 13,
+      "pages": 362,
+      "errors": 0,
+      "p50": 61,
+      "p95": 1041
+    },
+    {
+      "minute": 14,
+      "pages": 349,
+      "errors": 0,
+      "p50": 190,
+      "p95": 1286
+    },
+    {
+      "minute": 15,
+      "pages": 359,
+      "errors": 0,
+      "p50": 87,
+      "p95": 902
+    },
+    {
+      "minute": 16,
+      "pages": 352,
+      "errors": 0,
+      "p50": 125,
+      "p95": 972
+    },
+    {
+      "minute": 17,
+      "pages": 368,
+      "errors": 0,
+      "p50": 67,
+      "p95": 902
+    },
+    {
+      "minute": 18,
+      "pages": 363,
+      "errors": 0,
+      "p50": 125,
+      "p95": 983
+    },
+    {
+      "minute": 19,
+      "pages": 365,
+      "errors": 0,
+      "p50": 79,
+      "p95": 886
+    },
+    {
+      "minute": 20,
+      "pages": 381,
+      "errors": 0,
+      "p50": 42,
+      "p95": 843
+    }
+  ],
+  "health": [
+    {
+      "second": 0,
+      "workers": [
+        {
+          "pid": 5228,
+          "rssMB": 81,
+          "heapMB": 21,
+          "loopP99": 43.5
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 0,
+      "cacheMisses": 0,
+      "dbConnections": 1,
+      "dbCacheHitPercent": 97.16
+    },
+    {
+      "second": 61,
+      "workers": [
+        {
+          "pid": 15176,
+          "rssMB": 225,
+          "heapMB": 114,
+          "loopP99": 98.7
+        },
+        {
+          "pid": 18748,
+          "rssMB": 130,
+          "heapMB": 40,
+          "loopP99": 116.1
+        },
+        {
+          "pid": 5228,
+          "rssMB": 261,
+          "heapMB": 97,
+          "loopP99": 94.1
+        },
+        {
+          "pid": 24044,
+          "rssMB": 323,
+          "heapMB": 59,
+          "loopP99": 76.7
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 525,
+      "cacheMisses": 304,
+      "dbConnections": 27,
+      "dbCacheHitPercent": 97
+    },
+    {
+      "second": 121,
+      "workers": [
+        {
+          "pid": 24044,
+          "rssMB": 80,
+          "heapMB": 28,
+          "loopP99": 69.9
+        },
+        {
+          "pid": 18748,
+          "rssMB": 235,
+          "heapMB": 37,
+          "loopP99": 112.4
+        },
+        {
+          "pid": 15176,
+          "rssMB": 160,
+          "heapMB": 36,
+          "loopP99": 82.6
+        },
+        {
+          "pid": 5228,
+          "rssMB": 392,
+          "heapMB": 264,
+          "loopP99": 94.9
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 1046,
+      "cacheMisses": 695,
+      "dbConnections": 25,
+      "dbCacheHitPercent": 96.53
+    },
+    {
+      "second": 181,
+      "workers": [
+        {
+          "pid": 24044,
+          "rssMB": 111,
+          "heapMB": 31,
+          "loopP99": 61.4
+        },
+        {
+          "pid": 18748,
+          "rssMB": 219,
+          "heapMB": 39,
+          "loopP99": 98.6
+        },
+        {
+          "pid": 15176,
+          "rssMB": 185,
+          "heapMB": 76,
+          "loopP99": 68
+        },
+        {
+          "pid": 5228,
+          "rssMB": 610,
+          "heapMB": 233,
+          "loopP99": 89.2
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 1823,
+      "cacheMisses": 887,
+      "dbConnections": 29,
+      "dbCacheHitPercent": 96.25
+    },
+    {
+      "second": 241,
+      "workers": [
+        {
+          "pid": 5228,
+          "rssMB": 614,
+          "heapMB": 142,
+          "loopP99": 79.3
+        },
+        {
+          "pid": 18748,
+          "rssMB": 170,
+          "heapMB": 68,
+          "loopP99": 91.2
+        },
+        {
+          "pid": 15176,
+          "rssMB": 91,
+          "heapMB": 32,
+          "loopP99": 60.7
+        },
+        {
+          "pid": 24044,
+          "rssMB": 159,
+          "heapMB": 31,
+          "loopP99": 58.4
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 2473,
+      "cacheMisses": 1177,
+      "dbConnections": 22,
+      "dbCacheHitPercent": 96.23
+    },
+    {
+      "second": 301,
+      "workers": [
+        {
+          "pid": 24044,
+          "rssMB": 313,
+          "heapMB": 71,
+          "loopP99": 53.4
+        },
+        {
+          "pid": 18748,
+          "rssMB": 93,
+          "heapMB": 34,
+          "loopP99": 80.7
+        },
+        {
+          "pid": 15176,
+          "rssMB": 117,
+          "heapMB": 35,
+          "loopP99": 53.2
+        },
+        {
+          "pid": 5228,
+          "rssMB": 87,
+          "heapMB": 29,
+          "loopP99": 72.1
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 3156,
+      "cacheMisses": 1502,
+      "dbConnections": 19,
+      "dbCacheHitPercent": 96.28
+    },
+    {
+      "second": 361,
+      "workers": [
+        {
+          "pid": 5228,
+          "rssMB": 305,
+          "heapMB": 45,
+          "loopP99": 66.3
+        },
+        {
+          "pid": 18748,
+          "rssMB": 109,
+          "heapMB": 36,
+          "loopP99": 72.2
+        },
+        {
+          "pid": 15176,
+          "rssMB": 111,
+          "heapMB": 33,
+          "loopP99": 50.5
+        },
+        {
+          "pid": 24044,
+          "rssMB": 325,
+          "heapMB": 99,
+          "loopP99": 49.6
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 3891,
+      "cacheMisses": 1755,
+      "dbConnections": 20,
+      "dbCacheHitPercent": 96.33
+    },
+    {
+      "second": 421,
+      "workers": [
+        {
+          "pid": 5228,
+          "rssMB": 437,
+          "heapMB": 262,
+          "loopP99": 63.4
+        },
+        {
+          "pid": 18748,
+          "rssMB": 90,
+          "heapMB": 33,
+          "loopP99": 68.4
+        },
+        {
+          "pid": 15176,
+          "rssMB": 127,
+          "heapMB": 31,
+          "loopP99": 48.1
+        },
+        {
+          "pid": 24044,
+          "rssMB": 125,
+          "heapMB": 32,
+          "loopP99": 46.5
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 4584,
+      "cacheMisses": 2024,
+      "dbConnections": 18,
+      "dbCacheHitPercent": 96.38
+    },
+    {
+      "second": 481,
+      "workers": [
+        {
+          "pid": 24044,
+          "rssMB": 290,
+          "heapMB": 66,
+          "loopP99": 63.4
+        },
+        {
+          "pid": 18748,
+          "rssMB": 179,
+          "heapMB": 73,
+          "loopP99": 73.6
+        },
+        {
+          "pid": 15176,
+          "rssMB": 224,
+          "heapMB": 42,
+          "loopP99": 47.3
+        },
+        {
+          "pid": 5228,
+          "rssMB": 342,
+          "heapMB": 120,
+          "loopP99": 83
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 5211,
+      "cacheMisses": 2307,
+      "dbConnections": 23,
+      "dbCacheHitPercent": 96.43
+    },
+    {
+      "second": 481,
+      "workers": [
+        {
+          "pid": 18748,
+          "rssMB": 200,
+          "heapMB": 70,
+          "loopP99": 82.2
+        },
+        {
+          "pid": 15176,
+          "rssMB": 224,
+          "heapMB": 42,
+          "loopP99": 47.3
+        },
+        {
+          "pid": 5228,
+          "rssMB": 342,
+          "heapMB": 120,
+          "loopP99": 83
+        },
+        {
+          "pid": 24044,
+          "rssMB": 327,
+          "heapMB": 212,
+          "loopP99": 63.7
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 5207,
+      "cacheMisses": 2307,
+      "dbConnections": 23,
+      "dbCacheHitPercent": 96.43
+    },
+    {
+      "second": 541,
+      "workers": [
+        {
+          "pid": 24044,
+          "rssMB": 256,
+          "heapMB": 34,
+          "loopP99": 60.4
+        },
+        {
+          "pid": 15176,
+          "rssMB": 289,
+          "heapMB": 87,
+          "loopP99": 48
+        },
+        {
+          "pid": 5228,
+          "rssMB": 195,
+          "heapMB": 112,
+          "loopP99": 80.3
+        },
+        {
+          "pid": 21876,
+          "rssMB": 66,
+          "heapMB": 19,
+          "loopP99": 38.7
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 4811,
+      "cacheMisses": 1937,
+      "dbConnections": 20,
+      "dbCacheHitPercent": 96.47
+    },
+    {
+      "second": 601,
+      "workers": [
+        {
+          "pid": 5228,
+          "rssMB": 204,
+          "heapMB": 82,
+          "loopP99": 76.3
+        },
+        {
+          "pid": 15176,
+          "rssMB": 245,
+          "heapMB": 35,
+          "loopP99": 55.4
+        },
+        {
+          "pid": 24044,
+          "rssMB": 399,
+          "heapMB": 255,
+          "loopP99": 59
+        },
+        {
+          "pid": 21876,
+          "rssMB": 70,
+          "heapMB": 21,
+          "loopP99": 57.6
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 5508,
+      "cacheMisses": 2227,
+      "dbConnections": 25,
+      "dbCacheHitPercent": 96.51
+    },
+    {
+      "second": 661,
+      "workers": [
+        {
+          "pid": 15176,
+          "rssMB": 356,
+          "heapMB": 134,
+          "loopP99": 55.8
+        },
+        {
+          "pid": 5228,
+          "rssMB": 321,
+          "heapMB": 106,
+          "loopP99": 74.1
+        },
+        {
+          "pid": 24044,
+          "rssMB": 365,
+          "heapMB": 160,
+          "loopP99": 58.5
+        },
+        {
+          "pid": 21876,
+          "rssMB": 71,
+          "heapMB": 21,
+          "loopP99": 52.2
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 6212,
+      "cacheMisses": 2477,
+      "dbConnections": 25,
+      "dbCacheHitPercent": 96.56
+    },
+    {
+      "second": 721,
+      "workers": [
+        {
+          "pid": 15176,
+          "rssMB": 471,
+          "heapMB": 274,
+          "loopP99": 55.5
+        },
+        {
+          "pid": 5228,
+          "rssMB": 393,
+          "heapMB": 64,
+          "loopP99": 87.4
+        },
+        {
+          "pid": 24044,
+          "rssMB": 358,
+          "heapMB": 151,
+          "loopP99": 66.7
+        },
+        {
+          "pid": 21876,
+          "rssMB": 80,
+          "heapMB": 25,
+          "loopP99": 49.2
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 6816,
+      "cacheMisses": 2728,
+      "dbConnections": 20,
+      "dbCacheHitPercent": 96.59
+    },
+    {
+      "second": 781,
+      "workers": [
+        {
+          "pid": 5228,
+          "rssMB": 368,
+          "heapMB": 232,
+          "loopP99": 84.9
+        },
+        {
+          "pid": 15176,
+          "rssMB": 307,
+          "heapMB": 48,
+          "loopP99": 58.3
+        },
+        {
+          "pid": 24044,
+          "rssMB": 142,
+          "heapMB": 47,
+          "loopP99": 67.4
+        },
+        {
+          "pid": 21876,
+          "rssMB": 75,
+          "heapMB": 25,
+          "loopP99": 51.6
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 7483,
+      "cacheMisses": 2984,
+      "dbConnections": 18,
+      "dbCacheHitPercent": 96.63
+    },
+    {
+      "second": 841,
+      "workers": [
+        {
+          "pid": 15176,
+          "rssMB": 453,
+          "heapMB": 294,
+          "loopP99": 65.9
+        },
+        {
+          "pid": 5228,
+          "rssMB": 306,
+          "heapMB": 101,
+          "loopP99": 85.8
+        },
+        {
+          "pid": 24044,
+          "rssMB": 361,
+          "heapMB": 157,
+          "loopP99": 73.2
+        },
+        {
+          "pid": 21876,
+          "rssMB": 85,
+          "heapMB": 30,
+          "loopP99": 47.3
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 8098,
+      "cacheMisses": 3264,
+      "dbConnections": 24,
+      "dbCacheHitPercent": 96.67
+    },
+    {
+      "second": 901,
+      "workers": [
+        {
+          "pid": 15176,
+          "rssMB": 330,
+          "heapMB": 164,
+          "loopP99": 64.5
+        },
+        {
+          "pid": 5228,
+          "rssMB": 313,
+          "heapMB": 178,
+          "loopP99": 84.2
+        },
+        {
+          "pid": 24044,
+          "rssMB": 370,
+          "heapMB": 220,
+          "loopP99": 74.6
+        },
+        {
+          "pid": 21876,
+          "rssMB": 81,
+          "heapMB": 28,
+          "loopP99": 43.4
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 8731,
+      "cacheMisses": 3556,
+      "dbConnections": 18,
+      "dbCacheHitPercent": 96.71
+    },
+    {
+      "second": 961,
+      "workers": [
+        {
+          "pid": 5228,
+          "rssMB": 346,
+          "heapMB": 38,
+          "loopP99": 84.2
+        },
+        {
+          "pid": 15176,
+          "rssMB": 327,
+          "heapMB": 41,
+          "loopP99": 67
+        },
+        {
+          "pid": 24044,
+          "rssMB": 106,
+          "heapMB": 33,
+          "loopP99": 72.7
+        },
+        {
+          "pid": 21876,
+          "rssMB": 85,
+          "heapMB": 24,
+          "loopP99": 42
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 9395,
+      "cacheMisses": 3800,
+      "dbConnections": 22,
+      "dbCacheHitPercent": 96.75
+    },
+    {
+      "second": 1021,
+      "workers": [
+        {
+          "pid": 5228,
+          "rssMB": 422,
+          "heapMB": 187,
+          "loopP99": 83.2
+        },
+        {
+          "pid": 15176,
+          "rssMB": 323,
+          "heapMB": 48,
+          "loopP99": 66.2
+        },
+        {
+          "pid": 24044,
+          "rssMB": 378,
+          "heapMB": 274,
+          "loopP99": 70
+        },
+        {
+          "pid": 21876,
+          "rssMB": 83,
+          "heapMB": 22,
+          "loopP99": 41.5
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 10081,
+      "cacheMisses": 4093,
+      "dbConnections": 20,
+      "dbCacheHitPercent": 96.78
+    },
+    {
+      "second": 1081,
+      "workers": [
+        {
+          "pid": 5228,
+          "rssMB": 431,
+          "heapMB": 166,
+          "loopP99": 83
+        },
+        {
+          "pid": 15176,
+          "rssMB": 328,
+          "heapMB": 38,
+          "loopP99": 67
+        },
+        {
+          "pid": 24044,
+          "rssMB": 128,
+          "heapMB": 40,
+          "loopP99": 69.6
+        },
+        {
+          "pid": 21876,
+          "rssMB": 83,
+          "heapMB": 23,
+          "loopP99": 40.6
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 10730,
+      "cacheMisses": 4409,
+      "dbConnections": 21,
+      "dbCacheHitPercent": 96.82
+    },
+    {
+      "second": 1141,
+      "workers": [
+        {
+          "pid": 5228,
+          "rssMB": 435,
+          "heapMB": 178,
+          "loopP99": 83.4
+        },
+        {
+          "pid": 15176,
+          "rssMB": 333,
+          "heapMB": 80,
+          "loopP99": 68.2
+        },
+        {
+          "pid": 24044,
+          "rssMB": 105,
+          "heapMB": 33,
+          "loopP99": 68.2
+        },
+        {
+          "pid": 21876,
+          "rssMB": 84,
+          "heapMB": 24,
+          "loopP99": 40.5
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 11428,
+      "cacheMisses": 4683,
+      "dbConnections": 20,
+      "dbCacheHitPercent": 96.86
+    },
+    {
+      "second": 1201,
+      "workers": [
+        {
+          "pid": 5228,
+          "rssMB": 263,
+          "heapMB": 50,
+          "loopP99": 81.9
+        },
+        {
+          "pid": 15176,
+          "rssMB": 165,
+          "heapMB": 33,
+          "loopP99": 67.6
+        },
+        {
+          "pid": 24044,
+          "rssMB": 371,
+          "heapMB": 263,
+          "loopP99": 66.7
+        },
+        {
+          "pid": 21876,
+          "rssMB": 84,
+          "heapMB": 24,
+          "loopP99": 41.5
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 12197,
+      "cacheMisses": 4941,
+      "dbConnections": 22,
+      "dbCacheHitPercent": 96.89
+    },
+    {
+      "second": 1205,
+      "workers": [
+        {
+          "pid": 15176,
+          "rssMB": 172,
+          "heapMB": 43,
+          "loopP99": 67.4
+        },
+        {
+          "pid": 5228,
+          "rssMB": 385,
+          "heapMB": 276,
+          "loopP99": 81.9
+        },
+        {
+          "pid": 24044,
+          "rssMB": 371,
+          "heapMB": 263,
+          "loopP99": 66.7
+        },
+        {
+          "pid": 21876,
+          "rssMB": 84,
+          "heapMB": 24,
+          "loopP99": 41.5
+        }
+      ],
+      "restarts": 1,
+      "cacheHits": 12202,
+      "cacheMisses": 4942,
+      "dbConnections": 19,
+      "dbCacheHitPercent": 96.89
+    }
+  ],
+  "rows": [
+    {
+      "name": "page Export to Excel",
+      "count": 281,
+      "errors": 0,
+      "avg": 2410,
+      "p50": 1587,
+      "p95": 5952,
+      "p99": 10390,
+      "max": 11597
+    },
+    {
+      "name": "page SD & Rent Report",
+      "count": 602,
+      "errors": 0,
+      "avg": 525,
+      "p50": 474,
+      "p95": 1275,
+      "p99": 1881,
+      "max": 2764
+    },
+    {
+      "name": "page Rent Schedule",
+      "count": 721,
+      "errors": 0,
+      "avg": 308,
+      "p50": 216,
+      "p95": 980,
+      "p99": 1577,
+      "max": 2536
+    },
+    {
+      "name": "page SD Dashboard",
+      "count": 1133,
+      "errors": 0,
+      "avg": 194,
+      "p50": 77,
+      "p95": 679,
+      "p99": 1464,
+      "max": 3178
+    },
+    {
+      "name": "page SD Balance Report",
+      "count": 729,
+      "errors": 0,
+      "avg": 314,
+      "p50": 347,
+      "p95": 624,
+      "p99": 909,
+      "max": 1987
+    },
+    {
+      "name": "page SD Transaction (all)",
+      "count": 697,
+      "errors": 0,
+      "avg": 227,
+      "p50": 220,
+      "p95": 460,
+      "p99": 1076,
+      "max": 2969
+    },
+    {
+      "name": "page Rent Masters (lists)",
+      "count": 507,
+      "errors": 0,
+      "avg": 123,
+      "p50": 58,
+      "p95": 419,
+      "p99": 1117,
+      "max": 4937
+    },
+    {
+      "name": "page SD Master list",
+      "count": 1049,
+      "errors": 0,
+      "avg": 90,
+      "p50": 34,
+      "p95": 398,
+      "p99": 841,
+      "max": 2047
+    },
+    {
+      "name": "page SD Transaction (one SD)",
+      "count": 1088,
+      "errors": 0,
+      "avg": 56,
+      "p50": 14,
+      "p95": 296,
+      "p99": 857,
+      "max": 1851
+    },
+    {
+      "name": "page Save SD transaction",
+      "count": 218,
+      "errors": 0,
+      "avg": 35,
+      "p50": 23,
+      "p95": 71,
+      "p99": 396,
+      "max": 552
+    },
+    {
+      "name": "page Audit Log",
+      "count": 230,
+      "errors": 0,
+      "avg": 37,
+      "p50": 21,
+      "p95": 46,
+      "p99": 532,
+      "max": 1378
+    },
+    {
+      "name": "api job Rent Schedule generate (1 FY, all Rent Codes)",
+      "count": 1,
+      "errors": 0,
+      "avg": 36185,
+      "p50": 36185,
+      "p95": 36185,
+      "p99": 36185,
+      "max": 36185
+    },
+    {
+      "name": "api job SD transaction upload (1,000 rows)",
+      "count": 1,
+      "errors": 0,
+      "avg": 12522,
+      "p50": 12522,
+      "p95": 12522,
+      "p99": 12522,
+      "max": 12522
+    },
+    {
+      "name": "api export Rent Schedule (quarter)",
+      "count": 43,
+      "errors": 0,
+      "avg": 3829,
+      "p50": 4494,
+      "p95": 9850,
+      "p99": 11597,
+      "max": 11597
+    },
+    {
+      "name": "api export SD & Rent (quarter)",
+      "count": 67,
+      "errors": 0,
+      "avg": 4144,
+      "p50": 4165,
+      "p95": 6705,
+      "p99": 9889,
+      "max": 9889
+    },
+    {
+      "name": "api export SD Balance",
+      "count": 50,
+      "errors": 0,
+      "avg": 2452,
+      "p50": 2054,
+      "p95": 5291,
+      "p99": 10463,
+      "max": 10463
+    },
+    {
+      "name": "api export Dashboard",
+      "count": 62,
+      "errors": 0,
+      "avg": 1025,
+      "p50": 751,
+      "p95": 1625,
+      "p99": 9709,
+      "max": 9709
+    },
+    {
+      "name": "api export SD Master",
+      "count": 59,
+      "errors": 0,
+      "avg": 826,
+      "p50": 858,
+      "p95": 1369,
+      "p99": 1595,
+      "max": 1595
+    },
+    {
+      "name": "api /api/reports/sd-rent",
+      "count": 602,
+      "errors": 0,
+      "avg": 375,
+      "p50": 35,
+      "p95": 1173,
+      "p99": 1552,
+      "max": 2558
+    },
+    {
+      "name": "api /api/auth/login",
+      "count": 20,
+      "errors": 0,
+      "avg": 855,
+      "p50": 961,
+      "p95": 1046,
+      "p99": 1046,
+      "max": 1046
+    },
+    {
+      "name": "api /api/reports/sd-rent/summary",
+      "count": 602,
+      "errors": 0,
+      "avg": 269,
+      "p50": 40,
+      "p95": 779,
+      "p99": 1326,
+      "max": 2257
+    },
+    {
+      "name": "api /api/rent/lookups",
+      "count": 1228,
+      "errors": 0,
+      "avg": 137,
+      "p50": 62,
+      "p95": 632,
+      "p99": 1290,
+      "max": 4936
+    },
+    {
+      "name": "api /api/reports/sd-balance",
+      "count": 729,
+      "errors": 0,
+      "avg": 301,
+      "p50": 340,
+      "p95": 605,
+      "p99": 860,
+      "max": 1987
+    },
+    {
+      "name": "api /api/rent/schedule",
+      "count": 721,
+      "errors": 0,
+      "avg": 184,
+      "p50": 166,
+      "p95": 523,
+      "p99": 1109,
+      "max": 1858
+    },
+    {
+      "name": "api /api/rent/schedule/summary",
+      "count": 721,
+      "errors": 0,
+      "avg": 169,
+      "p50": 157,
+      "p95": 514,
+      "p99": 985,
+      "max": 1903
+    },
+    {
+      "name": "api /api/dashboard",
+      "count": 1133,
+      "errors": 0,
+      "avg": 149,
+      "p50": 56,
+      "p95": 468,
+      "p99": 1302,
+      "max": 3178
+    },
+    {
+      "name": "api /api/reports/sd-rent/options",
+      "count": 602,
+      "errors": 0,
+      "avg": 73,
+      "p50": 27,
+      "p95": 322,
+      "p99": 1126,
+      "max": 2763
+    },
+    {
+      "name": "api /api/lookups/filter-combos",
+      "count": 4931,
+      "errors": 0,
+      "avg": 55,
+      "p50": 16,
+      "p95": 301,
+      "p99": 794,
+      "max": 2154
+    },
+    {
+      "name": "api /api/sd-transactions",
+      "count": 1785,
+      "errors": 0,
+      "avg": 95,
+      "p50": 20,
+      "p95": 297,
+      "p99": 515,
+      "max": 2969
+    },
+    {
+      "name": "api /api/lookups/fys",
+      "count": 2918,
+      "errors": 0,
+      "avg": 31,
+      "p50": 7,
+      "p95": 179,
+      "p99": 434,
+      "max": 2467
+    },
+    {
+      "name": "api /api/sd-master",
+      "count": 1049,
+      "errors": 0,
+      "avg": 63,
+      "p50": 32,
+      "p95": 140,
+      "p99": 750,
+      "max": 2047
+    },
+    {
+      "name": "api /api/dashboard/options",
+      "count": 1133,
+      "errors": 0,
+      "avg": 48,
+      "p50": 19,
+      "p95": 140,
+      "p99": 770,
+      "max": 2106
+    },
+    {
+      "name": "api /api/lookups/cost-centers",
+      "count": 3608,
+      "errors": 0,
+      "avg": 31,
+      "p50": 8,
+      "p95": 136,
+      "p99": 528,
+      "max": 2722
+    },
+    {
+      "name": "api /api/rent/agreements",
+      "count": 116,
+      "errors": 0,
+      "avg": 44,
+      "p50": 18,
+      "p95": 93,
+      "p99": 678,
+      "max": 1300
+    },
+    {
+      "name": "api save SD transaction",
+      "count": 218,
+      "errors": 0,
+      "avg": 35,
+      "p50": 23,
+      "p95": 71,
+      "p99": 396,
+      "max": 552
+    },
+    {
+      "name": "api /api/rent/rules",
+      "count": 118,
+      "errors": 0,
+      "avg": 31,
+      "p50": 19,
+      "p95": 62,
+      "p99": 419,
+      "max": 438
+    },
+    {
+      "name": "api /api/logs/audit",
+      "count": 230,
+      "errors": 0,
+      "avg": 37,
+      "p50": 21,
+      "p95": 46,
+      "p99": 532,
+      "max": 1378
+    },
+    {
+      "name": "api /api/sd-transactions/summary/:id",
+      "count": 1088,
+      "errors": 0,
+      "avg": 24,
+      "p50": 10,
+      "p95": 36,
+      "p99": 509,
+      "max": 1447
+    },
+    {
+      "name": "api /api/rent/master",
+      "count": 152,
+      "errors": 0,
+      "avg": 27,
+      "p50": 13,
+      "p95": 35,
+      "p99": 92,
+      "max": 1683
+    },
+    {
+      "name": "api /api/rent/waivers",
+      "count": 121,
+      "errors": 0,
+      "avg": 26,
+      "p50": 14,
+      "p95": 25,
+      "p99": 554,
+      "max": 739
+    }
+  ]
+}

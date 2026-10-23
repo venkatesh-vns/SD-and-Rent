@@ -104,6 +104,9 @@ async function startServerMode(firstAdmin) {
   backend = await startBackend({
     backendDir: path.join(RES, 'backend'),
     uploadDir: path.join(USER_DIR, 'uploads'),
+    backupDir: path.join(USER_DIR, 'backups'), // nightly database backups
+    pgBin: path.join(RES, 'pgsql', 'bin'),
+    logDir: path.join(LOG_DIR, 'server'),
     httpPort: s.httpPort,
     pgPort: s.pgPort,
     dbUser: DB_USER,

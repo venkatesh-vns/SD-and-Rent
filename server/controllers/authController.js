@@ -42,9 +42,37 @@ async function login(req, res, next) {
       return res.status(401).json({ success: false, message: 'Invalid User Name or Password.' });
     }
 
+    // Locked for a while after repeated wrong passwords (LOGIN_MAX_ATTEMPTS, LOGIN_LOCK_MINUTES)
+    const maxAttempts = Number(process.env.LOGIN_MAX_ATTEMPTS) || 5;
+    const lockMinutes = Number(process.env.LOGIN_LOCK_MINUTES) || 15;
+    if (user.locked_until && new Date(user.locked_until) > new Date()) {
+      const left = Math.ceil((new Date(user.locked_until) - Date.now()) / 60000);
+      return res.status(423).json({
+        success: false, code: 'ACCOUNT_LOCKED',
+        message: `This account is locked after ${maxAttempts} wrong passwords. Try again in ${left} minute(s), or ask an administrator to reset the password.`,
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
+      const failed = (await pool.query(
+        `UPDATE users SET failed_logins = failed_logins + 1,
+                locked_until = CASE WHEN failed_logins + 1 >= $2 THEN NOW() + make_interval(mins => $3) ELSE locked_until END
+         WHERE user_id = $1 RETURNING failed_logins, locked_until`,
+        [user.user_id, maxAttempts, lockMinutes]
+      )).rows[0];
+      if (failed.failed_logins >= maxAttempts) {
+        await pool.query('UPDATE users SET failed_logins = 0 WHERE user_id = $1', [user.user_id]);
+        await logAudit({ tableName: 'users', recordId: user.user_id, action: 'LOGIN_LOCKED', actionBy: user.user_name, details: `${maxAttempts} wrong passwords; locked for ${lockMinutes} minutes (${sessionModel.cleanIp(req.ip)})` });
+        return res.status(423).json({
+          success: false, code: 'ACCOUNT_LOCKED',
+          message: `Too many wrong passwords. This account is locked for ${lockMinutes} minutes, or until an administrator resets the password.`,
+        });
+      }
       return res.status(401).json({ success: false, message: 'Invalid User Name or Password.' });
+    }
+    if (user.failed_logins || user.locked_until) {
+      await pool.query('UPDATE users SET failed_logins = 0, locked_until = NULL WHERE user_id = $1', [user.user_id]);
     }
 
     // Only Active users may log in (checked after the password so the

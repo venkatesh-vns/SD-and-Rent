@@ -44,56 +44,66 @@ async function loadInputs(rentIds, db) {
  * agreementStatus: optional list limiting which agreements are generated.
  * Returns { run, lines, messages: [{ rentCode, message }] }.
  */
+// Rent Codes calculated and saved per batch: memory stays flat however many
+// Rent Codes and years are generated (all batches are in the caller's transaction)
+const BATCH = 200;
+
 async function generateFor(rentIds, { fromMonth, toMonth, agreementStatus = [], trigger, filters, by, action = 'GENERATE' }, db) {
-  const inputs = await loadInputs(rentIds, db);
-  const all = [];
+  const run = await scheduleModel.createRun({ trigger, fromMonth, toMonth, filters, rentCodes: 0, lines: 0, messages: [], by }, db);
   const messages = [];
-  const doneRents = [];
-  const agreementIds = [];
-  for (const [i, rent] of inputs.rents.entries()) {
-    // Let other requests on this web worker run between batches of the calculation
-    if (i % 25 === 24) await new Promise((resolve) => setImmediate(resolve));
-    const agreements = (inputs.agreements[rent.rent_id] || [])
-      .filter((a) => !agreementStatus.length || agreementStatus.includes(a.agreement_status));
-    const active = agreements.filter((a) => a.status === 'Active');
-    if (!active.length) {
-      if (action === 'GENERATE') messages.push({ rentCode: rent.rent_code, message: 'No active Rent Agreement.' });
-      // Still cleared below, so future months of agreements made Inactive are removed
-      if (agreements.length) doneRents.push(rent.rent_id);
-      continue;
+  const linedRents = new Set();
+  let lineCount = 0;
+
+  for (let b = 0; b < rentIds.length; b += BATCH) {
+    const inputs = await loadInputs(rentIds.slice(b, b + BATCH), db);
+    const lines = [];
+    const doneRents = [];
+    const agreementIds = [];
+    for (const [i, rent] of inputs.rents.entries()) {
+      // Let other requests on this web worker run between parts of the calculation
+      if (i % 25 === 24) await new Promise((resolve) => setImmediate(resolve));
+      const agreements = (inputs.agreements[rent.rent_id] || [])
+        .filter((a) => !agreementStatus.length || agreementStatus.includes(a.agreement_status));
+      const active = agreements.filter((a) => a.status === 'Active');
+      if (!active.length) {
+        if (action === 'GENERATE') messages.push({ rentCode: rent.rent_code, message: 'No active Rent Agreement.' });
+        // Still cleared below, so future months of agreements made Inactive are removed
+        if (agreements.length) doneRents.push(rent.rent_id);
+        continue;
+      }
+      const { lines: rentLines, messages: notes } = computeRentSchedule({
+        rent,
+        agreements: active,
+        rules: inputs.rules[rent.rent_id] || [],
+        waivers: inputs.waivers[rent.rent_id] || [],
+        transferOutDate: inputs.transferOut[rent.rent_id] || null,
+        fromMonth,
+        toMonth,
+      });
+      notes.forEach((message) => messages.push({ rentCode: rent.rent_code, message }));
+      if (!rentLines.length && notes.some((n) => /no schedule generated/.test(n))) continue;
+      for (const l of rentLines) lines.push(l);
+      if (rentLines.length) linedRents.add(rent.rent_id);
+      doneRents.push(rent.rent_id);
+      agreementIds.push(...active.map((a) => a.agreement_id));
     }
-    const { lines, messages: notes } = computeRentSchedule({
-      rent,
-      agreements: active,
-      rules: inputs.rules[rent.rent_id] || [],
-      waivers: inputs.waivers[rent.rent_id] || [],
-      transferOutDate: inputs.transferOut[rent.rent_id] || null,
-      fromMonth,
-      toMonth,
-    });
-    notes.forEach((message) => messages.push({ rentCode: rent.rent_code, message }));
-    if (!lines.length && notes.some((n) => /no schedule generated/.test(n))) continue;
-    all.push(...lines);
-    doneRents.push(rent.rent_id);
-    agreementIds.push(...active.map((a) => a.agreement_id));
+    if (doneRents.length) {
+      await scheduleModel.replaceLines({
+        rentIds: doneRents, agreementIds, fromMonth, toMonth, keepPastBefore: monthStart(today()), lines, runId: run.run_id, by,
+      }, db);
+      await scheduleModel.markGenerated(doneRents, toMonth, db);
+    }
+    lineCount += lines.length;
   }
 
-  const rentCodes = new Set(all.map((l) => l.rent_id)).size;
-  const run = await scheduleModel.createRun({
-    trigger, fromMonth, toMonth, filters, rentCodes, lines: all.length, messages, by,
-  }, db);
-  if (doneRents.length) {
-    await scheduleModel.replaceLines({
-      rentIds: doneRents, agreementIds, fromMonth, toMonth, keepPastBefore: monthStart(today()), lines: all, runId: run.run_id, by,
-    }, db);
-    await scheduleModel.markGenerated(doneRents, toMonth, db);
-  }
+  const rentCodes = linedRents.size;
+  await scheduleModel.finishRun(run.run_id, { rentCodes, lines: lineCount, messages }, db);
   await logAudit({
     tableName: 'rent_schedule_runs', recordId: run.run_id, action, actionBy: by,
-    details: `${trigger}: ${rentCodes} Rent Code(s), ${all.length} line(s), ${fromMonth.slice(0, 7)} to ${toMonth.slice(0, 7)}`
+    details: `${trigger}: ${rentCodes} Rent Code(s), ${lineCount} line(s), ${fromMonth.slice(0, 7)} to ${toMonth.slice(0, 7)}`
       + (messages.length ? `; ${messages.length} message(s)` : ''),
   }, db);
-  return { run, lines: all.length, rentCodes, messages };
+  return { run: { ...run, rent_codes: rentCodes, lines: lineCount }, lines: lineCount, rentCodes, messages };
 }
 
 // Rent Schedule screen: Generate (or Regenerate) for a date range and filters

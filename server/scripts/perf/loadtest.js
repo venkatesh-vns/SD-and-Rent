@@ -160,12 +160,50 @@ async function runJobs(token, start) {
   const start = Date.now();
   const until = start + DURATION;
   console.log(`${USERS} users, ${DURATION / 1000}s, think ${THINK}ms${JOBS ? ', with heavy jobs' : ''} -> ${BASE}`);
+
+  // Every minute: server memory per worker, cache, connections (System Health); and
+  // --kill-worker-at=SECONDS stops one web worker part-way (failover test)
+  const health = [];
+  const killAt = Number(arg('kill-worker-at', 0)) * 1000;
+  const sampleHealth = async () => {
+    try {
+      const h = (await (await fetch(`${BASE}/api/system/health`, { headers: { Authorization: `Bearer ${admin}` } })).json()).data;
+      health.push({
+        second: Math.round((Date.now() - start) / 1000),
+        workers: h.app.workers.map((w) => ({ pid: w.pid, rssMB: w.memoryMB.rss, heapMB: w.memoryMB.heapUsed, loopP99: w.eventLoopDelayMs.p99 })),
+        restarts: h.app.cluster?.restarts ?? 0,
+        cacheHits: h.app.workers.reduce((s, w) => s + w.cache.hits, 0), cacheMisses: h.app.workers.reduce((s, w) => s + w.cache.misses, 0),
+        dbConnections: h.database.connections.reduce((s, c) => s + c.n, 0), dbCacheHitPercent: h.database.cacheHitPercent,
+      });
+      return h;
+    } catch { return null; }
+  };
+  await sampleHealth();
+  const healthTimer = setInterval(sampleHealth, 60000);
+  let killed = null;
+  const killTimer = killAt ? setTimeout(async () => {
+    const h = await sampleHealth();
+    const victim = h?.app.workers.find((w) => !w.reminders) || h?.app.workers[0];
+    if (victim) { try { process.kill(victim.pid); killed = { pid: victim.pid, second: Math.round((Date.now() - start) / 1000) }; console.log(`Stopped web worker ${victim.pid}`); } catch (e) { console.log('kill failed', e.message); } }
+  }, killAt) : null;
+
   await Promise.all([
     ...Array.from({ length: Math.min(USERS, 59) }, (_, i) => virtualUser(i + 1, until)),
     ...(JOBS ? [runJobs(admin, start)] : []),
   ]);
+  clearInterval(healthTimer);
+  if (killTimer) clearTimeout(killTimer);
+  await sampleHealth();
   const seconds = (Date.now() - start) / 1000;
   await logout(admin);
+
+  // Screens per minute (typical / 95%), to see stability over a long run
+  const timeline = [];
+  const allPages = Object.entries(samples).filter(([k]) => k.startsWith('page')).flatMap(([, l]) => l);
+  for (let m = 0; m * 60000 < DURATION; m += 1) {
+    const inMinute = allPages.filter((s) => s.at >= start + m * 60000 && s.at < start + (m + 1) * 60000);
+    if (inMinute.length) { const s = summarise(inMinute); timeline.push({ minute: m + 1, pages: s.count, errors: s.errors, p50: s.p50, p95: s.p95 }); }
+  }
 
   const rows = Object.entries(samples).filter(([k]) => !k.startsWith('job')).map(([name, list]) => ({ name, ...summarise(list) }))
     .sort((a, b) => (a.name.startsWith('page') === b.name.startsWith('page') ? b.p95 - a.p95 : a.name.startsWith('page') ? -1 : 1));
@@ -178,10 +216,15 @@ async function runJobs(token, start) {
     totals: { pages: pages.length, apiCalls: apis.length, apiPerSecond: +(apis.length / seconds).toFixed(1), errors: apis.filter((s) => !s.ok).length, validationRefusals: rejected, allPages: summarise(pages) },
     duringJobs: JOBS ? summarise(during(pages)) : undefined,
     jobs,
+    killed,
+    timeline,
+    health,
     rows,
   };
   console.table(rows.map((r) => ({ name: r.name, n: r.count, err: r.errors, avg: r.avg, p50: r.p50, p95: r.p95, p99: r.p99, max: r.max })));
   console.log('Totals', JSON.stringify(result.totals));
   if (JOBS) { console.log('Heavy jobs', JSON.stringify(jobs)); console.log('Pages while jobs ran', JSON.stringify(result.duringJobs)); }
+  if (killed) console.log("Worker stopped", JSON.stringify(killed), "restarts seen", health[health.length - 1]?.restarts);
+  console.log("Memory per worker (MB, first -> last)", JSON.stringify(health.length ? health[0].workers.map((w) => w.rssMB) : []), "->", JSON.stringify(health.length ? health[health.length - 1].workers.map((w) => w.rssMB) : []));
   if (OUT) require('fs').writeFileSync(OUT, JSON.stringify(result, null, 2));
 })().catch((err) => { console.error(err); process.exit(1); });

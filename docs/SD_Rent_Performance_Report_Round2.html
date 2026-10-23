@@ -1,0 +1,245 @@
+<title>SD &amp; Rent Scalability Report</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=Spectral:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column (report), wide tables scroll inside their own frames; summary first, detail after */
+:root {
+  --bg: #f6f8f6; --surface: #ffffff; --fg: #17241f; --muted: #5b6b64; --line: #dbe3df;
+  --brand: #1d5a45; --brand-soft: #e3efe9; --ok: #1f7a4d; --warn: #a15c07; --warn-soft: #fbf0df; --bad: #b42318; --bad-soft: #fbe9e7;
+  --bar: #2f7d5f; --bar2: #b9c9c1;
+  --display: "Spectral", Georgia, "Times New Roman", serif;
+  --body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1613; --surface: #16201c; --fg: #e5ede9; --muted: #9db0a7; --line: #2a3832;
+  --brand: #7fd0ab; --brand-soft: #1c2e27; --ok: #6fd3a0; --warn: #f2b45c; --warn-soft: #2c2213; --bad: #f2877c; --bad-soft: #2e1916;
+  --bar: #5fb58f; --bar2: #3a4a43; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1613; --surface: #16201c; --fg: #e5ede9; --muted: #9db0a7; --line: #2a3832;
+  --brand: #7fd0ab; --brand-soft: #1c2e27; --ok: #6fd3a0; --warn: #f2b45c; --warn-soft: #2c2213; --bad: #f2877c; --bad-soft: #2e1916;
+  --bar: #5fb58f; --bar2: #3a4a43; color-scheme: dark }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; line-height: 1.6; }
+.wrap { max-width: 1020px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+header { display: grid; gap: 10px; border-bottom: 2px solid var(--brand); padding-bottom: 20px; }
+.eyebrow { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brand); font-weight: 700; }
+h1 { font-family: var(--display); font-weight: 600; font-size: clamp(28px, 4.2vw, 40px); line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 24px; margin: 0; text-wrap: balance; }
+h3 { font-size: 15px; margin: 0; }
+p { margin: 0; max-width: 72ch; }
+.lede { font-size: 17px; color: var(--muted); }
+.meta { font-size: 13px; color: var(--muted); }
+section { display: grid; gap: 16px; min-width: 0; }
+.num, td.n, th.n { font-variant-numeric: tabular-nums; }
+
+.verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.v { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.v .q { font-size: 13px; color: var(--muted); }
+.v .a { font-weight: 700; font-size: 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pill { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+.pill.ok { background: var(--brand-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.run { background: var(--line); color: var(--muted); }
+
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; background: var(--bg); white-space: nowrap; }
+td.n, th.n { text-align: right; white-space: nowrap; }
+tr:last-child td { border-bottom: none; }
+td.good { color: var(--ok); font-weight: 600; }
+td.slow { color: var(--warn); font-weight: 600; }
+.row-head td { background: var(--brand-soft); font-weight: 600; }
+
+.bars { display: grid; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+.bar-row { display: grid; grid-template-columns: minmax(150px, 230px) 1fr 70px; gap: 12px; align-items: center; font-size: 13px; }
+.track { height: 14px; background: var(--bar2); border-radius: 3px; position: relative; overflow: hidden; }
+.fill { position: absolute; inset: 0 auto 0 0; background: var(--bar); border-radius: 3px; }
+.fill.before { background: var(--warn); }
+.scale { display: grid; grid-template-columns: minmax(150px, 230px) 1fr 70px; gap: 12px; font-size: 11px; color: var(--muted); }
+.scale .ticks { display: flex; justify-content: space-between; }
+.legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+code { font-family: var(--mono); font-size: 12.5px; background: var(--bg); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.note { border-left: 3px solid var(--warn); background: var(--warn-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 14px; }
+.pending { border: 1px dashed var(--line); border-radius: 10px; padding: 16px 18px; color: var(--muted); background: var(--surface); }
+@media (max-width: 560px) { .bar-row, .scale { grid-template-columns: 110px 1fr 56px; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Security Deposit &amp; Rent Management · IndiQube</span>
+    <h1>Load balancing, performance and scalability test — 10-year plan</h1>
+    <p class="lede">Can the application serve 10–20 people at once, today and as buildings, landlords and monthly rent grow over the next 10 years?</p>
+    <p class="meta">Round 2 · 23/10/2026 · branch <code>rent-module</code> · tests ran on separate performance databases; UAT and production data were not used.</p>
+  </header>
+
+  <section aria-labelledby="answer">
+    <h2 id="answer">The answer</h2>
+    <div class="verdict">
+      <div class="v"><span class="q">Today (150 buildings, 600 landlords, ₹100 Cr / month)</span><span class="a">Typical screen 19 ms <span class="pill ok">Ready</span></span><span class="meta">95% of screens under 0.3 s with 20 users, no errors.</span></div>
+      <div class="v"><span class="q">Year-end 2026 (200 buildings, 1,000 landlords)</span><span class="a">Typical screen 25 ms <span class="pill ok">Ready</span></span><span class="meta">95% under 0.7 s with 20 users, no errors.</span></div>
+      <div class="v"><span class="q">10-year projection (600 buildings, 3,500 landlords, 12 years of schedules)</span><span class="a">Typical screen 0.1 s <span class="pill ok">Ready</span></span><span class="meta">95% under 2.3 s, including exports, uploads and schedule runs; no errors.</span></div>
+      <div class="v"><span class="q">20 minutes non-stop, one worker stopped on purpose</span><span class="a">No errors <span class="pill ok">Stable</span></span><span class="meta">Recovered automatically; memory did not grow; 95% under 1 s.</span></div>
+      <div class="v"><span class="q">Headroom: 40 users, or twice the 10-year data</span><span class="a">No errors <span class="pill warn">Slower</span></span><span class="meta">Typical 0.4–0.6 s; a dedicated server and the scale-up steps below apply here.</span></div>
+    </div>
+    <p class="note">All figures come from a laptop (Intel i5-1235U, 12 threads, 16 GB RAM with about 3 GB free) that ran PostgreSQL, the application, the simulated users and other office programs at the same time. A dedicated server will do better; treat these numbers as the lower bound.</p>
+  </section>
+
+  <section aria-labelledby="growth">
+    <h2 id="growth">Data volumes tested</h2>
+    <p>Generated data with the same structure as the real system: per landlord, SD records and transactions, a Rent Code with Office, Maintenance and Car Park components, three yearly 5% escalations, a rent-free waiver and audit history; the Rent Schedule produced by the application's own engine. Rents are calibrated to ₹100 Cr a month at today's 600 landlords and grow with the number of landlords.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Scenario</th><th class="n">Buildings</th><th class="n">Landlords</th><th class="n">SD records / Rent Codes</th><th class="n">Rent Schedule lines</th><th class="n">Rent per month</th><th class="n">Database</th></tr></thead>
+      <tbody>
+        <tr><td>Today</td><td class="n">150</td><td class="n">600</td><td class="n">720</td><td class="n">1.46 lakh (7 years)</td><td class="n">₹100 Cr</td><td class="n">52 MB</td></tr>
+        <tr><td>Year-end 2026</td><td class="n">200</td><td class="n">1,000</td><td class="n">1,200</td><td class="n">2.42 lakh (7 years)</td><td class="n">₹202 Cr</td><td class="n">78 MB</td></tr>
+        <tr class="row-head"><td>10-year projection</td><td class="n">600</td><td class="n">3,500</td><td class="n">4,200</td><td class="n">16.7 lakh (12 years)</td><td class="n">₹834 Cr</td><td class="n">455 MB</td></tr>
+        <tr><td>Stress (2 × 10-year)</td><td class="n">1,200</td><td class="n">7,000</td><td class="n">8,400</td><td class="n">33.5 lakh (12 years)</td><td class="n">₹1,703 Cr</td><td class="n">902 MB</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section aria-labelledby="results">
+    <h2 id="results">Results under load</h2>
+    <p>Each simulated user logs in with their own User ID and opens a screen every 2 seconds (much faster than a person works), sending the same requests the screen sends. Some export to Excel or save SD transactions. In every run a Rent Schedule generation for a full financial year (all Rent Codes) and a 1,000-row SD transaction upload ran in the middle of the test. "Typical" is the median screen; "95%" means 95 of every 100 screen opens were at or under that time.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Scenario</th><th class="n">Users</th><th class="n">Requests / s</th><th class="n">Typical</th><th class="n">95%</th><th class="n">Slowest</th><th class="n">Errors</th><th class="n">Schedule run (1 FY)</th><th class="n">1,000-row upload</th></tr></thead>
+      <tbody>
+        <tr><td>Today</td><td class="n">20</td><td class="n">30.5</td><td class="n good">19 ms</td><td class="n good">0.29 s</td><td class="n">0.8 s</td><td class="n">0</td><td class="n">5 s</td><td class="n">6 s</td></tr>
+        <tr><td>Year-end 2026</td><td class="n">20</td><td class="n">30.1</td><td class="n good">25 ms</td><td class="n good">0.68 s</td><td class="n">4.3 s</td><td class="n">0</td><td class="n">7 s</td><td class="n">11 s</td></tr>
+        <tr class="row-head"><td>10-year projection</td><td class="n">20</td><td class="n">26.3</td><td class="n good">0.10 s</td><td class="n">2.3 s</td><td class="n">7.6 s</td><td class="n">0</td><td class="n">39 s</td><td class="n">12 s</td></tr>
+        <tr><td>10-year projection</td><td class="n">40</td><td class="n">42.1</td><td class="n">0.43 s</td><td class="n slow">3.2 s</td><td class="n">25.8 s</td><td class="n">0</td><td class="n">76 s</td><td class="n">17 s</td></tr>
+        <tr><td>Stress (2 × 10-year)</td><td class="n">20</td><td class="n">14.2</td><td class="n">0.61 s</td><td class="n slow">4.5 s</td><td class="n">30.6 s</td><td class="n">0</td><td class="n">132 s</td><td class="n">3 s</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Per screen at the 10-year volume, 20 users</h3>
+    <div class="tbl"><table>
+      <thead><tr><th>Screen</th><th class="n">Typical</th><th class="n">95%</th></tr></thead>
+      <tbody>
+        <tr><td>Save SD transaction</td><td class="n good">39 ms</td><td class="n good">84 ms</td></tr>
+        <tr><td>Audit Log</td><td class="n good">36 ms</td><td class="n good">0.17 s</td></tr>
+        <tr><td>SD Transaction (one SD Code)</td><td class="n good">17 ms</td><td class="n">1.3 s</td></tr>
+        <tr><td>SD Master list</td><td class="n good">40 ms</td><td class="n">0.9 s</td></tr>
+        <tr><td>SD Dashboard</td><td class="n good">72 ms</td><td class="n">2.1 s</td></tr>
+        <tr><td>Rent masters (lists)</td><td class="n good">84 ms</td><td class="n">2.2 s</td></tr>
+        <tr><td>SD Transaction (all)</td><td class="n">0.23 s</td><td class="n">1.2 s</td></tr>
+        <tr><td>Rent Schedule (full year)</td><td class="n">0.39 s</td><td class="n">1.1 s</td></tr>
+        <tr><td>SD Balance Report</td><td class="n">0.40 s</td><td class="n">2.3 s</td></tr>
+        <tr><td>SD &amp; Rent Report (full year)</td><td class="n">0.93 s</td><td class="n">2.1 s</td></tr>
+        <tr><td>Export to Excel (quarter of the schedule, etc.)</td><td class="n">2.7 s</td><td class="n">7.3 s</td></tr>
+      </tbody>
+    </table></div>
+    <p class="meta">The occasional seconds-long screen happens while the full-year schedule run and the upload share the laptop's CPU and disk with everything else; on their own those screens answer in tens of milliseconds.</p>
+  </section>
+
+  <section aria-labelledby="improved">
+    <h2 id="improved">What this round improved</h2>
+    <div class="bars" role="img" aria-label="95% screen time at the 10-year volume with 20 users: 6.4 seconds before, 2.3 seconds after; slowest screen 26.4 seconds before, 7.6 seconds after">
+      <div class="legend"><span><span class="sw" style="background:var(--warn)"></span>Before this round</span><span><span class="sw" style="background:var(--bar)"></span>After</span><span>10-year volume, 20 users, seconds</span></div>
+      <div class="bar-row"><span>95% of screens, before</span><div class="track"><div class="fill before" style="width:calc(6.4 / 30 * 100%)"></div></div><span class="num">6.4 s</span></div>
+      <div class="bar-row"><span>95% of screens, after</span><div class="track"><div class="fill" style="width:calc(2.3 / 30 * 100%)"></div></div><span class="num">2.3 s</span></div>
+      <div class="bar-row"><span>Slowest screen, before</span><div class="track"><div class="fill before" style="width:calc(26.4 / 30 * 100%)"></div></div><span class="num">26.4 s</span></div>
+      <div class="bar-row"><span>Slowest screen, after</span><div class="track"><div class="fill" style="width:calc(7.6 / 30 * 100%)"></div></div><span class="num">7.6 s</span></div>
+      <div class="scale"><span></span><span class="ticks"><span>0</span><span>10</span><span>20</span><span>30 s</span></span><span></span></div>
+    </div>
+    <div class="tbl"><table>
+      <thead><tr><th>Change</th><th>Measured effect (10-year volume)</th></tr></thead>
+      <tbody>
+        <tr><td><b>Response cache with instant refresh.</b> Dashboard, report pages, option lists and lookups are cached in each web worker; PostgreSQL tells every worker the moment a table changes, so nobody sees old figures.</td><td>Typical screen 0.38 s → 0.10 s; requests served 17 → 26 per second; worker memory 1.4 GB → under 0.5 GB</td></tr>
+        <tr><td><b>Excel exports written as a stream</b> (row by row, not the whole workbook in memory)</td><td>Full-year Rent Schedule export 29.6 s / +1.9 GB memory → 7.7 s / +0.3 GB; SD &amp; Rent export +453 MB → +103 MB</td></tr>
+        <tr><td><b>SD Balance Report query</b> builds each SD Code's lines once instead of re-reading them per SD Code</td><td>Export database time 1.6–7.3 s → 0.18 s; filtered pages 1.4 s → 0.1 s</td></tr>
+        <tr><td><b>SD &amp; Rent Report</b> builds text only for the rows on the page</td><td>Page 0.74 s → 0.27–0.39 s; summaries 0.34 s → 0.14 s</td></tr>
+        <tr><td><b>Rent Schedule generation in batches</b> of 200 Rent Codes</td><td>Memory stays flat at any size; 12 years for 8,400 Rent Codes generated in one run (10 minutes)</td></tr>
+        <tr><td><b>Database upkeep</b>: autovacuum on the tables that grow monthly; indexes from round 1; PostgreSQL settings</td><td>97% of database reads served from memory under load</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section aria-labelledby="ops">
+    <h2 id="ops">Architecture, security, backup and monitoring</h2>
+    <div class="two">
+      <div class="card">
+        <h3>Load balancing</h3>
+        <ul>
+          <li>One server PC; up to 4 web workers (one per core) share the port, requests handed out in turn.</li>
+          <li>A worker that stops is restarted automatically; reminders and backups run in exactly one worker.</li>
+          <li>Logins are tokens checked against the database, so any worker serves any user.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Security</h3>
+        <ul>
+          <li>One login session per User ID; 30-minute idle timeout; administrators can end sessions.</li>
+          <li>Account locks for 15 minutes after 5 wrong passwords (Audit Log: LOGIN_LOCKED).</li>
+          <li>Request limit per PC as a guard against runaway scripts; uploads Excel only, 5 MB.</li>
+          <li>Optional HTTPS with a certificate from IT.</li>
+          <li>Dependency audit: server and the screens' runtime packages have no known vulnerabilities (one server fix and a React Router upgrade applied).</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Backups</h3>
+        <ul>
+          <li>Nightly at 01:30, compressed, read back to verify before it counts.</li>
+          <li>Keeps 14 daily and 12 monthly copies; "Back up now" on System Health.</li>
+          <li>Restore script restores into a new database first, never over live data.</li>
+          <li>Copy the backup folder off the server PC (network share) for disk-failure protection.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Monitoring — Administration › System Health</h3>
+        <ul>
+          <li>Workers running and restarts, memory, wait time; request counts, errors and slow requests per screen.</li>
+          <li>Database size, ping, memory hit rate, connections, largest tables, queries over 5 seconds.</li>
+          <li>Logged-in users, last backup and free disk space; monthly logs of slow requests and errors.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="pending">
+    <h2 id="pending">Endurance, recovery and backup</h2>
+    <div class="two">
+      <div class="card">
+        <h3>20-minute endurance and recovery <span class="pill ok">Passed</span></h3>
+        <p>20 users at a realistic pace (a screen every 3 seconds) on the 10-year volume, with a full-year schedule run and a 1,000-row upload, and one web worker force-stopped at minute 8.</p>
+        <ul>
+          <li>7,255 screens and 24,108 requests, <b>no errors</b>.</li>
+          <li>Typical screen 67 ms; 95% under 1.0 s. Minute by minute the 95% figure stayed between 0.56 s and 1.6 s, with no slowdown over time.</li>
+          <li>The stopped worker was replaced automatically (System Health showed 1 restart); users saw no errors.</li>
+          <li>Worker memory rose and fell between about 80 and 610 MB as Node.js cleared memory, ending at 170–390 MB: no steady growth.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Backup and restore at the 10-year volume <span class="pill ok">Passed</span></h3>
+        <ul>
+          <li>Backup of the 455 MB database (16.7 lakh schedule lines): <b>4 seconds</b>, 13.8 MB compressed file, read back and verified (26 tables).</li>
+          <li>Restore into a new database: <b>54 seconds</b>.</li>
+          <li>Every record count matched the original: 4,200 SD records, 18,842 SD transactions, 4,200 Rent Codes, 16,74,750 schedule lines, 60 users.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="recommend">
+    <h2 id="recommend">Recommendations for the 10 years</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>When</th><th>Do this</th></tr></thead>
+      <tbody>
+        <tr><td>Now</td><td>One always-on server PC: 8 cores, 16 GB RAM, SSD, wired network, UPS. A DBA applies <code>database/tuning/postgresql_performance.sql</code>. Copy nightly backups to another location. Practise a restore once a quarter.</td></tr>
+        <tr><td>Each release</td><td>Run the automated tests (124, all passing), <code>npm audit</code> and the load test; check System Health after go-live.</td></tr>
+        <tr><td>Within 1–2 years</td><td>Move the screens' build from Create React App (no longer maintained; its build tools carry 97 advisories that are not shipped to users) to Vite.</td></tr>
+        <tr><td>Beyond the 10-year projection or 40+ people at once</td><td>Dedicated database server; raise web workers on a larger machine; partition Rent Schedule lines by year; page the dashboard's Pending SD list and the rent dropdown lists once they pass about 5,000 entries.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="meta">How to repeat the tests: <code>server/scripts/perf/</code> (seed, loadtest, profile). Operations guide: <code>docs/Operations_Guide.md</code>. Raw results: <code>docs/perf/round2/*.json</code>.</p>
+  </section>
+</div>

@@ -1,4 +1,3 @@
-const ExcelJS = require('exceljs');
 const { pool, withTransaction } = require('../config/db');
 const scheduleModel = require('../models/rentScheduleModel');
 const rentMasterModel = require('../models/rentMasterModel');
@@ -6,7 +5,7 @@ const schedule = require('../services/rentScheduleService');
 const { COMPONENTS, BY_CODE } = require('../services/rentComponents');
 const { monthStart } = require('../services/rentCalc');
 const { parseDMY, formatDMY } = require('../utils/dates');
-const { sendWorkbook, dateStamp } = require('../utils/excel');
+const { streamWorkbook, dateStamp } = require('../utils/excel');
 const { paging } = require('./rentHelpers');
 const { logAudit } = require('../utils/audit');
 
@@ -128,33 +127,45 @@ async function exportLines(req, res, next) {
   try {
     const f = filtersOf(req.query);
     const { rows, totals } = await scheduleModel.getLines(f, { pageSize: 0 });
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('Rent Schedule', { views: [{ state: 'frozen', ySplit: 1 }] });
-    ws.addRow(OUTPUT_HEADERS).font = { bold: true };
-    rows.forEach((l) => ws.addRow([
-      l.rent_code, l.sd_code, l.cost_center_name, l.floor, l.landlord_name, l.ll_status, l.agreement_status,
-      BY_CODE[l.component_code]?.label || l.component_code, monthLabel(l.rent_month), formatDMY(l.period_from), formatDMY(l.period_to),
-      l.days_charged, num(l.base_amount), l.rule_percentage === null ? '' : num(l.rule_percentage) / 100, num(l.escalated_amount),
-      num(l.waiver_amount), num(l.final_amount), formatDMY(l.lcd), formatDMY(l.rcd), formatDMY(l.led),
-    ]));
-    const total = ws.addRow(['TOTAL', '', '', '', '', '', '', '', '', '', '', '', num(totals.base_amount), '',
-      num(totals.escalated_amount), num(totals.waiver_amount), num(totals.final_amount)]);
-    total.font = { bold: true };
-    ws.columns.forEach((col, i) => {
-      col.width = Math.max(12, OUTPUT_HEADERS[i].length + 3);
-      if ([12, 14, 15, 16].includes(i)) col.numFmt = '#,##,##0.00';
-      if (i === 13) col.numFmt = '0.00%';
+    const byHeader = await scheduleModel.getSummary(f, 'component');
+
+    // Streamed a row at a time (a year of lines for every Rent Code runs into the hundreds of thousands)
+    await streamWorkbook(res, `Rent_Schedule_${dateStamp()}.xlsx`, async (wb) => {
+      const ws = wb.addWorksheet('Rent Schedule', { views: [{ state: 'frozen', ySplit: 1 }] });
+      ws.columns = OUTPUT_HEADERS.map((h, i) => ({
+        width: i === 7 ? 34 : Math.max(12, h.length + 3),
+        style: [12, 14, 15, 16].includes(i) ? { numFmt: '#,##,##0.00' } : i === 13 ? { numFmt: '0.00%' } : {},
+      }));
+      const head = ws.addRow(OUTPUT_HEADERS);
+      head.font = { bold: true };
+      head.commit();
+      for (let i = 0; i < rows.length; i += 1) {
+        const l = rows[i];
+        ws.addRow([
+          l.rent_code, l.sd_code, l.cost_center_name, l.floor, l.landlord_name, l.ll_status, l.agreement_status,
+          BY_CODE[l.component_code]?.label || l.component_code, monthLabel(l.rent_month), formatDMY(l.period_from), formatDMY(l.period_to),
+          l.days_charged, num(l.base_amount), l.rule_percentage === null ? '' : num(l.rule_percentage) / 100, num(l.escalated_amount),
+          num(l.waiver_amount), num(l.final_amount), formatDMY(l.lcd), formatDMY(l.rcd), formatDMY(l.led),
+        ]).commit();
+        rows[i] = null; // release as written
+        if (i % 500 === 499) await new Promise((resolve) => setImmediate(resolve)); // let other requests run
+      }
+      const total = ws.addRow(['TOTAL', '', '', '', '', '', '', '', '', '', '', '', num(totals.base_amount), '',
+        num(totals.escalated_amount), num(totals.waiver_amount), num(totals.final_amount)]);
+      total.font = { bold: true };
+      total.commit();
+      ws.commit();
+
+      const summary = wb.addWorksheet('By Agreement Header');
+      summary.columns = [0, 1, 2, 3, 4].map((i) => ({ width: i === 0 ? 36 : 18, style: i >= 2 ? { numFmt: '#,##,##0.00' } : {} }));
+      const sh = summary.addRow(['Agreement Header', 'Lines', 'Escalated Amount', 'Waiver Amount', 'Final Rent Amount']);
+      sh.font = { bold: true };
+      sh.commit();
+      byHeader.forEach((s) => summary.addRow([
+        BY_CODE[s.group_key]?.label || s.group_key, s.lines, num(s.escalated_amount), num(s.waiver_amount), num(s.final_amount),
+      ]).commit());
+      summary.commit();
     });
-    ws.getColumn(8).width = 34;
-
-    const summary = wb.addWorksheet('By Agreement Header');
-    summary.addRow(['Agreement Header', 'Lines', 'Escalated Amount', 'Waiver Amount', 'Final Rent Amount']).font = { bold: true };
-    (await scheduleModel.getSummary(f, 'component')).forEach((s) => summary.addRow([
-      BY_CODE[s.group_key]?.label || s.group_key, s.lines, num(s.escalated_amount), num(s.waiver_amount), num(s.final_amount),
-    ]));
-    summary.columns.forEach((col, i) => { col.width = i === 0 ? 36 : 18; if (i >= 2) col.numFmt = '#,##,##0.00'; });
-
-    await sendWorkbook(res, `Rent_Schedule_${dateStamp()}.xlsx`, Buffer.from(await wb.xlsx.writeBuffer()));
   } catch (err) {
     next(err);
   }

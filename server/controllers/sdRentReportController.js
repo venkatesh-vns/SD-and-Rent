@@ -1,7 +1,6 @@
-const ExcelJS = require('exceljs');
 const model = require('../models/sdRentReportModel');
 const { parseDMY, formatDMY } = require('../utils/dates');
-const { sendWorkbook, dateStamp } = require('../utils/excel');
+const { streamWorkbook, dateStamp } = require('../utils/excel');
 const { paging, withDates } = require('./rentHelpers');
 
 const num = (v) => Number(v || 0);
@@ -47,35 +46,44 @@ async function exportReport(req, res, next) {
   try {
     const f = filtersOf(req.query);
     const { rows, totals } = await model.getLines(f, { pageSize: 0 });
-    const wb = new ExcelJS.Workbook();
+    const summaries = [
+      ['By Cost Center', 'Cost Center', await model.getSummary(f, 'costCenter')],
+      ['By Landlord', 'Landlord Name', await model.getSummary(f, 'landlord')],
+      ['By Expense Head', 'Rent Expense Head', await model.getSummary(f, 'expenseHead')],
+    ];
 
-    const ws = wb.addWorksheet('SD & Rent Transactions', { views: [{ state: 'frozen', ySplit: 1 }] });
-    ws.addRow(HEADERS).font = { bold: true };
-    rows.forEach((r) => ws.addRow([
-      r.source, r.cost_center_name, r.sd_code, r.landlord_name, r.floor, r.rent_code || '', r.agreement_no || '', r.expense_head,
-      r.expense_category, formatDMY(r.effective_date), num(r.amount), r.status, r.reference, r.details,
-    ]));
-    ws.addRow([]);
-    [['Total Security Deposit (net)', totals.sd_amount], ['Total Rent', totals.rent_amount], ['Total Maintenance', totals.maintenance_amount], ['Grand Total', totals.total_amount]]
-      .forEach(([label, v]) => { const row = ws.addRow(['', '', '', '', '', '', '', '', label, '', num(v)]); row.font = { bold: true }; });
-    ws.columns.forEach((col, i) => { col.width = Math.max(12, HEADERS[i].length + 3); });
-    ws.getColumn(8).width = 34;
-    ws.getColumn(11).numFmt = MONEY;
-    ws.getColumn(14).width = 48;
+    // Streamed a row at a time (large date ranges have hundreds of thousands of lines)
+    await streamWorkbook(res, `SD_Rent_Transaction_Summary_${dateStamp()}.xlsx`, async (wb) => {
+      const ws = wb.addWorksheet('SD & Rent Transactions', { views: [{ state: 'frozen', ySplit: 1 }] });
+      const widths = { 7: 34, 10: 16, 13: 48 };
+      ws.columns = HEADERS.map((h, i) => ({ width: widths[i] || Math.max(12, h.length + 3), style: i === 10 ? { numFmt: MONEY } : {} }));
+      const head = ws.addRow(HEADERS);
+      head.font = { bold: true };
+      head.commit();
+      for (let i = 0; i < rows.length; i += 1) {
+        const r = rows[i];
+        ws.addRow([
+          r.source, r.cost_center_name, r.sd_code, r.landlord_name, r.floor, r.rent_code || '', r.agreement_no || '', r.expense_head,
+          r.expense_category, formatDMY(r.effective_date), num(r.amount), r.status, r.reference, r.details,
+        ]).commit();
+        rows[i] = null; // release as written
+        if (i % 500 === 499) await new Promise((resolve) => setImmediate(resolve)); // let other requests run
+      }
+      ws.addRow([]).commit();
+      [['Total Security Deposit (net)', totals.sd_amount], ['Total Rent', totals.rent_amount], ['Total Maintenance', totals.maintenance_amount], ['Grand Total', totals.total_amount]]
+        .forEach(([label, v]) => { const row = ws.addRow(['', '', '', '', '', '', '', '', label, '', num(v)]); row.font = { bold: true }; row.commit(); });
+      ws.commit();
 
-    const summarySheet = async (name, groupBy, label) => {
-      const s = wb.addWorksheet(name);
-      s.addRow([label, 'Lines', 'Security Deposit (net)', 'Rent', 'Maintenance', 'Total']).font = { bold: true };
-      (await model.getSummary(f, groupBy)).forEach((g) => s.addRow([
-        g.group_key, g.lines, num(g.sd_amount), num(g.rent_amount), num(g.maintenance_amount), num(g.total_amount),
-      ]));
-      s.columns.forEach((col, i) => { col.width = i === 0 ? 34 : 20; if (i >= 2) col.numFmt = MONEY; });
-    };
-    await summarySheet('By Cost Center', 'costCenter', 'Cost Center');
-    await summarySheet('By Landlord', 'landlord', 'Landlord Name');
-    await summarySheet('By Expense Head', 'expenseHead', 'Rent Expense Head');
-
-    await sendWorkbook(res, `SD_Rent_Transaction_Summary_${dateStamp()}.xlsx`, Buffer.from(await wb.xlsx.writeBuffer()));
+      summaries.forEach(([name, label, groups]) => {
+        const s = wb.addWorksheet(name);
+        s.columns = [0, 1, 2, 3, 4, 5].map((i) => ({ width: i === 0 ? 34 : 20, style: i >= 2 ? { numFmt: MONEY } : {} }));
+        const h = s.addRow([label, 'Lines', 'Security Deposit (net)', 'Rent', 'Maintenance', 'Total']);
+        h.font = { bold: true };
+        h.commit();
+        groups.forEach((g) => s.addRow([g.group_key, g.lines, num(g.sd_amount), num(g.rent_amount), num(g.maintenance_amount), num(g.total_amount)]).commit());
+        s.commit();
+      });
+    });
   } catch (err) {
     next(err);
   }

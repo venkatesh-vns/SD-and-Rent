@@ -18,6 +18,7 @@ const columns = [
   { key: 'userEmail', label: 'User Email ID' },
   { key: 'role', label: 'Role' },
   { key: 'status', label: 'Status' },
+  { key: 'login', label: 'Login' },
 ];
 
 export default function UserMaster() {
@@ -43,6 +44,9 @@ export default function UserMaster() {
         status: u.status,
         isAdmin: u.is_admin,
         role: u.is_admin ? 'Administrator' : 'User',
+        // Locked after repeated wrong passwords: Reset Password unlocks
+        login: u.locked_until && new Date(u.locked_until) > new Date()
+          ? `Locked until ${new Date(u.locked_until).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : '',
       })));
     } catch (err) {
       setError(errorMessage(err, 'Failed to load users.'));

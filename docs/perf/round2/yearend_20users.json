@@ -1,0 +1,587 @@
+{
+  "config": {
+    "url": "http://localhost:5300",
+    "users": 20,
+    "seconds": 123,
+    "thinkMs": 2000,
+    "jobs": true
+  },
+  "totals": {
+    "pages": 1125,
+    "apiCalls": 3694,
+    "apiPerSecond": 30.1,
+    "errors": 0,
+    "validationRefusals": 8,
+    "allPages": {
+      "count": 1125,
+      "errors": 0,
+      "avg": 122,
+      "p50": 25,
+      "p95": 681,
+      "p99": 1429,
+      "max": 4264
+    }
+  },
+  "duringJobs": {
+    "count": 169,
+    "errors": 0,
+    "avg": 201,
+    "p50": 40,
+    "p95": 980,
+    "p99": 3140,
+    "max": 3155
+  },
+  "jobs": [
+    {
+      "job": "Rent Schedule generate (1 FY, all Rent Codes)",
+      "start": 20317,
+      "ms": 7460,
+      "ok": true
+    },
+    {
+      "job": "SD transaction bulk upload (1,000 rows)",
+      "start": 37965,
+      "ms": 11126,
+      "ok": true
+    }
+  ],
+  "killed": null,
+  "timeline": [
+    {
+      "minute": 1,
+      "pages": 554,
+      "errors": 0,
+      "p50": 28,
+      "p95": 744
+    },
+    {
+      "minute": 2,
+      "pages": 571,
+      "errors": 0,
+      "p50": 23,
+      "p95": 534
+    }
+  ],
+  "health": [
+    {
+      "second": 0,
+      "workers": [
+        {
+          "pid": 26452,
+          "rssMB": 81,
+          "heapMB": 22,
+          "loopP99": 35.1
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 0,
+      "cacheMisses": 0,
+      "dbConnections": 3,
+      "dbCacheHitPercent": 99.98
+    },
+    {
+      "second": 61,
+      "workers": [
+        {
+          "pid": 10912,
+          "rssMB": 76,
+          "heapMB": 25,
+          "loopP99": 41.4
+        },
+        {
+          "pid": 26288,
+          "rssMB": 240,
+          "heapMB": 159,
+          "loopP99": 37.1
+        },
+        {
+          "pid": 26452,
+          "rssMB": 406,
+          "heapMB": 300,
+          "loopP99": 100.1
+        },
+        {
+          "pid": 2716,
+          "rssMB": 379,
+          "heapMB": 163,
+          "loopP99": 40.8
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 777,
+      "cacheMisses": 484,
+      "dbConnections": 22,
+      "dbCacheHitPercent": 99.92
+    },
+    {
+      "second": 121,
+      "workers": [
+        {
+          "pid": 26452,
+          "rssMB": 253,
+          "heapMB": 139,
+          "loopP99": 83.6
+        },
+        {
+          "pid": 26288,
+          "rssMB": 84,
+          "heapMB": 28,
+          "loopP99": 38.3
+        },
+        {
+          "pid": 10912,
+          "rssMB": 79,
+          "heapMB": 25,
+          "loopP99": 40
+        },
+        {
+          "pid": 2716,
+          "rssMB": 155,
+          "heapMB": 72,
+          "loopP99": 38.9
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 1850,
+      "cacheMisses": 879,
+      "dbConnections": 22,
+      "dbCacheHitPercent": 99.91
+    },
+    {
+      "second": 123,
+      "workers": [
+        {
+          "pid": 26288,
+          "rssMB": 91,
+          "heapMB": 27,
+          "loopP99": 38.6
+        },
+        {
+          "pid": 10912,
+          "rssMB": 79,
+          "heapMB": 25,
+          "loopP99": 40
+        },
+        {
+          "pid": 26452,
+          "rssMB": 140,
+          "heapMB": 44,
+          "loopP99": 89
+        },
+        {
+          "pid": 2716,
+          "rssMB": 155,
+          "heapMB": 72,
+          "loopP99": 38.9
+        }
+      ],
+      "restarts": 0,
+      "cacheHits": 1847,
+      "cacheMisses": 881,
+      "dbConnections": 22,
+      "dbCacheHitPercent": 99.91
+    }
+  ],
+  "rows": [
+    {
+      "name": "page Export to Excel",
+      "count": 44,
+      "errors": 0,
+      "avg": 1117,
+      "p50": 957,
+      "p95": 3140,
+      "p99": 4264,
+      "max": 4264
+    },
+    {
+      "name": "page SD & Rent Report",
+      "count": 100,
+      "errors": 0,
+      "avg": 322,
+      "p50": 247,
+      "p95": 802,
+      "p99": 1044,
+      "max": 1196
+    },
+    {
+      "name": "page Rent Schedule",
+      "count": 122,
+      "errors": 0,
+      "avg": 114,
+      "p50": 65,
+      "p95": 358,
+      "p99": 620,
+      "max": 697
+    },
+    {
+      "name": "page SD Balance Report",
+      "count": 114,
+      "errors": 0,
+      "avg": 95,
+      "p50": 73,
+      "p95": 288,
+      "p99": 365,
+      "max": 383
+    },
+    {
+      "name": "page SD Dashboard",
+      "count": 137,
+      "errors": 0,
+      "avg": 74,
+      "p50": 27,
+      "p95": 248,
+      "p99": 667,
+      "max": 1092
+    },
+    {
+      "name": "page SD Transaction (all)",
+      "count": 109,
+      "errors": 0,
+      "avg": 52,
+      "p50": 32,
+      "p95": 112,
+      "p99": 534,
+      "max": 651
+    },
+    {
+      "name": "page Rent Masters (lists)",
+      "count": 86,
+      "errors": 0,
+      "avg": 32,
+      "p50": 23,
+      "p95": 69,
+      "p99": 322,
+      "max": 322
+    },
+    {
+      "name": "page SD Master list",
+      "count": 166,
+      "errors": 0,
+      "avg": 39,
+      "p50": 18,
+      "p95": 43,
+      "p99": 885,
+      "max": 1457
+    },
+    {
+      "name": "page Save SD transaction",
+      "count": 34,
+      "errors": 0,
+      "avg": 23,
+      "p50": 20,
+      "p95": 40,
+      "p99": 55,
+      "max": 55
+    },
+    {
+      "name": "page SD Transaction (one SD)",
+      "count": 180,
+      "errors": 0,
+      "avg": 26,
+      "p50": 12,
+      "p95": 39,
+      "p99": 277,
+      "max": 1090
+    },
+    {
+      "name": "page Audit Log",
+      "count": 33,
+      "errors": 0,
+      "avg": 13,
+      "p50": 11,
+      "p95": 31,
+      "p99": 41,
+      "max": 41
+    },
+    {
+      "name": "api job SD transaction upload (1,000 rows)",
+      "count": 1,
+      "errors": 0,
+      "avg": 11126,
+      "p50": 11126,
+      "p95": 11126,
+      "p99": 11126,
+      "max": 11126
+    },
+    {
+      "name": "api job Rent Schedule generate (1 FY, all Rent Codes)",
+      "count": 1,
+      "errors": 0,
+      "avg": 7460,
+      "p50": 7460,
+      "p95": 7460,
+      "p99": 7460,
+      "max": 7460
+    },
+    {
+      "name": "api export SD & Rent (quarter)",
+      "count": 13,
+      "errors": 0,
+      "avg": 1893,
+      "p50": 1429,
+      "p95": 4264,
+      "p99": 4264,
+      "max": 4264
+    },
+    {
+      "name": "api export Rent Schedule (quarter)",
+      "count": 12,
+      "errors": 0,
+      "avg": 1360,
+      "p50": 1012,
+      "p95": 2838,
+      "p99": 2838,
+      "max": 2838
+    },
+    {
+      "name": "api /api/auth/login",
+      "count": 20,
+      "errors": 0,
+      "avg": 862,
+      "p50": 940,
+      "p95": 1040,
+      "p99": 1040,
+      "max": 1040
+    },
+    {
+      "name": "api export SD Balance",
+      "count": 7,
+      "errors": 0,
+      "avg": 853,
+      "p50": 849,
+      "p95": 957,
+      "p99": 957,
+      "max": 957
+    },
+    {
+      "name": "api /api/reports/sd-rent",
+      "count": 100,
+      "errors": 0,
+      "avg": 264,
+      "p50": 24,
+      "p95": 773,
+      "p99": 867,
+      "max": 1044
+    },
+    {
+      "name": "api /api/reports/sd-rent/summary",
+      "count": 100,
+      "errors": 0,
+      "avg": 142,
+      "p50": 13,
+      "p95": 397,
+      "p99": 602,
+      "max": 1196
+    },
+    {
+      "name": "api export Dashboard",
+      "count": 8,
+      "errors": 0,
+      "avg": 180,
+      "p50": 139,
+      "p95": 363,
+      "p99": 363,
+      "max": 363
+    },
+    {
+      "name": "api /api/reports/sd-balance",
+      "count": 114,
+      "errors": 0,
+      "avg": 93,
+      "p50": 70,
+      "p95": 288,
+      "p99": 365,
+      "max": 383
+    },
+    {
+      "name": "api export SD Master",
+      "count": 4,
+      "errors": 0,
+      "avg": 199,
+      "p50": 143,
+      "p95": 283,
+      "p99": 283,
+      "max": 283
+    },
+    {
+      "name": "api /api/rent/schedule/summary",
+      "count": 122,
+      "errors": 0,
+      "avg": 73,
+      "p50": 51,
+      "p95": 246,
+      "p99": 299,
+      "max": 307
+    },
+    {
+      "name": "api /api/dashboard",
+      "count": 137,
+      "errors": 0,
+      "avg": 60,
+      "p50": 27,
+      "p95": 218,
+      "p99": 514,
+      "max": 667
+    },
+    {
+      "name": "api /api/rent/schedule",
+      "count": 122,
+      "errors": 0,
+      "avg": 53,
+      "p50": 44,
+      "p95": 123,
+      "p99": 177,
+      "max": 341
+    },
+    {
+      "name": "api /api/rent/lookups",
+      "count": 208,
+      "errors": 0,
+      "avg": 33,
+      "p50": 23,
+      "p95": 65,
+      "p99": 91,
+      "max": 696
+    },
+    {
+      "name": "api /api/sd-transactions",
+      "count": 289,
+      "errors": 0,
+      "avg": 24,
+      "p50": 16,
+      "p95": 56,
+      "p99": 167,
+      "max": 268
+    },
+    {
+      "name": "api /api/rent/agreements",
+      "count": 20,
+      "errors": 0,
+      "avg": 24,
+      "p50": 18,
+      "p95": 42,
+      "p99": 69,
+      "max": 69
+    },
+    {
+      "name": "api save SD transaction",
+      "count": 34,
+      "errors": 0,
+      "avg": 23,
+      "p50": 20,
+      "p95": 40,
+      "p99": 55,
+      "max": 55
+    },
+    {
+      "name": "api /api/rent/waivers",
+      "count": 27,
+      "errors": 0,
+      "avg": 17,
+      "p50": 13,
+      "p95": 37,
+      "p99": 56,
+      "max": 56
+    },
+    {
+      "name": "api /api/lookups/filter-combos",
+      "count": 748,
+      "errors": 0,
+      "avg": 22,
+      "p50": 10,
+      "p95": 34,
+      "p99": 390,
+      "max": 1090
+    },
+    {
+      "name": "api /api/sd-master",
+      "count": 166,
+      "errors": 0,
+      "avg": 28,
+      "p50": 18,
+      "p95": 34,
+      "p99": 86,
+      "max": 1457
+    },
+    {
+      "name": "api /api/dashboard/options",
+      "count": 137,
+      "errors": 0,
+      "avg": 17,
+      "p50": 13,
+      "p95": 33,
+      "p99": 42,
+      "max": 353
+    },
+    {
+      "name": "api /api/logs/audit",
+      "count": 33,
+      "errors": 0,
+      "avg": 13,
+      "p50": 11,
+      "p95": 30,
+      "p99": 41,
+      "max": 41
+    },
+    {
+      "name": "api /api/reports/sd-rent/options",
+      "count": 100,
+      "errors": 0,
+      "avg": 19,
+      "p50": 13,
+      "p95": 29,
+      "p99": 49,
+      "max": 449
+    },
+    {
+      "name": "api /api/lookups/fys",
+      "count": 426,
+      "errors": 0,
+      "avg": 14,
+      "p50": 6,
+      "p95": 22,
+      "p99": 220,
+      "max": 1089
+    },
+    {
+      "name": "api /api/lookups/cost-centers",
+      "count": 526,
+      "errors": 0,
+      "avg": 12,
+      "p50": 7,
+      "p95": 21,
+      "p99": 68,
+      "max": 885
+    },
+    {
+      "name": "api /api/rent/rules",
+      "count": 19,
+      "errors": 0,
+      "avg": 15,
+      "p50": 15,
+      "p95": 21,
+      "p99": 21,
+      "max": 21
+    },
+    {
+      "name": "api /api/rent/master",
+      "count": 20,
+      "errors": 0,
+      "avg": 12,
+      "p50": 11,
+      "p95": 19,
+      "p99": 24,
+      "max": 24
+    },
+    {
+      "name": "api /api/sd-transactions/summary/:id",
+      "count": 180,
+      "errors": 0,
+      "avg": 12,
+      "p50": 9,
+      "p95": 18,
+      "p99": 43,
+      "max": 258
+    }
+  ]
+}

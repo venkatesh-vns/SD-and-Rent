@@ -75,6 +75,12 @@ async function createRun(run, db = pool) {
   )).rows[0];
 }
 
+// Totals of a run once all its batches are saved
+async function finishRun(runId, { rentCodes, lines, messages }, db = pool) {
+  await db.query('UPDATE rent_schedule_runs SET rent_codes = $2, lines = $3, messages = $4 WHERE run_id = $1',
+    [runId, rentCodes, lines, messages?.length ? JSON.stringify(messages) : null]);
+}
+
 async function recentRuns(limit = 20) {
   return (await pool.query('SELECT * FROM rent_schedule_runs ORDER BY run_id DESC LIMIT $1', [limit])).rows;
 }
@@ -160,4 +166,4 @@ async function deleteLines(f, db) {
   return { lines: deleted.length, rentIds };
 }
 
-module.exports = { getLines, getSummary, createRun, recentRuns, replaceLines, lastMonths, markGenerated, linesWithin, deleteLines, GROUPS };
+module.exports = { getLines, getSummary, createRun, finishRun, recentRuns, replaceLines, lastMonths, markGenerated, linesWithin, deleteLines, GROUPS };

@@ -31,6 +31,20 @@ async function sendWorkbook(res, fileName, buffer) {
   res.send(data);
 }
 
+/**
+ * Large exports: writes the workbook straight to the response a row at a time
+ * (memory stays small however many rows). build(wb) adds the sheets; in each
+ * sheet set ws.columns (widths / formats) before the rows, commit every row
+ * (ws.addRow(values).commit()) and then the sheet (ws.commit()).
+ */
+async function streamWorkbook(res, fileName, build) {
+  res.setHeader('Content-Type', XLSX_MIME);
+  res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+  const wb = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: res, useStyles: true, useSharedStrings: false });
+  await build(wb);
+  await wb.commit();
+}
+
 const pad = (n) => String(n).padStart(2, '0');
 
 // A cell value as the text the user sees; dates as DD/MM/YYYY
@@ -88,4 +102,4 @@ function dateStamp() {
   return new Date().toISOString().slice(0, 10).replace(/-/g, '');
 }
 
-module.exports = { buildWorkbook, sendWorkbook, readSheet, cellText, dateStamp };
+module.exports = { buildWorkbook, sendWorkbook, streamWorkbook, readSheet, cellText, dateStamp };

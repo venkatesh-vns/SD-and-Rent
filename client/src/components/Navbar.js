@@ -57,7 +57,8 @@ export default function Navbar() {
             {adminItems.map((i) => (
               <NavLink key={i.path} to={i.path}><ScreenIcon screen={i.screen} size={18} />{i.label}</NavLink>
             ))}
-            {adminItems.length > 0 && <hr />}
+            {user?.isAdmin && <NavLink to="/system-health"><ScreenIcon screen="SD_DASHBOARD" size={18} />System Health</NavLink>}
+            {(adminItems.length > 0 || user?.isAdmin) && <hr />}
             <NavLink to="/profile"><ScreenIcon screen="USER" size={18} />User Profile</NavLink>
             <NavLink to="/change-password"><ScreenIcon screen="USER_RIGHTS" size={18} />Change Password</NavLink>
             <button type="button" onClick={handleLogout}><ScreenIcon screen="SD_TRANSACTION" size={18} />Logout</button>

@@ -1,5 +1,7 @@
 # SD and Rent Application — Performance and Load Test Report
 
+> Round 1 (22/10/2026). The latest results (round 2, 23/10/2026: 150 → 200 buildings, 600 → 1,000+ landlords, ₹100 Cr a month, 10-year projection, caching, monitoring, backups, endurance) are in docs/SD_Rent_Performance_Scalability_Report.docx and docs/SD_Rent_Performance_Report_Round2.html.
+
 Branch `rent-module`, 22/10/2026. Tests ran on separate performance databases; UAT and production data were not used or changed.
 
 ## 1. Summary

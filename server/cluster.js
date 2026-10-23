@@ -30,16 +30,26 @@ function startCluster({ count = workerCount(), env = {}, log = console.log } = {
   cluster.setupPrimary({ exec: path.join(__dirname, 'worker.js'), silent: false });
   let stopping = false;
   let reminderWorker = null;
+  // Monitoring: latest snapshot per worker (utils/metrics.js) and restarts
+  const snapshots = new Map();
+  const info = { workers: count, restarts: 0, lastRestart: null, startedAt: new Date().toISOString() };
 
   const fork = (first) => {
     const runReminders = first || !reminderWorker || reminderWorker.isDead();
     const w = cluster.fork({ ...env, RUN_REMINDERS: runReminders ? 'true' : 'false' });
     if (runReminders) reminderWorker = w;
+    w.on('message', (msg) => {
+      if (msg?.type === 'metrics') snapshots.set(msg.data.pid, msg.data);
+      if (msg?.type === 'metrics:get' && !w.isDead()) w.send({ type: 'metrics:all', id: msg.id, data: [...snapshots.values()], cluster: info });
+    });
     return w;
   };
 
   cluster.on('exit', (w, code, signal) => {
+    snapshots.delete(w.process.pid);
     if (stopping) return;
+    info.restarts += 1;
+    info.lastRestart = { at: new Date().toISOString(), pid: w.process.pid, reason: String(signal || code) };
     log(`Web worker ${w.process.pid} stopped (${signal || code}); starting a new one`);
     fork(false);
   });

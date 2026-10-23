@@ -18,6 +18,7 @@ Object.assign(process.env, {
   EMAIL_DRY_RUN: 'true',
   NOTIFY_TO: 'qa-team@example.test',
   AUTH_RATE_LIMIT: '100000',
+  API_RATE_LIMIT: '1000000',
   JWT_SECRET: process.env.JWT_SECRET || 'test-only-secret',
 });
 

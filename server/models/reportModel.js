@@ -95,14 +95,19 @@ async function sdBalance(filters = {}, { page = 1, pageSize = 50 } = {}) {
             s.lease_commencement_date, s.rent_commencement_date, s.lease_end_date,
             cc.cost_center_code, cc.cost_center_name, l1.l1_name, l2.l2_name, l3.l3_name,
             picked.*,
-            COALESCE((SELECT json_agg(json_build_object(
-                        'agreement_status', l.agreement_status, 'total_payments', l.total_payments,
-                        'total_reversal', l.total_reversal, 'total_paid', l.total_paid,
-                        'total_transfer', l.total_transfer, 'total_adjustment', l.total_adjustment,
-                        'total_refund', l.total_refund, 'sd_balance_repayable', l.sd_balance_repayable,
-                        'txn_count', l.txn_count) ORDER BY l.agreement_status)
-                      FROM lines l WHERE l.sd_id = picked.sd_id), '[]') AS lines
+            COALESCE(lj.lines, '[]') AS lines
      FROM picked
+     -- each SD Code's status lines, built once for all (a look-up per SD Code
+     -- re-read every line and grew with the square of the data)
+     LEFT JOIN (
+       SELECT l.sd_id, json_agg(json_build_object(
+                'agreement_status', l.agreement_status, 'total_payments', l.total_payments,
+                'total_reversal', l.total_reversal, 'total_paid', l.total_paid,
+                'total_transfer', l.total_transfer, 'total_adjustment', l.total_adjustment,
+                'total_refund', l.total_refund, 'sd_balance_repayable', l.sd_balance_repayable,
+                'txn_count', l.txn_count) ORDER BY l.agreement_status) AS lines
+       FROM lines l GROUP BY l.sd_id
+     ) lj ON lj.sd_id = picked.sd_id
      JOIN sd_master s ON s.sd_id = picked.sd_id
      JOIN cost_centers cc ON cc.cost_center_id = s.cost_center_id
      JOIN location_l1 l1 ON l1.l1_id = s.l1_id

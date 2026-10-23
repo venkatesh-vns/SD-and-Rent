@@ -4,6 +4,9 @@ const router = express.Router();
 const { authenticateToken } = require('../middleware/authMiddleware');
 const { requireRight, SCREENS } = require('../middleware/rightsMiddleware');
 const { upload } = require('../middleware/uploadMiddleware');
+const { cacheResponse } = require('../utils/cache');
+
+const rentCached = cacheResponse(['rent_schedule_lines', 'rent_master', 'rent_agreements', 'rent_agreement_components', 'sd_master', 'sd_transactions', 'cost_centers']);
 const masterController = require('../controllers/rentMasterController');
 const agreementController = require('../controllers/rentAgreementController');
 const ruleController = require('../controllers/rentRuleController');
@@ -12,7 +15,7 @@ const scheduleController = require('../controllers/rentScheduleController');
 
 router.use(authenticateToken);
 
-router.get('/lookups', scheduleController.lookups);
+router.get('/lookups', rentCached, scheduleController.lookups);
 
 // Standard master routes: list, export, template, one, add, edit, delete, bulk upload
 function crud(path, screen, c) {
@@ -38,8 +41,8 @@ for (const [path, screen, c] of [['rules', SCREENS.RENT_RULE, ruleController], [
 }
 
 const canSchedule = (action) => requireRight(SCREENS.RENT_SCHEDULE, action);
-router.get('/schedule', canSchedule('view'), scheduleController.getLines);
-router.get('/schedule/summary', canSchedule('view'), scheduleController.getSummary);
+router.get('/schedule', canSchedule('view'), rentCached, scheduleController.getLines);
+router.get('/schedule/summary', canSchedule('view'), rentCached, scheduleController.getSummary);
 router.get('/schedule/export', canSchedule('view'), scheduleController.exportLines);
 router.get('/schedule/runs', canSchedule('view'), scheduleController.runs);
 router.post('/schedule/generate', canSchedule('add'), scheduleController.generate);

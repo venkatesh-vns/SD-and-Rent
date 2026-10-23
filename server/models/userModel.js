@@ -3,7 +3,7 @@ const { listOf } = require('../utils/filters');
 
 // Columns safe to return to the client (never password_hash / token_version)
 const PUBLIC_COLUMNS = `user_id, user_name, user_email, status, is_admin, created_date, modified_date,
-  created_by, modified_by, uploaded_by, uploaded_date`;
+  created_by, modified_by, uploaded_by, uploaded_date, locked_until`;
 
 // Find a user by their username (used at login)
 async function findByUserName(userName) {
@@ -69,7 +69,7 @@ async function update(userId, { userName, userEmail, status, modifiedBy }, db = 
 // Returns the new token_version.
 async function updatePassword(userId, passwordHash, modifiedBy, db = pool) {
   const result = await db.query(
-    `UPDATE users SET password_hash=$1, token_version=token_version + 1,
+    `UPDATE users SET password_hash=$1, token_version=token_version + 1, failed_logins=0, locked_until=NULL,
        modified_by=$2, modified_date=NOW()
      WHERE user_id=$3
      RETURNING token_version`,
