@@ -119,6 +119,7 @@ class Database {
       return;
     }
     this.applyPerformanceSettings();
+    require('./logs').rotateLog(this.logFile); // postgres.log: rotated while PostgreSQL is stopped
     // No pipes here: the postgres process pg_ctl launches inherits them and keeps
     // them open, so waiting for pg_ctl's output would never finish. Its messages
     // go to the log file (-l) instead.

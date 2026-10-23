@@ -63,6 +63,20 @@ export default function SystemHealth() {
   }, []);
   useEffect(() => { load(); loadLogs('slow-requests'); }, [load, loadLogs]);
 
+  const [cleaning, setCleaning] = useState(false);
+  const cleanNow = async () => {
+    setCleaning(true);
+    try {
+      const res = await api.post('/system/log-retention');
+      setNotice(res.data.message);
+      load();
+    } catch (err) {
+      setError(errorMessage(err, 'Log clean-up failed.'));
+    } finally {
+      setCleaning(false);
+    }
+  };
+
   const backupNow = async () => {
     setBusy(true);
     try {
@@ -172,6 +186,27 @@ export default function SystemHealth() {
                 <tr key={r.backup_id}><td>{when(r.started_at)}</td><td>{r.reason}</td><td>{r.started_by}</td>
                   <td>{r.ok === null ? 'Running' : <span className={`badge badge-${r.ok ? 'active' : 'inactive'}`}>{r.ok ? 'OK' : 'Failed'}</span>}</td>
                   <td className="num">{mb(r.size_bytes)}</td><td>{r.message}</td></tr>
+              ))}</tbody>
+            </table></div>
+
+            <h2 className="health-h2">Log retention <small className="hint">
+              entries older than {h.logRetention.months} months are {h.logRetention.archiving ? `archived to ${h.logRetention.archiveDir} and removed` : 'removed'} every night; business data is never touched
+            </small></h2>
+            <div className="health-retention">
+              <span className="hint">
+                Covers {h.logRetention.tables.join(', ')}, used password-reset links and monitoring log files.
+                Email Log entries for lease dates still to come are kept, so reminders are never sent twice.
+                Archive: {num(h.logRetention.files)} file(s), {mb(h.logRetention.bytes)}.
+              </span>
+              <button type="button" className="btn btn-secondary" onClick={cleanNow} disabled={cleaning}>{cleaning ? 'Cleaning up...' : 'Run log clean-up now'}</button>
+            </div>
+            <div className="table-wrap"><table className="data-table compact">
+              <thead><tr><th>Run</th><th>By</th><th>Result</th><th>Older than</th><th>Archived and removed</th></tr></thead>
+              <tbody>{h.logRetention.runs.length === 0 ? <tr><td colSpan={5} className="hint">Not run yet (nightly at 02:30).</td></tr> : h.logRetention.runs.map((r) => (
+                <tr key={r.run_id}><td>{when(r.started_at)}</td><td>{r.started_by}</td>
+                  <td>{r.ok === null ? 'Running' : <span className={`badge badge-${r.ok ? 'active' : 'inactive'}`}>{r.ok ? 'OK' : 'Errors'}</span>}</td>
+                  <td>{r.details ? when(r.details.cutoff) : '—'}</td>
+                  <td>{r.details ? (r.details.tables.filter((t) => t.deleted || t.error).map((t) => `${t.table} ${num(t.deleted)}${t.error ? ` (error: ${t.error})` : ''}`).join(' · ') || 'nothing old') + (r.details.logFiles ? ` · ${r.details.logFiles} log file(s)` : '') : '—'}</td></tr>
               ))}</tbody>
             </table></div>
 

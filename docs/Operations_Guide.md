@@ -9,7 +9,7 @@ For whoever runs the server PC. Covers what runs by itself, what to check, and w
                                                     ├─ Primary process  (starts and watches the workers)
                                                     ├─ Web worker 1 … N (WEB_WORKERS, default = cores − 1, max 4)
                                                     │    load balanced round robin, each with its own response cache
-                                                    │    worker 1 also runs reminders, nightly backup, housekeeping
+                                                    │    worker 1 also runs reminders, nightly backup, log retention
                                                     └─ PostgreSQL (same PC; data, change notifications for the caches)
 ```
 
@@ -23,9 +23,30 @@ For whoever runs the server PC. Covers what runs by itself, what to check, and w
 |---|---|---|
 | 08:00 | Lease-date reminder emails | Email Log |
 | 01:30 | Database backup (`BACKUP_TIME`), checked by reading it back | System Health › Backups |
-| 02:30 | Housekeeping: login-session records older than a year, used password-reset links, monitoring logs older than 12 months | server console |
+| 02:30 | Log retention (`LOG_RETENTION_TIME`): log entries older than 5 months archived and removed — see below | System Health › Log retention |
 
 Backups kept: the last **14 daily** plus the newest of each of the last **12 months** (`BACKUP_KEEP_DAILY`, `BACKUP_KEEP_MONTHLY`), in `BACKUP_DIR` (desktop app: `%APPDATA%\SD Maintenance\backups`; web server: `server\backups`).
+
+### Log retention (5 months)
+
+Every night, log entries older than **5 months** (`LOG_RETENTION_MONTHS`) are written to a compressed archive file, the file is read back and its row count checked, and only then are those entries removed from the database. If the check fails nothing is deleted.
+
+| Log | Kept for 5 months, then archived |
+|---|---|
+| Audit Log (`audit_log`) | by action date |
+| Email Log (`email_log`) | by sent date — **except** reminders for a lease date still to come (they stop the same reminder being sent twice) |
+| Upload history (`upload_batches`) | by upload date |
+| Login sessions (`user_sessions`) | ended sessions (open sessions are never touched) |
+| Backup and clean-up history (`backup_runs`, `maintenance_runs`) | by start time |
+| Password-reset links | expired/used links are deleted (not archived) |
+| Monitoring log files (`serverlogs*-YYYY-MM.log`) | moved to `log-archivemonitoring-logs` |
+| Desktop app `app.log`, `postgres.log` | rotated at 10 MB; rotated files deleted after 5 months |
+
+- **Never touched:** masters, SD and rent transactions, schedules and schedule runs, status history, users, settings — the job only works on the log tables above.
+- **Archive folder:** `LOG_ARCHIVE_DIR` (web server: `serverlog-archive`; desktop app: `%APPDATA%SD Maintenancelog-archive`). One file per log and run: `audit_log_before_YYYY-MM-DD_<run>.jsonl.gz` — gzip, one JSON row per line; open with 7-Zip and any text editor, or load back with a short script if an old entry is ever needed. Copy it off the server along with the backups; delete archive files when your record-keeping policy allows.
+- `LOG_ARCHIVE=false` deletes without archiving; `LOG_RETENTION_ENABLED=false` turns the job off.
+- **Run log clean-up now** (System Health) runs it at once; only one run at a time. Each run is listed with what it archived.
+- Measured on the 10-year test database: 100,800 audit entries archived and removed in 2 seconds (0.6 MB archive), all business tables unchanged; users can keep working while it runs (rows are removed in small batches).
 
 **Copy backups off the server PC.** A backup on the same disk does not survive a disk failure. Point `BACKUP_DIR` at a network share or copy the folder to another location daily (for example with Windows Task Scheduler + `robocopy`).
 

@@ -64,7 +64,10 @@ export default function AuditLog() {
       <Navbar />
       <div className="page-container wide">
         <div className="page-header">
-          <h1>Audit Log</h1>
+          <div>
+            <h1>Audit Log</h1>
+            <p className="hint">The last 5 months. Older entries are archived automatically every night (Administration › System Health › Log retention).</p>
+          </div>
           <button type="button" className="btn btn-secondary"
             onClick={() => downloadFile('/logs/audit/export', query, 'Audit_Log.xlsx').catch(() => setError('Export failed.'))}>
             Export to Excel

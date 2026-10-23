@@ -2,15 +2,12 @@
  * Scheduled jobs, run by the one web worker that also sends the reminders
  * (RUN_REMINDERS=true):
  *  - nightly database backup at BACKUP_TIME (default 01:30) unless BACKUP_ENABLED=false
- *  - daily housekeeping at 02:30: ended login sessions older than SESSION_KEEP_DAYS
- *    (365), used / expired password-reset links older than 30 days, monitoring log
- *    files older than 12 months. Business data and the audit log are never deleted.
+ *  - nightly log retention at LOG_RETENTION_TIME (default 02:30): log entries older
+ *    than LOG_RETENTION_MONTHS (5) are archived and removed (services/logRetention.js).
+ *    Business data is never touched.
  */
-const fs = require('fs');
-const path = require('path');
-const { pool } = require('../config/db');
 const backup = require('./backupService');
-const { logDir } = require('../utils/metrics');
+const retention = require('./logRetention');
 
 // Runs fn every day at 'HH:MM' (local time)
 function daily(time, fn) {
@@ -28,21 +25,6 @@ function daily(time, fn) {
   schedule();
 }
 
-async function housekeeping() {
-  const keepDays = Number(process.env.SESSION_KEEP_DAYS) || 365;
-  const sessions = await pool.query(`DELETE FROM user_sessions WHERE ended_at < NOW() - make_interval(days => $1)`, [keepDays]);
-  const tokens = await pool.query(`DELETE FROM password_reset_tokens WHERE expires_at < NOW() - interval '30 days'`);
-  let logs = 0;
-  try {
-    const cutoff = new Date();
-    cutoff.setMonth(cutoff.getMonth() - 12);
-    const limit = cutoff.toISOString().slice(0, 7);
-    fs.readdirSync(logDir()).filter((f) => /-(\d{4}-\d{2})\.log$/.test(f) && f.match(/-(\d{4}-\d{2})\.log$/)[1] < limit)
-      .forEach((f) => { fs.rmSync(path.join(logDir(), f), { force: true }); logs += 1; });
-  } catch { /* no log folder yet */ }
-  return { sessions: sessions.rowCount, resetLinks: tokens.rowCount, logFiles: logs };
-}
-
 function startJobs() {
   if (process.env.BACKUP_ENABLED !== 'false') {
     const time = process.env.BACKUP_TIME || '01:30';
@@ -52,7 +34,15 @@ function startJobs() {
     });
     console.log(`Nightly database backup at ${time} to ${backup.backupDir()}`);
   }
-  daily('02:30', async () => console.log('Housekeeping:', JSON.stringify(await housekeeping())));
+  if (process.env.LOG_RETENTION_ENABLED !== 'false') {
+    const time = process.env.LOG_RETENTION_TIME || '02:30';
+    daily(time, async () => {
+      const r = await retention.runRetention({ by: 'system' });
+      const removed = r.details.tables.reduce((s, t) => s + t.deleted, 0);
+      console.log(`Log retention: ${r.ok ? 'OK' : 'with errors'}, ${removed} old log entries archived and removed`);
+    });
+    console.log(`Log retention at ${time}: entries older than ${Number(process.env.LOG_RETENTION_MONTHS) || 5} months archived to ${retention.archiveDir()}`);
+  }
 }
 
-module.exports = { startJobs, housekeeping };
+module.exports = { startJobs };

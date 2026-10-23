@@ -157,3 +157,18 @@ Maintenance Charges (scope 3.3).
   activity) with End session. Deactivating a user, resetting or changing a password also ends sessions.
 - Refused logins (LOGIN_BLOCKED) and ended sessions (SESSION_END) are in the Audit Log.
 - Migration 020 (user_sessions). After this update everyone must log in again once.
+
+## 11. Log retention — 5 months (23/10/2026)
+
+- Nightly at 02:30, log entries older than 5 months (Audit Log, Email Log, upload history, ended
+  login sessions, backup / clean-up history) are archived to gzip files in `serverlog-archive`
+  (checked before anything is deleted) and removed from the database. Expired password-reset links
+  are deleted; monthly monitoring log files are moved to the archive folder; desktop app log files
+  are rotated.
+- Email Log reminders for lease dates still to come are kept, so no reminder is sent twice.
+- Business data (masters, transactions, schedules, status history, users) is never touched.
+- System Health > Log retention shows the policy, the archive folder and each run, with
+  **Run log clean-up now**. Settings: LOG_RETENTION_MONTHS (5), LOG_RETENTION_TIME (02:30),
+  LOG_ARCHIVE_DIR, LOG_ARCHIVE (true), LOG_RETENTION_ENABLED (true). Details: docs/Operations_Guide.md.
+- Migration 023 (maintenance_runs + date indexes on the log tables). Replaces the old housekeeping job.
+- Tests: server/tests/logRetention.test.js (127 tests pass).

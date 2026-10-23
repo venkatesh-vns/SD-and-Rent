@@ -31,6 +31,7 @@ let quitting = false;
 
 // ---------- logging (AppData\SD Maintenance\logs\app.log) ----------
 fs.mkdirSync(LOG_DIR, { recursive: true });
+require('./lib/logs').rotateLog(path.join(LOG_DIR, 'app.log')); // keep log files small (rotated, old ones removed)
 const logStream = fs.createWriteStream(path.join(LOG_DIR, 'app.log'), { flags: 'a' });
 function log(...args) {
   const line = `[${new Date().toISOString()}] ${args.map((a) => (a instanceof Error ? a.stack : typeof a === 'string' ? a : JSON.stringify(a))).join(' ')}`;
@@ -106,6 +107,7 @@ async function startServerMode(firstAdmin) {
     uploadDir: path.join(USER_DIR, 'uploads'),
     backupDir: path.join(USER_DIR, 'backups'), // nightly database backups
     pgBin: path.join(RES, 'pgsql', 'bin'),
+    logArchiveDir: path.join(USER_DIR, 'log-archive'), // log entries older than 5 months
     logDir: path.join(LOG_DIR, 'server'),
     httpPort: s.httpPort,
     pgPort: s.pgPort,

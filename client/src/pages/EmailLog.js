@@ -77,7 +77,10 @@ export default function EmailLog() {
       <Navbar />
       <div className="page-container wide">
         <div className="page-header">
-          <h1>Email Log</h1>
+          <div>
+            <h1>Email Log</h1>
+            <p className="hint">The last 5 months (plus reminders for lease dates still to come). Older entries are archived automatically every night.</p>
+          </div>
           <button type="button" className="btn btn-secondary"
             onClick={() => downloadFile('/logs/email/export', query, 'Email_Log.xlsx').catch(() => setError('Export failed.'))}>
             Export to Excel

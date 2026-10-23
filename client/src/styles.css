@@ -1316,3 +1316,5 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
 .health-h2 { font-size: 1rem; margin: 1.5rem 0 0.6rem; }
 .health-h2 small { font-weight: 400; margin-left: 0.4rem; }
 .health-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.health-retention { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.health-retention .hint { max-width: 80ch; }

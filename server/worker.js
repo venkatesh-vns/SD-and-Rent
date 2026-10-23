@@ -1,6 +1,6 @@
 // One web server process (see cluster.js): serves the API and the screens on
 // PORT (HOST, default all addresses). RUN_REMINDERS=true in exactly one worker,
-// which also runs the scheduled jobs (nightly backup, housekeeping).
+// which also runs the scheduled jobs (nightly backup, log retention).
 // HTTPS: set HTTPS_PFX_FILE (+ HTTPS_PFX_PASSPHRASE) or HTTPS_CERT_FILE + HTTPS_KEY_FILE.
 require('dotenv').config();
 
