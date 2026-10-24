@@ -11,6 +11,10 @@ const { listOf } = require('../utils/filters');
  *   agreementStatus  one or more; only transactions with those statuses are
  *                    added up, and only SD Codes that have such transactions are listed
  *   balanceDue       SD Balance > 0;  repayableDue  SD Balance Repayable > 0
+ *   txnDateFrom / txnDateTo  (YYYY-MM-DD, either may be blank) only SD Codes with
+ *                    transactions in the period are listed; Paid, Transfer, Adjustment
+ *                    and Refund add up the period's transactions, while SD Balance and
+ *                    SD Balance Repayable are as at txnDateTo (every transaction up to it)
  *
  * Each row: SD details, agreement_value, totals of the (filtered) transactions
  * (total_payments, total_reversal, total_paid = net, total_transfer, ...),
@@ -24,9 +28,15 @@ async function sdBalance(filters = {}, { page = 1, pageSize = 50 } = {}) {
   const p = (v) => { params.push(v); return `$${params.length}`; };
   const statuses = listOf(filters.agreementStatus);
   const statusCond = statuses.length ? `AND t.agreement_status = ANY(${p(statuses)})` : '';
+  // Transaction date period: movements in the period, balances up to its end
+  const from = filters.txnDateFrom || null;
+  const to = filters.txnDateTo || null;
+  const toCond = to ? `AND t.txn_date <= ${p(to)}` : '';
+  const inPeriod = from ? `t.txn_date >= ${p(from)}` : 'TRUE';
+  const period = from || to;
 
   const outer = [];
-  if (statuses.length) outer.push('b.txn_count > 0');
+  if (statuses.length || period) outer.push('b.txn_count > 0');
   if (filters.balanceDue === 'true') outer.push('b.sd_balance > 0');
   if (filters.repayableDue === 'true') outer.push('b.sd_balance_repayable > 0');
 
@@ -34,17 +44,18 @@ async function sdBalance(filters = {}, { page = 1, pageSize = 50 } = {}) {
     WITH sdf AS (SELECT s.* FROM sd_master s ${sql}),
     lines AS (
       SELECT t.sd_id, t.agreement_status,
-             COALESCE(SUM(t.paid_amount) FILTER (WHERE t.paid_amount > 0), 0) AS total_payments,
-             COALESCE(SUM(t.paid_amount) FILTER (WHERE t.paid_amount < 0), 0) AS total_reversal,
-             SUM(t.paid_amount) AS total_paid,
-             SUM(t.transfer_amount) AS total_transfer,
-             SUM(t.adjustment_amount) AS total_adjustment,
-             SUM(t.refund_amount) AS total_refund,
+             COALESCE(SUM(t.paid_amount) FILTER (WHERE t.paid_amount > 0 AND ${inPeriod}), 0) AS total_payments,
+             COALESCE(SUM(t.paid_amount) FILTER (WHERE t.paid_amount < 0 AND ${inPeriod}), 0) AS total_reversal,
+             COALESCE(SUM(t.paid_amount) FILTER (WHERE ${inPeriod}), 0) AS total_paid,
+             COALESCE(SUM(t.transfer_amount) FILTER (WHERE ${inPeriod}), 0) AS total_transfer,
+             COALESCE(SUM(t.adjustment_amount) FILTER (WHERE ${inPeriod}), 0) AS total_adjustment,
+             COALESCE(SUM(t.refund_amount) FILTER (WHERE ${inPeriod}), 0) AS total_refund,
+             SUM(t.paid_amount) AS paid_to_date,
              SUM(t.paid_amount - t.transfer_amount - t.adjustment_amount - t.refund_amount) AS sd_balance_repayable,
-             COUNT(*)::int AS txn_count,
+             (COUNT(*) FILTER (WHERE ${inPeriod}))::int AS txn_count,
              MAX(t.txn_date) AS last_txn_date
       FROM sd_transactions t JOIN sdf ON sdf.sd_id = t.sd_id
-      WHERE TRUE ${statusCond}
+      WHERE TRUE ${statusCond} ${toCond}
       GROUP BY t.sd_id, t.agreement_status
     ),
     b AS (
@@ -55,7 +66,7 @@ async function sdBalance(filters = {}, { page = 1, pageSize = 50 } = {}) {
              COALESCE(SUM(l.total_transfer), 0) AS total_transfer,
              COALESCE(SUM(l.total_adjustment), 0) AS total_adjustment,
              COALESCE(SUM(l.total_refund), 0) AS total_refund,
-             sdf.agreement_value - COALESCE(SUM(l.total_paid), 0) AS sd_balance,
+             sdf.agreement_value - COALESCE(SUM(l.paid_to_date), 0) AS sd_balance,
              COALESCE(SUM(l.sd_balance_repayable), 0) AS sd_balance_repayable,
              COALESCE(SUM(l.txn_count), 0)::int AS txn_count,
              MAX(l.last_txn_date) AS last_txn_date
@@ -77,7 +88,7 @@ async function sdBalance(filters = {}, { page = 1, pageSize = 50 } = {}) {
             COALESCE(SUM(sd_balance), 0) AS sd_balance,
             COALESCE(SUM(sd_balance_repayable), 0) AS sd_balance_repayable,
             (SELECT COUNT(*) FROM sd_transactions t JOIN picked ON picked.sd_id = t.sd_id
-              WHERE t.paid_amount < 0 ${statusCond})::int AS reversal_count
+              WHERE t.paid_amount < 0 AND ${inPeriod} ${statusCond} ${toCond})::int AS reversal_count
      FROM picked`,
     params
   )).rows[0];

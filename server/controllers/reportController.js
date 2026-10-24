@@ -26,7 +26,7 @@ const num = (v) => Number(v);
 async function sdBalance(req, res, next) {
   try {
     const p = paging(req.query);
-    const { rows, total, totals } = await reportModel.sdBalance(withDates(req.query, ['leaseEndFrom', 'leaseEndTo']), p);
+    const { rows, total, totals } = await reportModel.sdBalance(withDates(req.query, ['leaseEndFrom', 'leaseEndTo', 'txnDateFrom', 'txnDateTo']), p);
     res.json({ success: true, data: rows, total, totals, ...p });
   } catch (err) {
     next(err);
@@ -39,7 +39,7 @@ async function sdBalance(req, res, next) {
 // counts each Agreement Value once. No subtotal rows.
 async function sdBalanceExport(req, res, next) {
   try {
-    const { rows, totals } = await reportModel.sdBalance(withDates(req.query, ['leaseEndFrom', 'leaseEndTo']), { pageSize: 0 });
+    const { rows, totals } = await reportModel.sdBalance(withDates(req.query, ['leaseEndFrom', 'leaseEndTo', 'txnDateFrom', 'txnDateTo']), { pageSize: 0 });
     const headers = [
       'SD Code', 'Lease ID', 'Agreement No.', 'Cost Center', 'Location Level 1', 'Location Level 2', 'Location Level 3', 'Floor',
       'Landlord Name', 'Landlord Status', 'Building Status',
@@ -73,6 +73,10 @@ async function sdBalanceExport(req, res, next) {
     ]);
     grand.font = { bold: true };
     shade(grand, 'FFDCFCE7');
+    if (req.query.txnDateFrom || req.query.txnDateTo) {
+      ws.addRow([]);
+      ws.addRow([`Transaction date ${req.query.txnDateFrom || 'start'} to ${req.query.txnDateTo || 'today'}: Paid, Transfer, Adjustment and Refund are for this period; SD Balance and SD Balance Repayable are as at ${req.query.txnDateTo || 'today'}.`]).font = { italic: true };
+    }
     ws.columns.forEach((col, i) => {
       col.width = Math.max(12, headers[i].length + 3);
       if (i >= 14 && i <= 23 && i !== 15) col.numFmt = '#,##,##0.00';

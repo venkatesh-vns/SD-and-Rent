@@ -21,7 +21,7 @@ const PAGE_SIZE = 50;
 // Multi-select filters hold arrays of values (empty = all)
 const EMPTY_FILTERS = {
   search: '', costCenterId: [], l1Id: [], l2Id: [], landlordStatus: [], buildingStatus: [],
-  leaseEndFrom: '', leaseEndTo: '', balanceDue: '', repayableDue: '', agreementStatus: [], floor: [], landlordName: [],
+  leaseEndFrom: '', leaseEndTo: '', txnDateFrom: '', txnDateTo: '', balanceDue: '', repayableDue: '', agreementStatus: [], floor: [], landlordName: [],
 };
 
 // Report column -> kind of amount (colour and meaning in config/amounts.js), optional label.
@@ -165,6 +165,7 @@ export default function SdBalanceReport() {
             value={filters.agreementStatus} onChange={(v) => setFilter({ agreementStatus: v })}
           />
           <DateRangeFilter label="Lease End" from={filters.leaseEndFrom} to={filters.leaseEndTo} onChange={({ from, to }) => setFilter({ leaseEndFrom: from, leaseEndTo: to })} />
+          <DateRangeFilter label="Txn Date" from={filters.txnDateFrom} to={filters.txnDateTo} onChange={({ from, to }) => setFilter({ txnDateFrom: from, txnDateTo: to })} />
           <label className="inline-check">
             <input type="checkbox" checked={filters.balanceDue === 'true'} onChange={(e) => setFilter({ balanceDue: e.target.checked ? 'true' : '' })} />
             SD Balance Payable &gt; 0
@@ -178,6 +179,12 @@ export default function SdBalanceReport() {
 
         {totals && (
           <div className="report-totals">
+            {(filters.txnDateFrom || filters.txnDateTo) && (
+              <p className="hint period-note">
+                Transaction date <strong>{filters.txnDateFrom || 'start'}</strong> to <strong>{filters.txnDateTo || 'today'}</strong>: only SD Codes with
+                transactions in this period are listed. Paid, Transfer, Adjustment and Refund are for the period; {NAMES.balance} and {NAMES.repayable} are as at {filters.txnDateTo || 'today'}.
+              </p>
+            )}
             <AmountTiles labels={NAMES} values={tileValues(totals)} lead={{ label: 'SD Codes', value: totals.count, hint: 'Matching the filters' }} />
             {Number(totals.reversal_count) > 0 && (
               <p className="hint reversal-note">
