@@ -40,7 +40,8 @@ function filterClause({ search, costCenterId, l1Id, l2Id, l3Id, landlordStatus, 
     params.push(`%${search}%`);
     const p = `$${params.length}`;
     where.push(`(s.sd_code ILIKE ${p} OR s.lease_id ILIKE ${p} OR s.agreement_no ILIKE ${p}
-                 OR s.landlord_name ILIKE ${p} OR s.floor ILIKE ${p})`);
+                 OR s.landlord_name ILIKE ${p} OR s.floor ILIKE ${p}
+                 OR EXISTS (SELECT 1 FROM rent_master r WHERE r.sd_id = s.sd_id AND r.rent_code ILIKE ${p}))`);
   }
   const ids = (col, v) => { if (idsOf(v).length) add(`${col} = ANY(?::int[])`, idsOf(v)); };
   const any = (col, v) => { if (listOf(v).length) add(`${col} = ANY(?)`, listOf(v)); };

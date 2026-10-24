@@ -282,7 +282,7 @@ export default function SdMaster() {
 
         <div className="filter-bar">
           <input
-            type="search" placeholder="Search SD Code, Lease ID, Agreement No., Landlord, Floor"
+            type="search" placeholder="Search SD Code, Rent Code, Lease ID, Agreement No., Landlord, Floor"
             value={filters.search} onChange={(e) => setFilter({ search: e.target.value })}
           />
           <MultiSelect

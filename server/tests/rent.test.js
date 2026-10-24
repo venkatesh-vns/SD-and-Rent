@@ -38,6 +38,13 @@ describe('Rent Transaction module', () => {
       assert.equal(rent.business_key, `TEST CC | ${sd.sd_code} | 3 | VENKAT`);
     });
 
+    it('finds the SD record in SD Master by its Rent Code', async () => {
+      const found = (await ctx.api('GET', `/sd-master?search=${rent.rent_code.toLowerCase()}`)).body;
+      assert.equal(found.total, 1);
+      assert.equal(found.data[0].sd_code, sd.sd_code);
+      assert.equal((await ctx.api('GET', '/sd-master?search=RENT9999')).body.total, 0);
+    });
+
     it('blocks duplicate Business Keys, missing SD dates and Inactive without an end date', async () => {
       const dup = await ctx.api('POST', '/rent/master', { sdId: sd.sd_id, landlordName: ' venkat ', llStatus: 'Active' });
       assert.equal(dup.status, 400);
