@@ -264,8 +264,8 @@ export default function SdTransactions() {
     { key: 'transfer', label: 'Transfer', align: 'right', tone: 'out' },
     { key: 'adjustment', label: 'Adjustment', align: 'right', tone: 'out' },
     { key: 'refund', label: 'Refund', align: 'right', tone: 'out' },
-    { key: 'balance', label: 'SD Balance', align: 'right', tone: 'balance' },
-    { key: 'repayable', label: 'Repayable', align: 'right', tone: 'repayable' },
+    { key: 'balance', label: 'SD Balance Payable', align: 'right', tone: 'balance' },
+    { key: 'repayable', label: 'SD Balance Receivable', align: 'right', tone: 'repayable' },
     { key: 'remarks', label: 'Remarks' },
   ];
 
@@ -351,8 +351,8 @@ export default function SdTransactions() {
                   <span className={`badge badge-${sd.building_status.toLowerCase()}`}>Building {sd.building_status}</span>
                 </dd>
               </div>
-              <div className="tone-balance"><dt>SD Balance</dt><dd className="sd-sticky-amount">{formatAmount(b.sd_balance)}</dd></div>
-              <div className="tone-repayable"><dt>Repayable</dt><dd className="sd-sticky-amount">{formatAmount(b.sd_balance_repayable)}</dd></div>
+              <div className="tone-balance"><dt>SD Balance Payable</dt><dd className="sd-sticky-amount">{formatAmount(b.sd_balance)}</dd></div>
+              <div className="tone-repayable"><dt>SD Balance Receivable</dt><dd className="sd-sticky-amount">{formatAmount(b.sd_balance_repayable)}</dd></div>
             </dl>
             <div className="sd-sticky-actions">
               {can(SCREENS.SD_TRANSACTION, 'add') && (
@@ -377,7 +377,7 @@ export default function SdTransactions() {
               <div><dt>Agreement Value</dt><dd>{formatAmount(b.agreement_value)}</dd></div>
               <div><dt>Transactions</dt><dd>{b.txn_count}</dd></div>
             </dl>
-            <AmountTiles values={{
+            <AmountTiles labels={{ balance: 'SD Balance Payable', repayable: 'SD Balance Receivable' }} values={{
               agreement: b.agreement_value, paid: b.total_paid, transfer: b.total_transfer,
               adjustment: b.total_adjustment, refund: b.total_refund,
               balance: b.sd_balance, repayable: b.sd_balance_repayable,
@@ -415,8 +415,8 @@ export default function SdTransactions() {
         </div>
         <p className="hint">
           {sdId
-            ? 'Oldest first. SD Balance and Repayable are running totals up to each transaction date.'
-            : 'Newest first, across all SD Codes. SD Balance and Repayable are running totals for each row\'s SD Code.'}
+            ? 'Oldest first. SD Balance Payable and SD Balance Receivable are running totals up to each transaction date.'
+            : 'Newest first, across all SD Codes. SD Balance Payable and SD Balance Receivable are running totals for each row\'s SD Code.'}
         </p>
 
         {loading ? <p>Loading...</p> : (
@@ -514,7 +514,7 @@ export default function SdTransactions() {
                     placeholder="e.g. transferred to SD000123" />
                 </div>
               </div>
-              <p className="hint">SD Balance and Repayable are calculated automatically from the amounts.</p>
+              <p className="hint">SD Balance Payable and SD Balance Receivable are calculated automatically from the amounts.</p>
 
               <button type="submit" className="btn btn-primary btn-block" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
             </form>

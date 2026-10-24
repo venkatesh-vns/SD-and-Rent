@@ -4,7 +4,8 @@ import { formatAmount } from '../utils/format';
 
 // Row of colour-coded totals. values: { agreement, paid, transfer, ... }.
 // `lead` = optional first tile, e.g. { label: 'SD Codes', value: 12 }.
-export default function AmountTiles({ values, lead }) {
+// `labels` = optional names per kind, e.g. { balance: 'SD Balance Payable' }.
+export default function AmountTiles({ values, lead, labels = {} }) {
   return (
     <div className="sd-tiles">
       {lead && (
@@ -16,7 +17,7 @@ export default function AmountTiles({ values, lead }) {
       )}
       {Object.entries(AMOUNTS).map(([kind, a]) => (
         <div key={kind} className={`tile tone-${a.tone}`}>
-          <span>{kind === 'repayable' ? 'SD Balance Repayable' : a.label}</span>
+          <span>{labels[kind] || (kind === 'repayable' ? 'SD Balance Repayable' : a.label)}</span>
           <strong>{formatAmount(values[kind])}</strong>
           <small>{a.hint}</small>
         </div>
