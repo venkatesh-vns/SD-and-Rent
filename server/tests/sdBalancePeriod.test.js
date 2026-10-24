@@ -22,13 +22,14 @@ describe('SD Balance report by transaction date', () => {
     await txn(a, { txnDate: '20/07/2025', refundAmount: '50000' });
     await txn(a, { txnDate: '10/09/2025', paidAmount: '100000' });
     await txn(b, { txnDate: '05/05/2025', paidAmount: '200000' });
+    await txn(b, { txnDate: '06/05/2025', paidAmount: '25000', sdType: 'Electricity SD' });
   });
   after(async () => { await ctx.close(); });
 
   it('without dates, shows everything to date', async () => {
     const r = await report('');
     assert.equal(r.total, 2);
-    assert.equal(Number(r.totals.total_paid), 1000000);
+    assert.equal(Number(r.totals.total_paid), 1025000);
   });
 
   it('adds up the period and gives balances as at the To date', async () => {
@@ -50,8 +51,19 @@ describe('SD Balance report by transaction date', () => {
     assert.equal(Number(from.totals.sd_balance), 200000);
     const to = await report('&txnDateTo=31/05/2025');
     assert.equal(to.total, 2);
-    assert.equal(Number(to.totals.total_paid), 600000);
-    assert.equal(Number(to.totals.sd_balance), 900000);
+    assert.equal(Number(to.totals.total_paid), 625000);
+    assert.equal(Number(to.totals.sd_balance), 875000);
+  });
+
+  it('splits lines by SD Type and filters by it', async () => {
+    const r = await report('2');
+    assert.deepEqual(r.data[0].lines.map((l) => [l.sd_type, l.agreement_status, Number(l.total_paid)]), [['Electricity SD', 'Agreement', 25000], ['Landlord SD', 'Agreement', 200000]]);
+    const elec = await report('&sdType=Electricity SD');
+    assert.equal(elec.total, 1);
+    assert.equal(Number(elec.totals.total_paid), 25000);
+    const rows = await readXlsx((await ctx.download('/reports/sd-balance/export?search=PER-2')).buffer);
+    assert.ok(rows.some((x) => x['SD Type'] === 'Electricity SD'));
+    assert.ok(JSON.stringify(rows).includes('Electricity SD'));
   });
 
   it('exports the period with a note', async () => {

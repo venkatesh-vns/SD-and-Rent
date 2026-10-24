@@ -10,7 +10,7 @@ import { SCREENS } from '../config/screens';
 import useDebounce from '../hooks/useDebounce';
 import useReturnState from '../hooks/useReturnState';
 import useCascadeOptions from '../hooks/useCascadeOptions';
-import { formatAmount, formatDate } from '../utils/format';
+import { formatAmount } from '../utils/format';
 import AmountTiles from '../components/AmountTiles';
 import { AMOUNTS, amountClass } from '../config/amounts';
 
@@ -21,7 +21,7 @@ const PAGE_SIZE = 50;
 // Multi-select filters hold arrays of values (empty = all)
 const EMPTY_FILTERS = {
   search: '', costCenterId: [], l1Id: [], l2Id: [], landlordStatus: [], buildingStatus: [],
-  leaseEndFrom: '', leaseEndTo: '', txnDateFrom: '', txnDateTo: '', balanceDue: '', repayableDue: '', agreementStatus: [], floor: [], landlordName: [],
+  leaseEndFrom: '', leaseEndTo: '', txnDateFrom: '', txnDateTo: '', balanceDue: '', repayableDue: '', agreementStatus: [], sdType: [], floor: [], landlordName: [],
 };
 
 // Report column -> kind of amount (colour and meaning in config/amounts.js), optional label.
@@ -41,9 +41,10 @@ const MONEY = [
 
 // Tile values from the report totals
 const AGREEMENT_STATUSES = ['LOI', 'Agreement', 'Registered Agreement', 'Addendum Agreement', 'Mail Approval'];
+const SD_TYPES = ['Landlord SD', 'Electricity SD', 'Additional Parking SD', 'Other SD', 'Fitout SD', 'CAM SD', 'Solar SD'];
 // Amounts shown per Agreement Status line (Agreement Value and SD Balance are per SD Code)
 const LINE_MONEY = MONEY.filter(([col]) => !['agreement_value', 'sd_balance', 'sd_balance_repayable'].includes(col));
-const NO_LINES = [{ agreement_status: '—', total_payments: 0, total_reversal: 0, total_paid: 0, total_transfer: 0, total_adjustment: 0, total_refund: 0, sd_balance_repayable: 0 }];
+const NO_LINES = [{ sd_type: '—', agreement_status: '—', total_payments: 0, total_reversal: 0, total_paid: 0, total_transfer: 0, total_adjustment: 0, total_refund: 0, sd_balance_repayable: 0 }];
 const moneyCell = (kind, value, key, extra = '') => (
   <td key={key} className={`${amountClass(kind, value)}${Number(value) < 0 ? ' amount-negative' : ''}${extra}`}>{formatAmount(value)}</td>
 );
@@ -125,7 +126,7 @@ export default function SdBalanceReport() {
             Export to Excel
           </button>
         </div>
-        <p className="hint">One block per SD Code with a line per Agreement Status. Agreement Value and SD Balance Payable appear once per SD Code and are counted once in the Grand Total at the bottom. SD Balance Payable = Agreement Value − Net SD Paid; SD Balance Receivable = Net SD Paid − Transfer − Refund − Adjustment.</p>
+        <p className="hint">One block per SD Code with a line per SD Type and Agreement Status. Agreement Value and SD Balance Payable appear once per SD Code and are counted once in the Grand Total at the bottom. SD Balance Payable = Agreement Value − Net SD Paid; SD Balance Receivable = Net SD Paid − Transfer − Refund − Adjustment.</p>
 
         {error && <div className="alert alert-error">{error}</div>}
 
@@ -164,6 +165,7 @@ export default function SdBalanceReport() {
             allLabel="All Agreement Status" noun="statuses" options={AGREEMENT_STATUSES}
             value={filters.agreementStatus} onChange={(v) => setFilter({ agreementStatus: v })}
           />
+          <MultiSelect allLabel="All SD Types" noun="SD Types" options={SD_TYPES} value={filters.sdType} onChange={(v) => setFilter({ sdType: v })} />
           <DateRangeFilter label="Lease End" from={filters.leaseEndFrom} to={filters.leaseEndTo} onChange={({ from, to }) => setFilter({ leaseEndFrom: from, leaseEndTo: to })} />
           <DateRangeFilter label="Txn Date" from={filters.txnDateFrom} to={filters.txnDateTo} onChange={({ from, to }) => setFilter({ txnDateFrom: from, txnDateTo: to })} />
           <label className="inline-check">
@@ -209,7 +211,7 @@ export default function SdBalanceReport() {
                   </tr>
                   <tr>
                     <th>SD Code</th><th>Location Level 1</th><th>Cost Center</th><th>Floor</th><th>Landlord</th>
-                    <th>Status</th><th>Lease End</th>
+                    <th>Status</th><th>SD Type</th>
                     <th className={`num tone-head tone-${AMOUNTS.agreement.tone}`}>{AMOUNTS.agreement.label}</th>
                     <th>Agreement Status</th>
                     {LINE_MONEY.map(([col, kind, label, hint]) => (
@@ -225,7 +227,7 @@ export default function SdBalanceReport() {
                   return (
                     <tbody key={r.sd_id} className="sd-group">
                       {lines.map((l, i) => (
-                        <tr key={l.agreement_status}>
+                        <tr key={`${l.sd_type}|${l.agreement_status}`}>
                           {i === 0 && (
                             <>
                               <td rowSpan={span}>{canTxn ? <Link to={`/sd-transactions?sd=${r.sd_id}&from=sd-balance`} onClick={back.leave}>{r.sd_code}</Link> : r.sd_code}</td>
@@ -238,10 +240,11 @@ export default function SdBalanceReport() {
                                   ? <span className="badge badge-active">Active</span>
                                   : <span className="badge badge-passive">Passive</span>}
                               </td>
-                              <td rowSpan={span}>{formatDate(r.lease_end_date) || '—'}</td>
-                              <td rowSpan={span} className={`${amountClass('agreement', r.agreement_value)} once-per-sd`}>{formatAmount(r.agreement_value)}</td>
                             </>
                           )}
+                          {/* SD Type is per line; on later lines it fills the first column the SD Code's merged cells leave free */}
+                          <td style={{ whiteSpace: 'nowrap' }}>{l.sd_type}</td>
+                          {i === 0 && <td rowSpan={span} className={`${amountClass('agreement', r.agreement_value)} once-per-sd`}>{formatAmount(r.agreement_value)}</td>}
                           <td><span className="status-chip">{l.agreement_status}</span></td>
                           {LINE_MONEY.map(([col, kind]) => moneyCell(kind, l[col], col))}
                           {i === 0 && <td rowSpan={span} className={`${amountClass('balance', r.sd_balance)} once-per-sd`}>{formatAmount(r.sd_balance)}</td>}

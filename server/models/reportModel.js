@@ -4,7 +4,7 @@ const { listOf } = require('../utils/filters');
 
 /**
  * SD Balance report: one entry per SD Code (its Agreement Value counted once)
- * with a line per Agreement Status of its transactions.
+ * with a line per SD Type and Agreement Status of its transactions.
  *
  * Filters: those of the SD Master list (search, costCenterId, l1Id, l2Id,
  * l3Id, landlordStatus, buildingStatus, leaseEndFrom, leaseEndTo), plus
@@ -27,7 +27,9 @@ async function sdBalance(filters = {}, { page = 1, pageSize = 50 } = {}) {
   const { sql, params } = filterClause(filters);
   const p = (v) => { params.push(v); return `$${params.length}`; };
   const statuses = listOf(filters.agreementStatus);
-  const statusCond = statuses.length ? `AND t.agreement_status = ANY(${p(statuses)})` : '';
+  const sdTypes = listOf(filters.sdType);
+  const statusCond = (statuses.length ? `AND t.agreement_status = ANY(${p(statuses)})` : '')
+    + (sdTypes.length ? ` AND t.sd_type = ANY(${p(sdTypes)})` : '');
   // Transaction date period: movements in the period, balances up to its end
   const from = filters.txnDateFrom || null;
   const to = filters.txnDateTo || null;
@@ -36,14 +38,14 @@ async function sdBalance(filters = {}, { page = 1, pageSize = 50 } = {}) {
   const period = from || to;
 
   const outer = [];
-  if (statuses.length || period) outer.push('b.txn_count > 0');
+  if (statuses.length || sdTypes.length || period) outer.push('b.txn_count > 0');
   if (filters.balanceDue === 'true') outer.push('b.sd_balance > 0');
   if (filters.repayableDue === 'true') outer.push('b.sd_balance_repayable > 0');
 
   const ctes = `
     WITH sdf AS (SELECT s.* FROM sd_master s ${sql}),
     lines AS (
-      SELECT t.sd_id, t.agreement_status,
+      SELECT t.sd_id, t.sd_type, t.agreement_status,
              COALESCE(SUM(t.paid_amount) FILTER (WHERE t.paid_amount > 0 AND ${inPeriod}), 0) AS total_payments,
              COALESCE(SUM(t.paid_amount) FILTER (WHERE t.paid_amount < 0 AND ${inPeriod}), 0) AS total_reversal,
              COALESCE(SUM(t.paid_amount) FILTER (WHERE ${inPeriod}), 0) AS total_paid,
@@ -56,7 +58,7 @@ async function sdBalance(filters = {}, { page = 1, pageSize = 50 } = {}) {
              MAX(t.txn_date) AS last_txn_date
       FROM sd_transactions t JOIN sdf ON sdf.sd_id = t.sd_id
       WHERE TRUE ${statusCond} ${toCond}
-      GROUP BY t.sd_id, t.agreement_status
+      GROUP BY t.sd_id, t.sd_type, t.agreement_status
     ),
     b AS (
       SELECT sdf.sd_id, sdf.agreement_value,
@@ -112,11 +114,11 @@ async function sdBalance(filters = {}, { page = 1, pageSize = 50 } = {}) {
      -- re-read every line and grew with the square of the data)
      LEFT JOIN (
        SELECT l.sd_id, json_agg(json_build_object(
-                'agreement_status', l.agreement_status, 'total_payments', l.total_payments,
+                'sd_type', l.sd_type, 'agreement_status', l.agreement_status, 'total_payments', l.total_payments,
                 'total_reversal', l.total_reversal, 'total_paid', l.total_paid,
                 'total_transfer', l.total_transfer, 'total_adjustment', l.total_adjustment,
                 'total_refund', l.total_refund, 'sd_balance_repayable', l.sd_balance_repayable,
-                'txn_count', l.txn_count) ORDER BY l.agreement_status) AS lines
+                'txn_count', l.txn_count) ORDER BY l.sd_type, l.agreement_status) AS lines
        FROM lines l GROUP BY l.sd_id
      ) lj ON lj.sd_id = picked.sd_id
      JOIN sd_master s ON s.sd_id = picked.sd_id

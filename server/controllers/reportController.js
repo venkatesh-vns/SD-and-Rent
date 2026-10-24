@@ -34,7 +34,7 @@ async function sdBalance(req, res, next) {
 }
 
 // GET /api/reports/sd-balance/export
-// One row per SD Code and Agreement Status. SD details, Agreement Value and SD
+// One row per SD Code, SD Type and Agreement Status. SD details, Agreement Value and SD
 // Balance appear once per SD Code (its first row); the Grand Total at the bottom
 // counts each Agreement Value once. No subtotal rows.
 async function sdBalanceExport(req, res, next) {
@@ -44,7 +44,7 @@ async function sdBalanceExport(req, res, next) {
       'SD Code', 'Lease ID', 'Agreement No.', 'Cost Center', 'Location Level 1', 'Location Level 2', 'Location Level 3', 'Floor',
       'Landlord Name', 'Landlord Status', 'Building Status',
       'Lease Commencement Date', 'Rent Commencement Date', 'Lease End Date',
-      'Agreement Value', 'Agreement Status', 'SD Paid (payments)', 'SD Paid Reversals', 'Net SD Paid',
+      'Agreement Value', 'SD Type', 'Agreement Status', 'SD Paid (payments)', 'SD Paid Reversals', 'Net SD Paid',
       'Total SD Transfer', 'Total SD Adjustment', 'Total SD Refund', 'SD Balance', 'SD Balance Repayable', 'Last Transaction Date',
     ];
     const amounts = (x) => [num(x.total_payments), num(x.total_reversal), num(x.total_paid), num(x.total_transfer), num(x.total_adjustment), num(x.total_refund)];
@@ -54,7 +54,7 @@ async function sdBalanceExport(req, res, next) {
     const shade = (row, argb) => row.eachCell({ includeEmpty: true }, (c) => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } }; });
 
     rows.forEach((r) => {
-      const lines = r.lines.length ? r.lines : [{ agreement_status: '—', total_payments: 0, total_reversal: 0, total_paid: 0, total_transfer: 0, total_adjustment: 0, total_refund: 0, sd_balance_repayable: 0 }];
+      const lines = r.lines.length ? r.lines : [{ sd_type: '—', agreement_status: '—', total_payments: 0, total_reversal: 0, total_paid: 0, total_transfer: 0, total_adjustment: 0, total_refund: 0, sd_balance_repayable: 0 }];
       lines.forEach((l, i) => {
         const first = i === 0;
         ws.addRow([
@@ -62,13 +62,13 @@ async function sdBalanceExport(req, res, next) {
           ...(first ? [r.lease_id, r.agreement_no, r.cost_center_name, r.l1_name, r.l2_name, r.l3_name, r.floor, r.landlord_name,
             r.landlord_status, r.building_status, formatDMY(r.lease_commencement_date), formatDMY(r.rent_commencement_date),
             formatDMY(r.lease_end_date), num(r.agreement_value)] : Array(14).fill(null)),
-          l.agreement_status, ...amounts(l),
+          l.sd_type, l.agreement_status, ...amounts(l),
           first ? num(r.sd_balance) : null, num(l.sd_balance_repayable), first ? formatDMY(r.last_txn_date) : null,
         ]);
       });
     });
     const grand = ws.addRow([
-      `GRAND TOTAL (${totals.count} SD Codes)`, ...Array(13).fill(null), num(totals.agreement_value), 'All statuses',
+      `GRAND TOTAL (${totals.count} SD Codes)`, ...Array(13).fill(null), num(totals.agreement_value), 'All SD Types', 'All statuses',
       ...amounts(totals), num(totals.sd_balance), num(totals.sd_balance_repayable), null,
     ]);
     grand.font = { bold: true };
@@ -79,7 +79,7 @@ async function sdBalanceExport(req, res, next) {
     }
     ws.columns.forEach((col, i) => {
       col.width = Math.max(12, headers[i].length + 3);
-      if (i >= 14 && i <= 23 && i !== 15) col.numFmt = '#,##,##0.00';
+      if (i === 14 || (i >= 17 && i <= 24)) col.numFmt = '#,##,##0.00';
     });
     await sendWorkbook(res, `SD_Balance_Report_${dateStamp()}.xlsx`, Buffer.from(await wb.xlsx.writeBuffer()));
   } catch (err) {
