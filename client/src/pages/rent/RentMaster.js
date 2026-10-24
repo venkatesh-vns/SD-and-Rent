@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import DataTable from '../../components/DataTable';
 import MultiSelect from '../../components/MultiSelect';
+import SearchSelect from '../../components/SearchSelect';
 import useCascadeOptions from '../../hooks/useCascadeOptions';
 import Modal from '../../components/Modal';
 import ExcelUpload from '../../components/ExcelUpload';
@@ -137,9 +138,9 @@ export default function RentMaster() {
   const sd = lookups.sds.find((s) => String(s.id) === String(form.sdId));
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   // Choosing an SD Code suggests its landlord from SD Master
-  const chooseSd = (e) => {
-    const next = lookups.sds.find((s) => String(s.id) === e.target.value);
-    setForm({ ...form, sdId: e.target.value, landlordName: form.landlordName || next?.landlord_name || '' });
+  const chooseSd = (id) => {
+    const next = lookups.sds.find((s) => String(s.id) === id);
+    setForm({ ...form, sdId: id, landlordName: form.landlordName || next?.landlord_name || '' });
   };
 
   return (
@@ -200,12 +201,8 @@ export default function RentMaster() {
                   </div>
                   <div>
                     <label htmlFor="sdId">SD Code <span className="req" aria-hidden="true">*</span></label>
-                    <select id="sdId" required value={form.sdId} onChange={chooseSd}>
-                      <option value="">Select SD Code</option>
-                      {lookups.sds.map((s) => (
-                        <option key={s.id} value={s.id}>{`${s.sd_code} · ${s.cost_center_name} · ${s.floor}`}</option>
-                      ))}
-                    </select>
+                    <SearchSelect id="sdId" required placeholder="Select or type to search SD Code" value={form.sdId} onChange={chooseSd}
+                      options={lookups.sds.map((s) => ({ value: s.id, label: [s.sd_code, s.cost_center_name, s.floor, s.landlord_name].filter(Boolean).join(' · ') }))} />
                   </div>
                 </div>
                 <h4 className="form-section">From SD Master <small>not editable</small></h4>
