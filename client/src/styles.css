@@ -605,7 +605,7 @@ fieldset { border: none; margin: 0; padding: 0; min-width: 0; }
 .sd-select-row { display: flex; gap: 0.75rem; margin-bottom: 1rem; align-items: center; }
 .sd-picker { position: relative; flex: 1 1 auto; max-width: 580px; }
 .sd-picker-list {
-  position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0; max-height: 320px; overflow-y: auto;
+  position: absolute; z-index: 35; top: calc(100% + 6px); left: 0; right: 0; max-height: 320px; overflow-y: auto; /* above the sticky SD header (30), below the navbar (40) */
   margin: 0; padding: 0.35rem; list-style: none;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-md);
   animation: fadeIn var(--t-fast) var(--ease);
