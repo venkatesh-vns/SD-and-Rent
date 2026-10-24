@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
 import MultiSelect from '../components/MultiSelect';
+import SearchSelect from '../components/SearchSelect';
 import DateRangeFilter from '../components/DateRangeFilter';
 import Modal from '../components/Modal';
 import ExcelUpload from '../components/ExcelUpload';
@@ -103,6 +104,7 @@ function toForm(r) {
 const selectable = (list, currentId) => list.filter((o) => o.status === 'Active' || String(o.id) === String(currentId));
 // Dropdowns show names only (no codes); Inactive values are marked
 const optionLabel = (o) => `${o.name}${o.status !== 'Active' ? ' (Inactive)' : ''}`;
+const choices = (list, currentId) => selectable(list, currentId).map((o) => ({ value: o.id, label: optionLabel(o) }));
 
 // Loads a location level's list whenever its parent changes
 function useLocations(level, parentId) {
@@ -355,34 +357,26 @@ export default function SdMaster() {
 
                   <div className="span-2">
                     <label htmlFor="costCenterId">Cost Center <span className="req" aria-hidden="true">*</span></label>
-                    <select id="costCenterId" required value={form.costCenterId} onChange={set('costCenterId')}>
-                      <option value="">Select Cost Center</option>
-                      {selectable(costCenters, editing?.cost_center_id).map((c) => <option key={c.id} value={c.id}>{optionLabel(c)}</option>)}
-                    </select>
+                    <SearchSelect id="costCenterId" required placeholder="Select Cost Center" value={form.costCenterId}
+                      options={choices(costCenters, editing?.cost_center_id)} onChange={(v) => setForm({ ...form, costCenterId: v })} />
                   </div>
                 </div>
 
                 <div className="form-grid three">
                   <div>
                     <label htmlFor="l1Id">Location Level 1 <span className="req" aria-hidden="true">*</span></label>
-                    <select id="l1Id" required value={form.l1Id} onChange={(e) => setForm({ ...form, l1Id: e.target.value, l2Id: '', l3Id: '' })}>
-                      <option value="">Select Level 1</option>
-                      {selectable(l1List, editing?.l1_id).map((l) => <option key={l.id} value={l.id}>{optionLabel(l)}</option>)}
-                    </select>
+                    <SearchSelect id="l1Id" required placeholder="Select Level 1" value={form.l1Id}
+                      options={choices(l1List, editing?.l1_id)} onChange={(v) => setForm({ ...form, l1Id: v, l2Id: '', l3Id: '' })} />
                   </div>
                   <div>
                     <label htmlFor="l2Id">Location Level 2 <span className="req" aria-hidden="true">*</span></label>
-                    <select id="l2Id" required disabled={!form.l1Id} value={form.l2Id} onChange={(e) => setForm({ ...form, l2Id: e.target.value, l3Id: '' })}>
-                      <option value="">{form.l1Id ? 'Select Level 2' : 'Select Level 1 first'}</option>
-                      {selectable(formL2, editing?.l2_id).map((l) => <option key={l.id} value={l.id}>{optionLabel(l)}</option>)}
-                    </select>
+                    <SearchSelect id="l2Id" required disabled={!form.l1Id} placeholder={form.l1Id ? 'Select Level 2' : 'Select Level 1 first'} value={form.l2Id}
+                      options={choices(formL2, editing?.l2_id)} onChange={(v) => setForm({ ...form, l2Id: v, l3Id: '' })} />
                   </div>
                   <div>
                     <label htmlFor="l3Id">Location Level 3 <span className="req" aria-hidden="true">*</span></label>
-                    <select id="l3Id" required disabled={!form.l2Id} value={form.l3Id} onChange={set('l3Id')}>
-                      <option value="">{form.l2Id ? 'Select Level 3' : 'Select Level 2 first'}</option>
-                      {selectable(formL3, editing?.l3_id).map((l) => <option key={l.id} value={l.id}>{optionLabel(l)}</option>)}
-                    </select>
+                    <SearchSelect id="l3Id" required disabled={!form.l2Id} placeholder={form.l2Id ? 'Select Level 3' : 'Select Level 2 first'} value={form.l3Id}
+                      options={choices(formL3, editing?.l3_id)} onChange={(v) => setForm({ ...form, l3Id: v })} />
                   </div>
                 </div>
 

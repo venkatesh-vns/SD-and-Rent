@@ -1318,3 +1318,26 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
 .health-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .health-retention { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
 .health-retention .hint { max-width: 80ch; }
+
+/* Searchable single-choice dropdown (components/SearchSelect.js) */
+.search-select { position: relative; }
+.search-select input {
+  padding-right: 2.2rem; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2366756e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 0.7rem center; text-overflow: ellipsis;
+}
+.search-select.open input {
+  cursor: text;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2366756e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+}
+.search-select.open.has-value input::placeholder { color: var(--muted); font-style: normal; font-weight: 500; }
+.search-select-list {
+  position: fixed; z-index: 70; overflow-y: auto; margin: 0; padding: 0.3rem; list-style: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-md);
+  animation: ms-in var(--t-fast) var(--ease);
+}
+.search-select-list li { padding: 0.5rem 0.65rem; border-radius: var(--r); font-size: 0.9rem; cursor: pointer; }
+.search-select-list li.active { background: var(--surface-2); }
+.search-select-list li.chosen { color: var(--primary-strong); font-weight: 600; }
+.search-select-list li.chosen.active { background: var(--primary-tint); }
+.search-select-list li.empty { color: var(--muted); font-style: italic; cursor: default; }
