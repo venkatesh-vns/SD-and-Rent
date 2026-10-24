@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import DataTable from '../../components/DataTable';
 import MultiSelect from '../../components/MultiSelect';
+import SearchSelect from '../../components/SearchSelect';
 import DateRangeFilter from '../../components/DateRangeFilter';
 import Modal from '../../components/Modal';
 import ExcelUpload from '../../components/ExcelUpload';
@@ -176,10 +177,8 @@ export default function RentWaivers() {
                 <div className="form-grid">
                   <div className="span-2">
                     <label htmlFor="rentId">Rent Code <span className="req" aria-hidden="true">*</span></label>
-                    <select id="rentId" required value={form.rentId} onChange={set('rentId')}>
-                      <option value="">Select Rent Code</option>
-                      {lookups.rents.map((r) => <option key={r.id} value={r.id}>{rentLabel(r)}</option>)}
-                    </select>
+                    <SearchSelect id="rentId" required placeholder="Select or type to search Rent Code" value={form.rentId} onChange={(v) => setForm({ ...form, rentId: v })}
+                      options={lookups.rents.map((r) => ({ value: r.id, label: rentLabel(r) }))} />
                   </div>
                 </div>
                 {sd && <LeaseDates rec={sd} />}
