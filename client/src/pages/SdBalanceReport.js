@@ -14,6 +14,9 @@ import { formatAmount, formatDate } from '../utils/format';
 import AmountTiles from '../components/AmountTiles';
 import { AMOUNTS, amountClass } from '../config/amounts';
 
+// Names on this screen (the Excel export keeps its own headers)
+const NAMES = { balance: 'SD Balance Payable', repayable: 'SD Balance Receivable' };
+
 const PAGE_SIZE = 50;
 // Multi-select filters hold arrays of values (empty = all)
 const EMPTY_FILTERS = {
@@ -28,7 +31,7 @@ const MONEY = [
   ['agreement_value', 'agreement'],
   ['total_payments', 'paid', 'SD Paid (payments)', 'Positive SD Paid entries'],
   ['total_reversal', 'paid', 'Reversals', 'Negative SD Paid (reversal) entries'],
-  ['total_paid', 'paid', 'Net SD Paid', 'Payments less reversals - used for SD Balance and Repayable'],
+  ['total_paid', 'paid', 'Net SD Paid', 'Payments less reversals - used for SD Balance Payable and SD Balance Receivable'],
   ['total_transfer', 'transfer'],
   ['total_adjustment', 'adjustment'],
   ['total_refund', 'refund'],
@@ -122,7 +125,7 @@ export default function SdBalanceReport() {
             Export to Excel
           </button>
         </div>
-        <p className="hint">One block per SD Code with a line per Agreement Status. Agreement Value and SD Balance appear once per SD Code and are counted once in the Grand Total at the bottom. SD Balance = Agreement Value − Net SD Paid; Repayable = Net SD Paid − Transfer − Refund − Adjustment.</p>
+        <p className="hint">One block per SD Code with a line per Agreement Status. Agreement Value and SD Balance Payable appear once per SD Code and are counted once in the Grand Total at the bottom. SD Balance Payable = Agreement Value − Net SD Paid; SD Balance Receivable = Net SD Paid − Transfer − Refund − Adjustment.</p>
 
         {error && <div className="alert alert-error">{error}</div>}
 
@@ -164,18 +167,18 @@ export default function SdBalanceReport() {
           <DateRangeFilter label="Lease End" from={filters.leaseEndFrom} to={filters.leaseEndTo} onChange={({ from, to }) => setFilter({ leaseEndFrom: from, leaseEndTo: to })} />
           <label className="inline-check">
             <input type="checkbox" checked={filters.balanceDue === 'true'} onChange={(e) => setFilter({ balanceDue: e.target.checked ? 'true' : '' })} />
-            SD Balance &gt; 0
+            SD Balance Payable &gt; 0
           </label>
           <label className="inline-check">
             <input type="checkbox" checked={filters.repayableDue === 'true'} onChange={(e) => setFilter({ repayableDue: e.target.checked ? 'true' : '' })} />
-            Repayable &gt; 0
+            SD Balance Receivable &gt; 0
           </label>
           <button type="button" className="btn btn-secondary" onClick={() => { setFilters(EMPTY_FILTERS); setPage(1); }}>Clear</button>
         </div>
 
         {totals && (
           <div className="report-totals">
-            <AmountTiles values={tileValues(totals)} lead={{ label: 'SD Codes', value: totals.count, hint: 'Matching the filters' }} />
+            <AmountTiles labels={NAMES} values={tileValues(totals)} lead={{ label: 'SD Codes', value: totals.count, hint: 'Matching the filters' }} />
             {Number(totals.reversal_count) > 0 && (
               <p className="hint reversal-note">
                 Paid is net of <strong>₹{formatAmount(-Number(totals.total_reversal))}</strong> in {totals.reversal_count} reversal
@@ -205,8 +208,8 @@ export default function SdBalanceReport() {
                     {LINE_MONEY.map(([col, kind, label, hint]) => (
                       <th key={col} className={`num tone-head tone-${AMOUNTS[kind].tone}`} title={hint || AMOUNTS[kind].hint}>{label || AMOUNTS[kind].label}</th>
                     ))}
-                    <th className={`num tone-head tone-${AMOUNTS.balance.tone}`} title={AMOUNTS.balance.hint}>{AMOUNTS.balance.label}</th>
-                    <th className={`num tone-head tone-${AMOUNTS.repayable.tone}`} title={AMOUNTS.repayable.hint}>{AMOUNTS.repayable.label}</th>
+                    <th className={`num tone-head tone-${AMOUNTS.balance.tone}`} title={AMOUNTS.balance.hint}>{NAMES.balance}</th>
+                    <th className={`num tone-head tone-${AMOUNTS.repayable.tone}`} title={AMOUNTS.repayable.hint}>{NAMES.repayable}</th>
                   </tr>
                 </thead>
                 {rows.map((r) => {
