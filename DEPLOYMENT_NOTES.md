@@ -172,3 +172,22 @@ Maintenance Charges (scope 3.3).
   LOG_ARCHIVE_DIR, LOG_ARCHIVE (true), LOG_RETENTION_ENABLED (true). Details: docs/Operations_Guide.md.
 - Migration 023 (maintenance_runs + date indexes on the log tables). Replaces the old housekeeping job.
 - Tests: server/tests/logRetention.test.js (127 tests pass).
+
+## 12. SD Master documents (24/10/2026)
+
+- SD Master > Documents (button on each row, with the number attached) opens the documents of
+  that SD Code: upload PDF / Word (.pdf, .doc, .docx) with a Document Type, Title and Remarks;
+  View opens a PDF in a new browser tab; Download saves any version; New version keeps the
+  earlier ones (History lists them); Delete asks for a reason.
+- Files are checked by extension and by content (a renamed file is refused), up to
+  DOCUMENT_MAX_MB (default 20 MB); the same file cannot be attached twice to an SD Code.
+- Details are kept in the new SD Document Master table (sd_document_master, migration 024): one
+  row per version with type, title, file name, size, SHA-256, uploaded by / date and, when
+  deleted, by whom, when and why. Deleted documents and their files are kept.
+- Files are stored on disk in DOCUMENT_DIR (web server: server\documents; desktop app:
+  %APPDATA%\SD Maintenance\documents), one folder per SD Code. The nightly backup copies new
+  document files to BACKUP_DIR\documents.
+- Rights follow SD Master: View = see / view / download, Add or Edit = upload and new versions,
+  Delete = delete. An SD Code with documents cannot be deleted until its documents are deleted.
+- Audit Log: DOC_UPLOAD, DOC_VERSION, DOC_VIEW, DOC_DOWNLOAD, DOC_DELETE (table sd_document_master).
+- Tests: server/tests/sdDocuments.test.js (140 tests pass).

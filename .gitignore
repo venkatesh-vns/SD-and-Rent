@@ -9,3 +9,4 @@ server/uploads/*
 server/logs/
 server/backups/
 server/log-archive/
+server/documents/

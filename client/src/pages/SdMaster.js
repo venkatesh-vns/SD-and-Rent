@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar';
 import DataTable from '../components/DataTable';
 import MultiSelect from '../components/MultiSelect';
 import SearchSelect from '../components/SearchSelect';
+import SdDocuments from '../components/SdDocuments';
 import DateRangeFilter from '../components/DateRangeFilter';
 import Modal from '../components/Modal';
 import ExcelUpload from '../components/ExcelUpload';
@@ -136,6 +137,7 @@ export default function SdMaster() {
   const [filters, setFilters] = useState(() => back.saved?.filters || { ...EMPTY_FILTERS, search: params.get('search') || '' });
   useEffect(() => { back.save({ filters, page }); }, [filters, page, back]);
   const [costCenters, setCostCenters] = useState([]);
+  const [docsFor, setDocsFor] = useState(null); // SD record whose documents are open
   const [modal, setModal] = useState(null); // null | { editing: record | null, history: [] }
   const [form, setForm] = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState([]);
@@ -318,12 +320,28 @@ export default function SdMaster() {
               editLabel={can(SCREENS.SD_MASTER, 'edit') ? 'Edit' : 'View'}
               onDelete={can(SCREENS.SD_MASTER, 'delete') ? handleDelete : null}
               freeze
-              extraActions={can(SCREENS.SD_TRANSACTION, 'view') ? (row) => (
-                <button className="btn btn-small btn-outline" onClick={() => { back.leave(); navigate(`/sd-transactions?sd=${row.id}&from=sd-master`); }}>Transactions</button>
-              ) : null}
+              extraActions={(row) => (
+                <>
+                  <button className="btn btn-small btn-outline" title="Attached PDF / Word documents" onClick={() => setDocsFor(row.raw)}>
+                    Documents{row.raw.doc_count ? <span className="doc-count">{row.raw.doc_count}</span> : null}
+                  </button>
+                  {can(SCREENS.SD_TRANSACTION, 'view') && (
+                    <button className="btn btn-small btn-outline" onClick={() => { back.leave(); navigate(`/sd-transactions?sd=${row.id}&from=sd-master`); }}>Transactions</button>
+                  )}
+                </>
+              )}
             />
             <Pager page={page} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
           </>
+        )}
+
+        {docsFor && (
+          <SdDocuments
+            sd={docsFor}
+            rights={{ upload: can(SCREENS.SD_MASTER, 'add') || can(SCREENS.SD_MASTER, 'edit'), remove: can(SCREENS.SD_MASTER, 'delete') }}
+            onClose={() => setDocsFor(null)}
+            onChanged={fetchRows}
+          />
         )}
 
         {modal && (

@@ -48,6 +48,8 @@ Every night, log entries older than **5 months** (`LOG_RETENTION_MONTHS`) are wr
 - **Run log clean-up now** (System Health) runs it at once; only one run at a time. Each run is listed with what it archived.
 - Measured on the 10-year test database: 100,800 audit entries archived and removed in 2 seconds (0.6 MB archive), all business tables unchanged; users can keep working while it runs (rows are removed in small batches).
 
+**SD Master documents** (PDF / Word attached to SD Codes) are files in `DOCUMENT_DIR` (web server: `server\documents`; desktop app: `%APPDATA%\SD Maintenance\documents`), not in the database. Each backup also copies new document files to `BACKUP_DIR\documents`. When restoring on a new PC, restore the database **and** copy the `documents` folder back to `DOCUMENT_DIR`.
+
 **Copy backups off the server PC.** A backup on the same disk does not survive a disk failure. Point `BACKUP_DIR` at a network share or copy the folder to another location daily (for example with Windows Task Scheduler + `robocopy`).
 
 ## 3. System Health (Administration › System Health, administrators only)

@@ -120,6 +120,7 @@ app.use('/api/user-rights', userRightsRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/sd-master', sdMasterRoutes);
+app.use('/api/sd-documents', require('./routes/sdDocumentRoutes')); // SD Master documents (PDF / Word)
 app.use('/api/lookups', lookupRoutes);
 app.use('/api/sd-transactions', sdTransactionRoutes);
 app.use('/api/notification-templates', notificationTemplateRoutes);

@@ -22,7 +22,8 @@ const SELECT = `
 // The list also shows each record's balances (from v_sd_balance)
 const LIST_SELECT = SELECT.replace(
   'FROM sd_master s',
-  `, b.total_paid, b.sd_balance, b.sd_balance_repayable, b.txn_count
+  `, b.total_paid, b.sd_balance, b.sd_balance_repayable, b.txn_count,
+         (SELECT COUNT(*)::int FROM sd_document_master d WHERE d.sd_id = s.sd_id AND d.is_latest AND d.status = 'Active') AS doc_count
   FROM sd_master s
   JOIN v_sd_balance b ON b.sd_id = s.sd_id`
 );

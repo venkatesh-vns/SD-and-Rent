@@ -7,7 +7,7 @@ function errorHandler(err, req, res, next) {
 
   if (err instanceof multer.MulterError) {
     status = 400;
-    if (err.code === 'LIMIT_FILE_SIZE') message = 'File is too large. The limit is 5 MB.';
+    if (err.code === 'LIMIT_FILE_SIZE') message = `File is too large. The limit is ${req.uploadLimitMb || 5} MB.`;
   } else if (err.code === '23505') {
     // PostgreSQL unique_violation - e.g. two users saving the same name at once
     status = 409;

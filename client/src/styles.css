@@ -1341,3 +1341,36 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
 .search-select-list li.chosen { color: var(--primary-strong); font-weight: 600; }
 .search-select-list li.chosen.active { background: var(--primary-tint); }
 .search-select-list li.empty { color: var(--muted); font-style: italic; cursor: default; }
+
+/* SD Master documents (components/SdDocuments.js) */
+.doc-count {
+  display: inline-block; min-width: 18px; height: 18px; margin-left: 0.35rem; padding: 0 5px; border-radius: 999px;
+  background: var(--primary); color: #fff; font-size: 0.7rem; font-weight: 700; line-height: 18px; text-align: center;
+}
+.doc-intro { margin: -0.4rem 0 0.8rem; }
+.doc-message { margin-bottom: 0.9rem; padding: 0.6rem 0.8rem; border-radius: var(--r); font-size: 0.88rem; }
+.doc-message.success { background: var(--primary-tint); color: var(--primary-strong); }
+.doc-message.error { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+.doc-upload { padding-bottom: 0.4rem; }
+.doc-upload-row { display: flex; gap: 0.75rem; align-items: center; margin-top: 0.75rem; flex-wrap: wrap; }
+.doc-upload-row input[type='file'] { flex: 1 1 260px; }
+.doc-table td { vertical-align: top; }
+.doc-file { display: inline-flex; align-items: center; gap: 0.45rem; max-width: 260px; }
+.doc-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-file small, .doc-when small, .doc-remarks { display: block; color: var(--muted); font-size: 0.76rem; }
+.doc-file small { display: inline; flex: none; }
+.doc-badge { flex: none; padding: 1px 5px; border-radius: 4px; font-size: 0.66rem; font-weight: 700; letter-spacing: 0.03em; color: #fff; }
+.doc-badge.doc-pdf { background: #b91c1c; }
+.doc-badge.doc-doc, .doc-badge.doc-docx { background: #1d4ed8; }
+.doc-version { display: inline-block; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); font-size: 0.78rem; font-weight: 700; }
+.doc-version.latest { background: var(--primary-tint); color: var(--primary-strong); }
+.doc-latest { margin-left: 0.35rem; color: var(--primary-strong); font-size: 0.72rem; }
+.doc-history-toggle { display: block; margin-top: 0.25rem; font-size: 0.78rem; }
+.doc-actions { white-space: nowrap; }
+.doc-version-row td { background: var(--surface-2); font-size: 0.85rem; }
+.doc-delete { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+.doc-delete label { margin: 0; text-transform: none; letter-spacing: 0; font-size: 0.86rem; color: var(--text); }
+.doc-delete input { flex: 1 1 240px; }
+.doc-footnote { margin-top: 0.9rem; }
+.btn-danger-outline { background: var(--surface); color: var(--danger); border-color: var(--danger-border); }
+.btn-danger-outline:hover { background: var(--danger-bg); }

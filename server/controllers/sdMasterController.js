@@ -1,4 +1,4 @@
-const { withTransaction } = require('../config/db');
+const { pool, withTransaction } = require('../config/db');
 const sdMasterModel = require('../models/sdMasterModel');
 const costCenterModel = require('../models/costCenterModel');
 const locationModel = require('../models/locationModel');
@@ -137,6 +137,8 @@ async function remove(req, res, next) {
   try {
     const before = await sdMasterModel.findById(req.params.id);
     if (!before) return res.status(404).json({ success: false, message: 'SD record not found.' });
+    const docs = (await pool.query(`SELECT COUNT(*)::int AS n FROM sd_document_master WHERE sd_id = $1 AND is_latest AND status = 'Active'`, [before.sd_id])).rows[0].n;
+    if (docs) return res.status(409).json({ success: false, message: `${before.sd_code} has ${docs} attached document${docs === 1 ? '' : 's'}. Delete the documents first.` });
     await withTransaction(async (db) => {
       await sdMasterModel.remove(before.sd_id, db);
       await logAudit({ tableName: 'sd_master', recordId: before.sd_id, action: 'DELETE', actionBy: req.user.userName, oldValues: before }, db);

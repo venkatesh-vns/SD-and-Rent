@@ -54,10 +54,11 @@ export function errorMessage(err, fallback) {
 export async function downloadFile(url, params = {}, fallbackName = 'download.xlsx') {
   const res = await api.get(url, { params, responseType: 'blob' });
   const disposition = res.headers['content-disposition'] || '';
-  const match = disposition.match(/filename="?([^"]+)"?/);
+  const utf8 = disposition.match(/filename*=UTF-8''([^;]+)/i);
+  const match = disposition.match(/filename="?([^";]+)"?/);
   const link = document.createElement('a');
   link.href = URL.createObjectURL(res.data);
-  link.download = match ? match[1] : fallbackName;
+  link.download = utf8 ? decodeURIComponent(utf8[1]) : match ? match[1] : fallbackName;
   document.body.appendChild(link);
   link.click();
   link.remove();

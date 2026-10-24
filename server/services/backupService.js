@@ -65,6 +65,30 @@ function prune() {
 /**
  * Runs one backup. Returns the backup_runs row. Throws only for "already running".
  */
+// SD Master document files live on disk (DOCUMENT_DIR), outside the database dump.
+// Each backup copies the files that are not in BACKUP_DIR/documents yet; stored
+// documents never change (a new version is a new file), so copying new ones is enough.
+function mirrorDocuments() {
+  const from = process.env.DOCUMENT_DIR || path.join(__dirname, '..', 'documents');
+  const to = path.join(backupDir(), 'documents');
+  let copied = 0;
+  const walk = (dir) => {
+    if (!fs.existsSync(dir)) return;
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const src = path.join(dir, e.name);
+      if (e.isDirectory()) { walk(src); continue; }
+      if (!e.isFile() || e.name.endsWith('.part')) continue;
+      const dest = path.join(to, path.relative(from, src));
+      if (fs.existsSync(dest) && fs.statSync(dest).size === fs.statSync(src).size) continue;
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      fs.copyFileSync(src, dest);
+      copied += 1;
+    }
+  };
+  walk(from);
+  return copied;
+}
+
 async function runBackup({ reason = 'Manual', by = 'system' } = {}) {
   const lockClient = await pool.connect();
   try {
@@ -88,10 +112,11 @@ async function runBackup({ reason = 'Manual', by = 'system' } = {}) {
       if (!tables) throw new Error('The backup file could not be read back (no table data found).');
       const size = fs.statSync(file).size;
       const removed = prune();
+      const docs = mirrorDocuments();
       result = (await pool.query(
         `UPDATE backup_runs SET finished_at = NOW(), file_path = $2, size_bytes = $3, verified = TRUE, ok = TRUE, message = $4
          WHERE backup_id = $1 RETURNING *`,
-        [row.backup_id, file, size, `${tables} tables verified${removed.length ? `; ${removed.length} old backup(s) removed` : ''}`]
+        [row.backup_id, file, size, `${tables} tables verified${docs ? `; ${docs} new document file(s) copied` : ''}${removed.length ? `; ${removed.length} old backup(s) removed` : ''}`]
       )).rows[0];
     } catch (err) {
       fs.rmSync(file, { force: true });
@@ -124,4 +149,4 @@ async function status() {
   };
 }
 
-module.exports = { runBackup, status, prune, pgTool, backupDir };
+module.exports = { runBackup, status, prune, pgTool, backupDir, mirrorDocuments };

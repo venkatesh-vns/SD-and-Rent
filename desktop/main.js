@@ -108,6 +108,7 @@ async function startServerMode(firstAdmin) {
     backupDir: path.join(USER_DIR, 'backups'), // nightly database backups
     pgBin: path.join(RES, 'pgsql', 'bin'),
     logArchiveDir: path.join(USER_DIR, 'log-archive'), // log entries older than 5 months
+    documentDir: path.join(USER_DIR, 'documents'), // SD Master documents (PDF / Word)
     logDir: path.join(LOG_DIR, 'server'),
     httpPort: s.httpPort,
     pgPort: s.pgPort,

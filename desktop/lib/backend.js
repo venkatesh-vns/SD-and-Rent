@@ -17,7 +17,7 @@ function lanAddresses() {
  * firstAdmin = { email, password } creates the admin user on an empty database.
  * Returns { close() }.
  */
-async function startBackend({ backendDir, uploadDir, backupDir, pgBin, logDir, logArchiveDir, httpPort, pgPort, dbUser, dbName, dbPassword, jwtSecret, settingsSecret, emailDryRun = false, firstAdmin, log }) {
+async function startBackend({ backendDir, uploadDir, backupDir, pgBin, logDir, logArchiveDir, documentDir, httpPort, pgPort, dbUser, dbName, dbPassword, jwtSecret, settingsSecret, emailDryRun = false, firstAdmin, log }) {
   fs.mkdirSync(uploadDir, { recursive: true });
   const lan = lanAddresses()[0];
   Object.assign(process.env, {
@@ -38,6 +38,7 @@ async function startBackend({ backendDir, uploadDir, backupDir, pgBin, logDir, l
     ...(pgBin ? { PG_BIN: pgBin } : {}),
     ...(logDir ? { LOG_DIR: logDir } : {}),
     ...(logArchiveDir ? { LOG_ARCHIVE_DIR: logArchiveDir } : {}), // log retention archives
+    ...(documentDir ? { DOCUMENT_DIR: documentDir } : {}), // SD Master documents (PDF / Word)
     NOTIFY_ENABLED: 'true',
     EMAIL_DRY_RUN: emailDryRun ? 'true' : 'false', // UAT build: emails are logged, never sent
   });
