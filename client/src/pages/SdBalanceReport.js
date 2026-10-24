@@ -208,7 +208,7 @@ export default function SdBalanceReport() {
                     <th colSpan={2} className="tone-fill-head">Balances</th>
                   </tr>
                   <tr>
-                    <th>SD Code</th><th>Location</th><th>Cost Center</th><th>Floor</th><th>Landlord</th>
+                    <th>SD Code</th><th>Location Level 1</th><th>Cost Center</th><th>Floor</th><th>Landlord</th>
                     <th>Status</th><th>Lease End</th>
                     <th className={`num tone-head tone-${AMOUNTS.agreement.tone}`}>{AMOUNTS.agreement.label}</th>
                     <th>Agreement Status</th>
@@ -229,7 +229,7 @@ export default function SdBalanceReport() {
                           {i === 0 && (
                             <>
                               <td rowSpan={span}>{canTxn ? <Link to={`/sd-transactions?sd=${r.sd_id}&from=sd-balance`} onClick={back.leave}>{r.sd_code}</Link> : r.sd_code}</td>
-                              <td rowSpan={span} title={`Level 1: ${r.l1_name}\nLevel 2: ${r.l2_name}\nLevel 3: ${r.l3_name}`}>{[r.l1_name, r.l2_name, r.l3_name].filter(Boolean).join(' / ') || '—'}</td>
+                              <td rowSpan={span}>{r.l1_name || '—'}</td>
                               <td rowSpan={span}>{r.cost_center_name}</td>
                               <td rowSpan={span}>{r.floor}</td>
                               <td rowSpan={span}>{r.landlord_name || '—'}</td>
