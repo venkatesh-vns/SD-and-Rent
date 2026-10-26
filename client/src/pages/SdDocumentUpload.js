@@ -35,6 +35,7 @@ export default function SdDocumentUpload() {
   const [settings, setSettings] = useState({ types: [], maxMb: 20, serverFolders: [] });
   const [template, setTemplate] = useState(null);
   const [chosen, setChosen] = useState([]);
+  const [pickedFrom, setPickedFrom] = useState(''); // folder name when a folder was chosen
   const [progress, setProgress] = useState(null); // { done, total }
   const [batch, setBatch] = useState(null);
   const [rowFilter, setRowFilter] = useState('All');
@@ -66,7 +67,8 @@ export default function SdDocumentUpload() {
   }, [isAdmin]);
   useEffect(() => { loadDeletable(); }, [loadDeletable]);
 
-  const pickDocs = (list) => {
+  const pickDocs = (list, how) => {
+    setPickedFrom(how === 'folder' && list[0]?.webkitRelativePath ? list[0].webkitRelativePath.split('/')[0] : '');
     const files = [...list].filter((f) => /\.(pdf|docx?)$/i.test(f.name));
     setChosen(files.map((file) => ({ file, segs: segments(file.webkitRelativePath || file.name) })));
   };
@@ -112,6 +114,7 @@ export default function SdDocumentUpload() {
       setNotice(`${b.batch_no}: ${b.success_rows} of ${b.total_rows} document${b.total_rows === 1 ? '' : 's'} uploaded${b.failed_rows ? `, ${b.failed_rows} failed (see the reasons below)` : ''}.`);
       setTemplate(null);
       setChosen([]);
+      setPickedFrom('');
       [templateInput, folderInput, filesInput].forEach((i) => { if (i.current) i.current.value = ''; });
       setPage(1);
       loadHistory();
@@ -162,6 +165,7 @@ export default function SdDocumentUpload() {
     }
   };
 
+  const downloadTemplate = () => downloadFile('/sd-document-batches/template', {}, 'SD_Document_Upload_Template.xlsx').catch(() => setError('Template download failed.'));
   const shownRows = batch ? batch.rows.filter((r) => rowFilter === 'All' || r.status === rowFilter) : [];
   const count = (s) => (batch ? batch.rows.filter((r) => r.status === s).length : 0);
   const busy = Boolean(progress);
@@ -172,7 +176,7 @@ export default function SdDocumentUpload() {
       <div className="page-container wide">
         <div className="page-header">
           <h1>SD Document Upload</h1>
-          <button type="button" className="btn btn-secondary" onClick={() => downloadFile('/sd-document-batches/template', {}, 'SD_Document_Upload_Template.xlsx').catch(() => setError('Template download failed.'))}>
+          <button type="button" className="btn btn-secondary" onClick={downloadTemplate}>
             Download Template
           </button>
         </div>
@@ -187,18 +191,29 @@ export default function SdDocumentUpload() {
           <section className="card bulk-doc-card">
             <h3>Bulk upload</h3>
             <div className="bulk-doc-steps">
+              {/* The file inputs are hidden behind clearly named buttons */}
+              <input ref={templateInput} id="docTemplate" type="file" accept=".xlsx" hidden onChange={(e) => setTemplate(e.target.files[0] || null)} />
+              <input ref={folderInput} id="docFolder" type="file" webkitdirectory="" directory="" multiple hidden onChange={(e) => pickDocs(e.target.files, 'folder')} />
+              <input ref={filesInput} type="file" multiple accept={DOC_ACCEPT} hidden aria-label="Choose document files" onChange={(e) => pickDocs(e.target.files, 'files')} />
               <div>
-                <label htmlFor="docTemplate">1. Filled template (.xlsx)</label>
-                <input ref={templateInput} id="docTemplate" type="file" accept=".xlsx" disabled={busy} onChange={(e) => setTemplate(e.target.files[0] || null)} />
+                <span className="bulk-doc-step">1. Filled template (.xlsx)</span>
+                <div className="bulk-doc-pick">
+                  <button type="button" className="btn btn-outline" disabled={busy} onClick={() => templateInput.current.click()}>Choose Template</button>
+                  <button type="button" className="link-button" onClick={downloadTemplate}>Download Template</button>
+                </div>
+                <small className={`bulk-doc-picked${template ? ' done' : ''}`}>{template ? `✓ ${template.name}` : 'No template chosen'}</small>
               </div>
               <div>
-                <label htmlFor="docFolder">2. The documents: choose their folder, or the files</label>
+                <span className="bulk-doc-step">2. The documents (PDF / Word)</span>
                 <div className="bulk-doc-pick">
-                  <input ref={folderInput} id="docFolder" type="file" webkitdirectory="" directory="" multiple disabled={busy} onChange={(e) => pickDocs(e.target.files)} />
+                  <button type="button" className="btn btn-outline" disabled={busy} onClick={() => folderInput.current.click()}>Choose Folder</button>
                   <span>or</span>
-                  <input ref={filesInput} type="file" multiple accept={DOC_ACCEPT} disabled={busy} aria-label="Choose document files" onChange={(e) => pickDocs(e.target.files)} />
+                  <button type="button" className="btn btn-outline" disabled={busy} onClick={() => filesInput.current.click()}>Choose Files</button>
                 </div>
-                <small className="hint">{chosen.length ? `${chosen.length} PDF / Word file${chosen.length === 1 ? '' : 's'} chosen. ` : ''}Each File Path in the template is matched to these files by file name.</small>
+                <small className={`bulk-doc-picked${chosen.length ? ' done' : ''}`}>
+                  {chosen.length ? `✓ ${chosen.length} PDF / Word file${chosen.length === 1 ? '' : 's'}${pickedFrom ? ` from folder "${pickedFrom}"` : ''}` : 'No documents chosen'}
+                </small>
+                <small className="hint">Choose the folder that holds the documents (sub-folders included), or select the files. Each File Path in the template is matched to them by file name.</small>
                 {settings.serverFolders.length > 0 && (
                   <small className="hint">Files under {settings.serverFolders.join(', ')} are read by the server directly; no need to choose them.</small>
                 )}
