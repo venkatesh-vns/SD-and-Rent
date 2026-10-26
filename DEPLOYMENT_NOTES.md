@@ -191,3 +191,26 @@ Maintenance Charges (scope 3.3).
   Delete = delete. An SD Code with documents cannot be deleted until its documents are deleted.
 - Audit Log: DOC_UPLOAD, DOC_VERSION, DOC_VIEW, DOC_DOWNLOAD, DOC_DELETE (table sd_document_master).
 - Tests: server/tests/sdDocuments.test.js (140 tests pass).
+
+## 13. SD Document Upload - bulk documents (26/10/2026)
+
+- New menu SD Transaction > SD Document Upload (screen SD_DOCUMENT_UPLOAD; give users View and
+  Upload in User Rights Master - administrators have it already).
+- Download Template: S.No, SD Code / SD ID, Document Type (drop-down: LOI, Agreement, Registered
+  Agreement, Addendum Agreement, Mail Approval, Payment Proof, Correspondence, Other), File Path;
+  an Instructions sheet explains it.
+- Bulk upload: choose the filled template and the folder holding the documents (or the files).
+  Each row's File Path is matched to the chosen files by file name (folders decide when two files
+  share a name). The browser cannot hand the server a path on the user's PC, so the files are sent
+  from the chosen folder. Paths inside a shared folder listed in DOCUMENT_IMPORT_ROOTS (e.g.
+  \fileserver\SD Documents; several separated by ;) are read by the server directly.
+- Every row gets Success or Failed with the reason (SD not found, wrong type, not PDF/Word,
+  duplicate row, file not chosen, invalid file content, same file already attached...). Each
+  upload is a batch DOCB000001...; Upload history lists them and opens their rows.
+- Deleting one document: SD Master > Documents (unchanged).
+- Bulk delete (administrators only): by Upload Batch Number or Upload Date, with a check showing
+  what will be deleted and a required reason. Documents are marked Deleted (kept for audit); a
+  document that has had a new version uploaded outside the batch is skipped and listed.
+- Migration 025 (sd_document_batches, sd_document_batch_rows, sd_document_master.batch_id, screen).
+  Audit Log: DOC_BULK_UPLOAD, DOC_BULK_DELETE (plus DOC_UPLOAD per document).
+- Tests: server/tests/sdDocumentBatches.test.js (145 tests pass).

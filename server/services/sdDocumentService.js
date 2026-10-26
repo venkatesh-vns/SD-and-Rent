@@ -83,12 +83,12 @@ async function versions(documentId) {
 }
 
 // Writes the file and its row in one go; the file is removed again if the row is not saved
-async function store(db, { sdId, sdCode, groupId, versionNo, documentType, title, remarks, file, info, by }) {
+async function store(db, { sdId, sdCode, groupId, versionNo, documentType, title, remarks, file, info, by, batchId = null }) {
   const row = (await db.query(
     `INSERT INTO sd_document_master (sd_id, group_id, version_no, document_type, title, remarks, file_name, file_ext,
-                                     mime_type, size_bytes, sha256, stored_path, uploaded_by)
-     VALUES ($1, COALESCE($2, 0), $3, $4, $5, $6, $7, $8, $9, $10, $11, '', $12) RETURNING document_id`,
-    [sdId, groupId, versionNo, documentType, title, remarks, cleanName(file.originalname), info.ext, info.mime, file.size, info.sha256, by]
+                                     mime_type, size_bytes, sha256, stored_path, uploaded_by, batch_id)
+     VALUES ($1, COALESCE($2, 0), $3, $4, $5, $6, $7, $8, $9, $10, $11, '', $12, $13) RETURNING document_id`,
+    [sdId, groupId, versionNo, documentType, title, remarks, cleanName(file.originalname), info.ext, info.mime, file.size, info.sha256, by, batchId]
   )).rows[0];
   const group = groupId || row.document_id;
   const rel = path.join(sdCode, `${group}-v${versionNo}-${crypto.randomBytes(6).toString('hex')}.${info.ext}`);
@@ -120,8 +120,8 @@ async function refuseDuplicate(db, sdId, sha256) {
   if (dup) throw httpError(409, `This file is already attached to this SD Code as "${dup.title}" (version ${dup.version_no}).`);
 }
 
-// New document (version 1)
-async function upload({ sdId, documentType, title, remarks, file, by }) {
+// New document (version 1); batchId when it comes from SD Document Upload
+async function upload({ sdId, documentType, title, remarks, file, by, batchId = null }) {
   const info = checkFile(file);
   if (!DOCUMENT_TYPES.includes(documentType)) throw httpError(400, `Document Type must be one of: ${DOCUMENT_TYPES.join(', ')}.`);
   const docTitle = text(title, 200) || cleanName(file.originalname).replace(/\.[^.]+$/, '');
@@ -130,7 +130,7 @@ async function upload({ sdId, documentType, title, remarks, file, by }) {
     if (!sd) throw httpError(404, 'SD record not found.');
     await refuseDuplicate(db, sd.sd_id, info.sha256);
     const { documentId, target } = await store(db, {
-      sdId: sd.sd_id, sdCode: sd.sd_code, groupId: null, versionNo: 1, documentType, title: docTitle, remarks: text(remarks, 500), file, info, by,
+      sdId: sd.sd_id, sdCode: sd.sd_code, groupId: null, versionNo: 1, documentType, title: docTitle, remarks: text(remarks, 500), file, info, by, batchId,
     });
     wrote(target);
     await logAudit({ tableName: 'sd_document_master', recordId: documentId, action: 'DOC_UPLOAD', actionBy: by,
@@ -219,5 +219,6 @@ function readViewToken(token) {
 }
 
 module.exports = {
+  checkFile, cleanName, KINDS,
   DOCUMENT_TYPES, maxMb, documentDir, list, versions, upload, addVersion, remove, open, downloadName, viewToken, readViewToken,
 };

@@ -17,6 +17,7 @@ export const SCREENS = {
   RENT_WAIVER: 'RENT_WAIVER',
   RENT_SCHEDULE: 'RENT_SCHEDULE',
   SD_RENT_REPORT: 'SD_RENT_REPORT',
+  SD_DOCUMENT_UPLOAD: 'SD_DOCUMENT_UPLOAD',
   SD_NEGATIVE_ENTRY: 'SD_NEGATIVE_ENTRY', // a right only (no menu item): negative SD Paid entries
 };
 
@@ -40,6 +41,7 @@ export const MENU = [
     items: [
       { screen: SCREENS.SD_MASTER, label: 'SD Master', path: '/sd-master', description: 'Lease and Security Deposit master records, one per SD Code.' },
       { screen: SCREENS.SD_TRANSACTION, label: 'SD Transactions', path: '/sd-transactions', description: 'SD Paid, Transfer, Adjustment and Refund per SD Code, with balances.' },
+      { screen: SCREENS.SD_DOCUMENT_UPLOAD, label: 'SD Document Upload', path: '/sd-document-upload', description: 'Bulk upload of PDF / Word documents to SD records from a template.' },
     ],
   },
   {

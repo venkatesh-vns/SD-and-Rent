@@ -28,6 +28,7 @@ import RentWaivers from './pages/rent/RentWaivers';
 import RentSchedule from './pages/rent/RentSchedule';
 import SdRentReport from './pages/SdRentReport';
 import SystemHealth from './pages/SystemHealth';
+import SdDocumentUpload from './pages/SdDocumentUpload';
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
           <Route path="/locations" element={<ProtectedRoute screen={SCREENS.LOCATION}><LocationMaster /></ProtectedRoute>} />
           <Route path="/sd-master" element={<ProtectedRoute screen={SCREENS.SD_MASTER}><SdMaster /></ProtectedRoute>} />
           <Route path="/sd-transactions" element={<ProtectedRoute screen={SCREENS.SD_TRANSACTION}><SdTransactions /></ProtectedRoute>} />
+          <Route path="/sd-document-upload" element={<ProtectedRoute screen={SCREENS.SD_DOCUMENT_UPLOAD}><SdDocumentUpload /></ProtectedRoute>} />
           <Route path="/sd-dashboard" element={<ProtectedRoute screen={SCREENS.SD_DASHBOARD}><SdDashboard /></ProtectedRoute>} />
           <Route path="/reports/sd-balance" element={<ProtectedRoute screen={SCREENS.SD_REPORT}><SdBalanceReport /></ProtectedRoute>} />
           <Route path="/email-log" element={<ProtectedRoute screen={SCREENS.EMAIL_LOG}><EmailLog /></ProtectedRoute>} />

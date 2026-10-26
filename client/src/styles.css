@@ -1374,3 +1374,35 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
 .doc-footnote { margin-top: 0.9rem; }
 .btn-danger-outline { background: var(--surface); color: var(--danger); border-color: var(--danger-border); }
 .btn-danger-outline:hover { background: var(--danger-bg); }
+
+/* SD Document Upload (pages/SdDocumentUpload.js) */
+.bulk-doc-card { margin-top: 1.1rem; }
+.bulk-doc-card h3 { margin: 0 0 0.9rem; font-size: 1.05rem; }
+.bulk-doc-card h3 small { margin-left: 0.4rem; color: var(--muted); font-size: 0.8rem; font-weight: 400; }
+.bulk-doc-steps { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(280px, 2fr) auto; gap: 1rem 1.25rem; align-items: start; }
+.bulk-doc-steps label { display: block; margin-bottom: 0.35rem; }
+.bulk-doc-steps small.hint { display: block; margin-top: 0.35rem; }
+.bulk-doc-pick { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+.bulk-doc-pick input[type='file'] { flex: 1 1 200px; }
+.bulk-doc-pick input[type='text'] { flex: 1 1 280px; }
+.bulk-doc-pick > span { color: var(--muted); font-size: 0.85rem; }
+.bulk-doc-go { display: flex; gap: 1rem; align-items: center; margin-top: 1rem; flex-wrap: wrap; }
+.bulk-doc-steps .bulk-doc-go { margin-top: 1.55rem; }
+.bulk-doc-progress { position: relative; flex: 1 1 260px; height: 28px; border-radius: var(--r); background: var(--surface-2); overflow: hidden; }
+.bulk-doc-progress div { height: 100%; background: var(--primary-tint); transition: width var(--t) var(--ease); }
+.bulk-doc-progress span { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 0.75rem; font-size: 0.84rem; font-weight: 600; }
+.bulk-doc-result-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.bulk-doc-filters { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+.chip.active { background: var(--primary-tint); border-color: var(--primary); color: var(--primary-strong); font-weight: 600; }
+.bulk-doc-path { max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bulk-doc-msg { min-width: 220px; font-size: 0.84rem; }
+.doc-status { display: inline-block; padding: 2px 9px; border-radius: 999px; border: 1px solid transparent; font-size: 0.76rem; font-weight: 700; white-space: nowrap; }
+.doc-status-success, .doc-status-completed { background: var(--ok-bg); border-color: var(--ok-border); color: #166534; }
+.doc-status-failed { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger); }
+.doc-status-pending, .doc-status-in { background: var(--warn-bg); border-color: var(--warn-border); color: #92400e; }
+.doc-status-deleted { background: var(--surface-2); border-color: var(--border); color: var(--muted); text-decoration: line-through; }
+.bulk-doc-delete { border-color: var(--danger-border); }
+.bulk-doc-confirm { margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--border); }
+.bulk-doc-confirm p { margin: 0 0 0.6rem; }
+.bulk-doc-skipped { margin: 0 0 0.8rem; padding-left: 1.2rem; color: #92400e; font-size: 0.86rem; }
+@media (max-width: 860px) { .bulk-doc-steps { grid-template-columns: 1fr; } .bulk-doc-steps .bulk-doc-go { margin-top: 0; } }
