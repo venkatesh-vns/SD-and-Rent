@@ -116,6 +116,14 @@ describe('Rent Transaction module', () => {
       const oct = data.find((l) => l.rent_month === '2026-10-01');
       assert.equal(Number(oct.waiver_amount), 1112.9);
       assert.equal(Number(oct.rule_percentage), 15);
+      // explained for the reader: escalation from 01/05/2026, October rent-free 1-30
+      const may = data.find((l) => l.rent_month === '2026-05-01');
+      assert.equal(may.event, 'escalation');
+      assert.equal(may.escalation_date, '2026-05-01');
+      assert.ok(may.remarks.startsWith('Escalation +15% from 01/05/2026 (RCD rule, every 1 months)'), may.remarks);
+      assert.equal(oct.event, 'waiver');
+      assert.equal(oct.waiver_days, 30);
+      assert.equal(oct.escalation_date, '2026-05-01');
     });
 
     it('refuses a waiver change while its months are generated: delete, change, regenerate', async () => {
@@ -162,6 +170,10 @@ describe('Rent Transaction module', () => {
       const ws = wb.getWorksheet('Rent Schedule');
       assert.equal(ws.getCell('A1').value, 'Rent Code');
       assert.equal(ws.getCell('H2').value, 'Rent to Landlord - Office Rent');
+      assert.equal(ws.getCell('AA1').value, 'Remarks');
+      const remarks = [];
+      ws.eachRow((r) => remarks.push(String(r.getCell(27).value || '')));
+      assert.ok(remarks.some((x) => x.startsWith('Escalation +15% from 01/05/2026')), JSON.stringify(remarks));
     });
 
     it('transfers the configuration to another landlord from a date', async () => {

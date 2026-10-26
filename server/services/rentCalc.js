@@ -140,4 +140,73 @@ function computeRentSchedule({ rent, agreements, rules = [], waivers = [], trans
   return { lines, messages: [...new Set(messages)] };
 }
 
-module.exports = { addMonths, addDays, monthStart, monthEnd, nextMonth, escalationChain, computeRentSchedule, round2 };
+const dmy = (d) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+const pct = (p) => `${Number(p) > 0 ? '+' : ''}${Number(p)}%`;
+const day = (v) => (v ? String(v instanceof Date ? v.toISOString() : v).slice(0, 10) : null);
+
+/**
+ * Explains a schedule line for the reader: which escalation the month's rate
+ * comes from and since when, an escalation that starts in the month, the next
+ * escalation, and the waiver (rent-free) days of the month.
+ *   line   { component_code, period_from, period_to }
+ *   ctx    { chain: escalationChain(...) result, normalDays, waivers } of the Rent Code
+ * Returns { escalation_date, escalation_rule, next_escalation_date, waiver_from,
+ *           waiver_to, waiver_days, event: 'escalation' | 'waiver' | 'both' | null, remarks }
+ */
+// The rules and waivers of one Rent Code that apply to one component, prepared once
+function prepare(ctx, code) {
+  ctx.byCode = ctx.byCode || new Map();
+  if (!ctx.byCode.has(code)) {
+    const { chain = [], normalDays = [], waivers = [] } = ctx;
+    const escalations = chain.filter((r) => r.effective_date && appliesTo(r, code))
+      .map((r) => ({ date: r.effective_date, pct: r.percentage, label: `${r.rule_type} rule, every ${Number(r.escalation_months)} months` }));
+    const windows = normalDays.filter((r) => r.status === 'Active' && appliesTo(r, code))
+      .map((r) => ({ date: day(r.from_date), end: day(r.to_date), pct: r.percentage, label: `Normal Day rule to ${dmy(day(r.to_date))}` }));
+    ctx.byCode.set(code, {
+      escalations,
+      windows,
+      all: [...escalations, ...windows].sort((a, b) => (a.date < b.date ? -1 : 1)),
+      rentFree: waivers.filter((w) => w.waiver_status === 'Yes' && appliesTo(w, code)).map((w) => ({ from: day(w.from_date), to: day(w.to_date) })),
+    });
+  }
+  return ctx.byCode.get(code);
+}
+
+function explainLine(line, ctx) {
+  const { escalations, windows, all, rentFree: waived } = prepare(ctx, line.component_code);
+  const from = day(line.period_from);
+  const to = day(line.period_to);
+  const inForce = [...escalations.filter((e) => e.date <= to), ...windows.filter((w) => w.date <= to && w.end >= from)]
+    .sort((a, b) => (a.date < b.date ? -1 : 1)).pop() || null;
+  const starting = all.filter((e) => e.date >= from && e.date <= to);
+  const next = all.find((e) => e.date > to) || null;
+
+  let waiverFrom = null;
+  let waiverTo = null;
+  let waiverDays = 0;
+  // Waivers of a component do not overlap (Waiver Master refuses it), so their days add up
+  const rentFree = waived.filter((w) => w.from <= to && w.to >= from);
+  rentFree.forEach((w) => { waiverDays += Math.round((t(minDate(w.to, to)) - t(maxDate(w.from, from))) / DAY) + 1; });
+  if (rentFree.length) {
+    waiverFrom = rentFree.map((w) => w.from).sort()[0];
+    waiverTo = rentFree.map((w) => w.to).sort().pop();
+  }
+
+  const remarks = [];
+  starting.forEach((e) => remarks.push(`Escalation ${pct(e.pct)} from ${dmy(e.date)} (${e.label})`));
+  if (rentFree.length) remarks.push(`Rent-free ${dmy(waiverFrom)} - ${dmy(waiverTo)} (${waiverDays} day${waiverDays === 1 ? '' : 's'} this month)`);
+  if (next) remarks.push(`Next escalation ${pct(next.pct)} on ${dmy(next.date)}`);
+  const event = starting.length && rentFree.length ? 'both' : starting.length ? 'escalation' : rentFree.length ? 'waiver' : null;
+  return {
+    escalation_date: inForce ? inForce.date : null,
+    escalation_rule: inForce ? `${pct(inForce.pct)} · ${inForce.label}` : null,
+    next_escalation_date: next ? next.date : null,
+    waiver_from: waiverFrom,
+    waiver_to: waiverTo,
+    waiver_days: waiverDays,
+    event,
+    remarks: remarks.join('; '),
+  };
+}
+
+module.exports = { addMonths, addDays, monthStart, monthEnd, nextMonth, escalationChain, computeRentSchedule, explainLine, round2 };

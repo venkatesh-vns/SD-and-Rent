@@ -25,7 +25,7 @@ async function getLines(req, res, next) {
   try {
     const p = paging(req.query);
     const { rows, total, totals } = await scheduleModel.getLines(filtersOf(req.query), p);
-    res.json({ success: true, data: rows, total, totals, ...p });
+    res.json({ success: true, data: await schedule.explainLines(rows), total, totals, ...p });
   } catch (err) {
     next(err);
   }
@@ -120,6 +120,7 @@ const OUTPUT_HEADERS = [
   'Rent Code', 'SD Code', 'Cost Center', 'Floor', 'Landlord Name', 'LL Status', 'Agreement Status', 'Agreement Header',
   'Rent Month', 'Schedule Date', 'Period To', 'Days', 'Base Rent Amount', 'Rule Percentage', 'Escalated Amount',
   'Waiver Amount', 'Final Rent Amount', 'LCD', 'RCD', 'LED',
+  'Escalation Date', 'Escalation Rule', 'Next Escalation Date', 'Waiver From', 'Waiver To', 'Waiver Days', 'Remarks',
 ];
 
 // GET /api/rent/schedule/export - lines (scope 6.5 columns) plus a summary sheet per Agreement Header
@@ -127,13 +128,14 @@ async function exportLines(req, res, next) {
   try {
     const f = filtersOf(req.query);
     const { rows, totals } = await scheduleModel.getLines(f, { pageSize: 0 });
+    await schedule.explainLines(rows);
     const byHeader = await scheduleModel.getSummary(f, 'component');
 
     // Streamed a row at a time (a year of lines for every Rent Code runs into the hundreds of thousands)
     await streamWorkbook(res, `Rent_Schedule_${dateStamp()}.xlsx`, async (wb) => {
       const ws = wb.addWorksheet('Rent Schedule', { views: [{ state: 'frozen', ySplit: 1 }] });
       ws.columns = OUTPUT_HEADERS.map((h, i) => ({
-        width: i === 7 ? 34 : Math.max(12, h.length + 3),
+        width: i === 7 ? 34 : i === 21 ? 34 : i === 26 ? 70 : Math.max(12, h.length + 3),
         style: [12, 14, 15, 16].includes(i) ? { numFmt: '#,##,##0.00' } : i === 13 ? { numFmt: '0.00%' } : {},
       }));
       const head = ws.addRow(OUTPUT_HEADERS);
@@ -141,12 +143,17 @@ async function exportLines(req, res, next) {
       head.commit();
       for (let i = 0; i < rows.length; i += 1) {
         const l = rows[i];
-        ws.addRow([
+        const row = ws.addRow([
           l.rent_code, l.sd_code, l.cost_center_name, l.floor, l.landlord_name, l.ll_status, l.agreement_status,
           BY_CODE[l.component_code]?.label || l.component_code, monthLabel(l.rent_month), formatDMY(l.period_from), formatDMY(l.period_to),
           l.days_charged, num(l.base_amount), l.rule_percentage === null ? '' : num(l.rule_percentage) / 100, num(l.escalated_amount),
           num(l.waiver_amount), num(l.final_amount), formatDMY(l.lcd), formatDMY(l.rcd), formatDMY(l.led),
-        ]).commit();
+          formatDMY(l.escalation_date), l.escalation_rule || '', formatDMY(l.next_escalation_date),
+          formatDMY(l.waiver_from), formatDMY(l.waiver_to), l.waiver_days || '', l.remarks || '',
+        ]);
+        // escalation months amber, rent-free months blue (as on the screen)
+        if (l.event) row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: l.event === 'waiver' ? 'FFE0F2FE' : 'FFFEF3C7' } };
+        row.commit();
         rows[i] = null; // release as written
         if (i % 500 === 499) await new Promise((resolve) => setImmediate(resolve)); // let other requests run
       }

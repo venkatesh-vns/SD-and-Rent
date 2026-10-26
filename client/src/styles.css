@@ -1409,3 +1409,17 @@ fieldset:disabled .chip { cursor: default; opacity: 0.7; }
 .bulk-doc-step { display: block; margin-bottom: 0.45rem; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
 .bulk-doc-picked { display: block; margin-top: 0.45rem; color: var(--faint); font-size: 0.84rem; font-style: italic; }
 .bulk-doc-picked.done { color: var(--primary-strong); font-style: normal; font-weight: 600; }
+
+/* Rent Schedule: escalation / waiver explained per line */
+.sched-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; margin: 0.4rem 0 0.7rem; font-size: 0.84rem; }
+.sched-legend .hint { margin: 0 0 0 0.4rem; }
+.sched-key { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border); }
+.sched-key:not(:first-child) { margin-left: 0.8rem; }
+.sched-key.esc, tr.sched-escalation td, tr.sched-both td { background: #fef3c7; }
+.sched-key.waiver, tr.sched-waiver td { background: #e0f2fe; }
+.sched-when { white-space: nowrap; }
+.sched-when small { display: block; color: var(--muted); font-size: 0.74rem; }
+.sched-tag { margin-left: 0.35rem; padding: 0 6px; border-radius: 999px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; }
+.sched-tag.esc { background: #f59e0b; color: #fff; }
+.sched-remarks { min-width: 260px; max-width: 380px; font-size: 0.8rem; line-height: 1.35; }
+.muted { color: var(--muted); }

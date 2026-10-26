@@ -11,11 +11,43 @@ const agreementModel = require('../models/rentAgreementModel');
 const ruleModel = require('../models/rentRuleModel');
 const waiverModel = require('../models/rentWaiverModel');
 const scheduleModel = require('../models/rentScheduleModel');
-const { computeRentSchedule, monthStart } = require('./rentCalc');
+const { computeRentSchedule, monthStart, escalationChain, explainLine } = require('./rentCalc');
 const { logAudit } = require('../utils/audit');
 const { listOf } = require('../utils/filters');
 
 const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local time
+
+/**
+ * Adds to schedule lines (as read for the screen / export) the escalation date of
+ * the month's rate, the escalation starting in the month, the next escalation and
+ * the waiver period - worked out from the Rent Code's rules and waivers, which
+ * cannot change for months already generated. Lines need rent_id, lcd and rcd.
+ */
+async function explainLines(rows, db = pool) {
+  const rentIds = [...new Set(rows.map((r) => r.rent_id))];
+  const ctx = new Map();
+  for (let i = 0; i < rentIds.length; i += 1000) {
+    const ids = rentIds.slice(i, i + 1000);
+    const [rules, waivers] = await Promise.all([ruleModel.forRents(ids, db), waiverModel.forRents(ids, db)]);
+    ids.forEach((id) => ctx.set(id, { rules: [], waivers: [] }));
+    rules.forEach((r) => ctx.get(r.rent_id).rules.push(r));
+    waivers.forEach((w) => ctx.get(w.rent_id).waivers.push(w));
+  }
+  const chains = new Map();
+  for (const [i, line] of rows.entries()) {
+    const c = ctx.get(line.rent_id);
+    if (!chains.has(line.rent_id)) {
+      chains.set(line.rent_id, {
+        chain: escalationChain(c.rules, { lcd: line.lcd, rcd: line.rcd }),
+        normalDays: c.rules.filter((r) => r.rule_type === 'Normal Day'),
+        waivers: c.waivers,
+      });
+    }
+    Object.assign(line, explainLine(line, chains.get(line.rent_id)));
+    if (i % 2000 === 1999) await new Promise((resolve) => setImmediate(resolve));
+  }
+  return rows;
+}
 
 // Everything the calculation needs for a set of Rent Codes
 async function loadInputs(rentIds, db) {
@@ -154,4 +186,4 @@ async function withClient(fn) {
   }
 }
 
-module.exports = { generate, regenerateFuture, regenerateForSd, loadInputs };
+module.exports = { explainLines, generate, regenerateFuture, regenerateForSd, loadInputs };

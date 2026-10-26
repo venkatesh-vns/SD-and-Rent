@@ -143,3 +143,43 @@ test('rules and waivers can apply to several components', () => {
   assert.deepEqual([at('OFFICE', '2026-02-01'), at('CAFE', '2026-02-01'), at('SOLAR', '2026-02-01')], [1100, 110, 500], 'rule on Office + Cafe only');
   assert.deepEqual([at('OFFICE', '2026-03-01'), at('CAFE', '2026-03-01'), at('SOLAR', '2026-03-01')], [1100, 0, 0], 'waiver on Cafe + Solar only');
 });
+
+test('explains each line: escalation date, escalation starting, next escalation, waiver period', () => {
+  const { explainLine } = require('../services/rentCalc');
+  const rules = [
+    { rule_id: 1, rule_type: 'RCD', escalation_months: 12, percentage: 5, status: 'Active' },
+    { rule_id: 2, rule_type: 'RCD', escalation_months: 12, percentage: 5, status: 'Active' },
+  ];
+  const ctx = {
+    chain: escalationChain(rules, { rcd: '2026-04-15' }),
+    normalDays: [],
+    waivers: [
+      { from_date: '2026-06-01', to_date: '2026-06-30', waiver_status: 'Yes', component_codes: null },
+      { from_date: '2026-08-01', to_date: '2026-08-31', waiver_status: 'Yes', component_codes: ['CAR_PARK'] },
+    ],
+  };
+  const line = (from, to) => explainLine({ component_code: 'OFFICE', period_from: from, period_to: to }, ctx);
+
+  const may = line('2026-05-01', '2026-05-31');
+  assert.equal(may.escalation_date, null, 'base rent, no escalation yet');
+  assert.equal(may.next_escalation_date, '2027-04-15');
+  assert.equal(may.event, null);
+  assert.equal(may.remarks, 'Next escalation +5% on 15/04/2027');
+
+  const june = line('2026-06-01', '2026-06-30');
+  assert.equal(june.event, 'waiver');
+  assert.deepEqual([june.waiver_from, june.waiver_to, june.waiver_days], ['2026-06-01', '2026-06-30', 30]);
+  assert.match(june.remarks, /^Rent-free 01\/06\/2026 - 30\/06\/2026 \(30 days this month\)/);
+
+  assert.equal(line('2026-08-01', '2026-08-31').event, null, 'the August waiver is for Car Park only');
+
+  const april27 = line('2027-04-01', '2027-04-30');
+  assert.equal(april27.event, 'escalation');
+  assert.equal(april27.escalation_date, '2027-04-15');
+  assert.equal(april27.escalation_rule, '+5% · RCD rule, every 12 months');
+  assert.match(april27.remarks, /^Escalation \+5% from 15\/04\/2027 \(RCD rule, every 12 months\); Next escalation \+5% on 15\/04\/2028$/);
+
+  const july27 = line('2027-07-01', '2027-07-31');
+  assert.equal(july27.escalation_date, '2027-04-15', 'rate in force since the escalation');
+  assert.equal(july27.event, null);
+});

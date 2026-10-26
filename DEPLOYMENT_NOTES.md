@@ -214,3 +214,18 @@ Maintenance Charges (scope 3.3).
 - Migration 025 (sd_document_batches, sd_document_batch_rows, sd_document_master.batch_id, screen).
   Audit Log: DOC_BULK_UPLOAD, DOC_BULK_DELETE (plus DOC_UPLOAD per document).
 - Tests: server/tests/sdDocumentBatches.test.js (145 tests pass).
+
+## 14. Rent Schedule: escalation and waiver explained (26/10/2026)
+
+- New columns on the Rent Schedule lines and in the export: Escalation Date (when the rate in
+  force that month started, with the rule, e.g. "+5% · RCD rule, every 12 months"; "Base rent"
+  before the first escalation), Waiver Period (rent-free dates touching the month and the number
+  of rent-free days in it) and Remarks ("Escalation +5% from 02/05/2026 (RCD rule, every 12
+  months)", "Rent-free 03/03/2026 - 02/05/2026 (30 days this month)", "Next escalation +5% on
+  03/03/2027").
+- Months where an escalation starts are shaded amber, rent-free months blue (screen and Excel),
+  with a legend above the table. Export: new columns Escalation Date, Escalation Rule, Next
+  Escalation Date, Waiver From, Waiver To, Waiver Days, Remarks (added at the end).
+- Worked out when the schedule is read, from the Rent Code's rules and waivers (which cannot
+  change for generated months), so schedules already generated show it without regenerating.
+  No migration. A year of all Rent Codes (151,200 lines) adds about 0.7 s to the export.

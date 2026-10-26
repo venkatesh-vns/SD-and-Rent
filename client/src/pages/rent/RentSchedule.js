@@ -197,6 +197,11 @@ export default function RentSchedule() {
             <p className="empty-state">No schedule lines for these filters. {can(SCREENS.RENT_SCHEDULE, 'add') ? 'Choose the period and press Generate.' : ''}</p>
           ) : (
             <>
+              <p className="sched-legend">
+                <span className="sched-key esc" /> Escalation starts in the month
+                <span className="sched-key waiver" /> Rent-free (waiver) days in the month
+                <span className="hint">Escalation Date = when the rate in force started; Remarks also give the next escalation.</span>
+              </p>
               <div className="table-wrap freeze">
                 <table className="data-table compact">
                   <thead>
@@ -204,13 +209,15 @@ export default function RentSchedule() {
                       <th>Rent Code</th><th>Cost Center</th><th>Floor</th><th>Landlord Name</th><th>LL Status</th><th>Agreement Status</th>
                       <th>Agreement Header</th><th>Rent Month</th><th>Schedule Date</th><th className="num">Days</th>
                       <th className="num tone-head tone-agreement">Base Rent Amount</th><th className="num">Rule %</th>
+                      <th title="Date the escalation in force this month started">Escalation Date</th>
+                      <th title="Rent-free days of this month (Waiver Master)">Waiver Period</th>
                       <th className="num tone-head tone-balance">Escalated Amount</th><th className="num tone-head tone-out">Waiver Amount</th>
-                      <th className="num tone-head tone-paid">Final Rent Amount</th><th>LCD</th><th>RCD</th><th>LED</th>
+                      <th className="num tone-head tone-paid">Final Rent Amount</th><th>Remarks</th><th>LCD</th><th>RCD</th><th>LED</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((l) => (
-                      <tr key={l.line_id}>
+                      <tr key={l.line_id} className={l.event ? `sched-${l.event}` : undefined}>
                         <td className="code-cell">{l.rent_code}</td><td>{l.cost_center_name}</td><td>{l.floor}</td><td>{l.landlord_name}</td>
                         <td><span className={`badge badge-${l.ll_status.toLowerCase()}`}>{l.ll_status}</span></td>
                         <td>{l.agreement_status}</td><td>{COMPONENT_LABEL[l.component_code]}</td>
@@ -219,9 +226,27 @@ export default function RentSchedule() {
                         <td className="num">{l.days_charged}</td>
                         <td className="num">{formatAmount(l.base_amount)}</td>
                         <td className="num">{l.rule_percentage === null ? '—' : `${Number(l.rule_percentage)}%`}</td>
+                        <td className="sched-when">
+                          {l.escalation_date ? (
+                            <>
+                              {formatDate(l.escalation_date)}
+                              {(l.event === 'escalation' || l.event === 'both') && <span className="sched-tag esc">starts</span>}
+                              <small>{l.escalation_rule}</small>
+                            </>
+                          ) : <span className="muted">Base rent</span>}
+                        </td>
+                        <td className="sched-when">
+                          {l.waiver_from ? (
+                            <>
+                              {formatDate(l.waiver_from)} – {formatDate(l.waiver_to)}
+                              <small>{l.waiver_days} rent-free day{l.waiver_days === 1 ? '' : 's'} this month</small>
+                            </>
+                          ) : '—'}
+                        </td>
                         <td className="num tone-balance">{formatAmount(l.escalated_amount)}</td>
                         <td className={`num tone-out${Number(l.waiver_amount) ? '' : ' amount-zero'}`}>{formatAmount(l.waiver_amount)}</td>
                         <td className="num tone-paid"><strong>{formatAmount(l.final_amount)}</strong></td>
+                        <td className="sched-remarks" title={l.remarks}>{l.remarks || '—'}</td>
                         <td>{formatDate(l.lcd) || '—'}</td><td>{formatDate(l.rcd) || '—'}</td><td>{formatDate(l.led) || '—'}</td>
                       </tr>
                     ))}
