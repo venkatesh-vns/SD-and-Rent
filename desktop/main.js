@@ -3,13 +3,15 @@
 //  - "This PC holds the data": runs a private PostgreSQL and the SD Maintenance
 //    server here; other PCs connect to http://<this-pc>:<port>.
 //  - "Connect to the main PC": opens the screens served by that PC.
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell, powerSaveBlocker } = require('electron');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const configStore = require('./lib/config');
-const { Database, freePort, DB_USER, DB_NAME } = require('./lib/database');
-const { startBackend, lanAddresses } = require('./lib/backend');
+const { Database, freePort } = require('./lib/database');
+const { lanAddresses } = require('./lib/backend');
+const { startServer } = require('./lib/server');
+const backgroundService = require('./lib/backgroundService');
 const channel = require('./lib/channel');
 
 const DEFAULT_HTTP_PORT = channel.HTTP_PORT;
@@ -25,9 +27,14 @@ const LOG_DIR = path.join(USER_DIR, 'logs');
 
 let config = configStore.load(CONFIG_FILE);
 let mainWindow = null;
-let backend = null;
 let database = null;
+let running = null; // server started by this window ({ database, backend, stop })
+let awake = null; // power-save blocker id while this window serves other PCs
 let quitting = false;
+// The background service (Windows scheduled task) - installed builds only
+const service = app.isPackaged
+  ? backgroundService.create({ appName: APP_NAME, exePath: process.execPath, resDir: process.resourcesPath, userDir: USER_DIR, log: (...a) => log(...a) })
+  : null;
 
 // ---------- logging (AppData\SD Maintenance\logs\app.log) ----------
 fs.mkdirSync(LOG_DIR, { recursive: true });
@@ -72,7 +79,7 @@ function createWindow() {
     return { action: 'deny' };
   });
   mainWindow.on('close', (e) => {
-    if (quitting || config.mode !== 'server' || !backend) return;
+    if (quitting || config.mode !== 'server' || !running) return;
     const choice = dialog.showMessageBoxSync(mainWindow, {
       type: 'question',
       buttons: [`Close ${APP_NAME}`, 'Cancel'],
@@ -80,7 +87,7 @@ function createWindow() {
       cancelId: 1,
       title: `Close ${APP_NAME}`,
       message: `This PC holds the ${APP_NAME} data.`,
-      detail: 'Other PCs connected to this one cannot use the application until you open it again.',
+      detail: 'Other PCs connected to this one cannot use the application until you open it again.\n\nTip: Settings > Run in the background keeps it available for them even when this window is closed, the screen is locked or no one is logged in.',
     });
     if (choice === 1) e.preventDefault();
   });
@@ -97,31 +104,32 @@ function showError(message, detail) {
 // ---------- start-up ----------
 async function startServerMode(firstAdmin) {
   const s = config.server;
-  database = new Database({ pgHome: path.join(RES, 'pgsql'), dataDir: path.join(USER_DIR, 'pgdata'), logDir: LOG_DIR, log });
-  if (!database.initialized) await database.init({ password: s.dbPassword, port: s.pgPort });
-  await database.start();
-  const { Client } = require(path.join(RES, 'backend', 'server', 'node_modules', 'pg'));
-  await database.ensureDatabase({ Client, password: s.dbPassword, port: s.pgPort });
-  backend = await startBackend({
-    backendDir: path.join(RES, 'backend'),
-    uploadDir: path.join(USER_DIR, 'uploads'),
-    backupDir: path.join(USER_DIR, 'backups'), // nightly database backups
-    pgBin: path.join(RES, 'pgsql', 'bin'),
-    logArchiveDir: path.join(USER_DIR, 'log-archive'), // log entries older than 5 months
-    documentDir: path.join(USER_DIR, 'documents'), // SD Master documents (PDF / Word)
-    logDir: path.join(LOG_DIR, 'server'),
-    httpPort: s.httpPort,
-    pgPort: s.pgPort,
-    dbUser: DB_USER,
-    dbName: DB_NAME,
-    dbPassword: s.dbPassword,
-    jwtSecret: s.jwtSecret,
-    settingsSecret: s.settingsSecret,
-    emailDryRun: channel.EMAIL_DRY_RUN,
-    firstAdmin,
-    log,
+  const local = `http://localhost:${s.httpPort}`;
+  // Run in the background: the scheduled task serves; this window only shows the screens
+  if (config.background && service) {
+    if (!(await reachable(local))) {
+      showPage('loading.html', { message: 'Starting the background service...' });
+      if (!(await service.installed())) {
+        log('Background service task is missing; serving from this window instead');
+        config = { ...config, background: false };
+        configStore.save(CONFIG_FILE, config);
+        buildMenu();
+        return startServerMode(firstAdmin);
+      }
+      await service.start();
+      if (!(await reachable(local))) throw new Error(`The background service did not start. See ${path.join(LOG_DIR, 'service.log')}.`);
+    }
+    mainWindow.loadURL(`${local}/login`);
+    return undefined;
+  }
+  running = await startServer({
+    resDir: RES, userDir: USER_DIR, logDir: LOG_DIR, settings: s, appVersion: app.getVersion(), emailDryRun: channel.EMAIL_DRY_RUN, firstAdmin, log,
   });
-  mainWindow.loadURL(`http://localhost:${s.httpPort}/login`);
+  database = running.database;
+  // Other PCs depend on this one: keep it from sleeping (a locked screen is fine)
+  if (awake === null) awake = powerSaveBlocker.start('prevent-app-suspension');
+  mainWindow.loadURL(`${local}/login`);
+  return undefined;
 }
 
 async function startClientMode() {
@@ -186,6 +194,7 @@ function buildMenu() {
       label: 'Settings',
       submenu: [
         ...(server ? [{ label: 'Address for other PCs...', click: showAddresses }] : []),
+        ...(server && service ? [{ label: 'Run in the background (starts with Windows)', type: 'checkbox', checked: Boolean(config.background), click: toggleBackground }] : []),
         { label: 'Connection settings...', click: changeConnection },
       ],
     },
@@ -210,8 +219,54 @@ function showAddresses() {
     type: 'info',
     title: 'Address for other PCs',
     message: `On the other PCs, install ${APP_NAME}, choose "Connect to the main PC" and enter:`,
-    detail: `${list.length ? list.join('\n') : `http://<this PC's name>:${port}`}\n\nThey can also open this address in a web browser.\nThis PC must be on, with ${APP_NAME} open.`,
+    detail: `${list.length ? list.join('\n') : `http://<this PC's name>:${port}`}\n\nThey can also open this address in a web browser.\n${config.background ? 'This PC must be on (the background service starts with Windows; no one needs to be logged on).' : `This PC must be on, with ${APP_NAME} open (or turn on Settings > Run in the background).`}`,
   });
+}
+
+// Moves the server between this window and the background service
+async function toggleBackground() {
+  const on = !config.background;
+  const choice = dialog.showMessageBoxSync(mainWindow, {
+    type: 'question',
+    buttons: [on ? 'Run in the background' : 'Stop the background service', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1,
+    title: 'Run in the background',
+    message: on ? `Keep ${APP_NAME} running for the other PCs at all times?` : `Stop running ${APP_NAME} in the background?`,
+    detail: on
+      ? 'The database and the application server will run as a Windows background service: they start when this PC starts and keep running while the screen is locked, the user is signed out or this window is closed. The PC is kept from going to sleep.\n\nWindows may ask for administrator permission. The data is not changed.'
+      : 'The server will run inside this window again: other PCs can use the application only while it is open.',
+  });
+  if (choice !== 0) { buildMenu(); return; }
+  showPage('loading.html', { message: on ? 'Moving the server to the background service...' : 'Stopping the background service...' });
+  try {
+    if (on) {
+      await shutdown();
+      try {
+        if (!(await service.install())) throw new Error(`The background service did not answer in time. See ${path.join(LOG_DIR, 'service.log')}.`);
+      } catch (err) {
+        await startServerMode(null); // keep serving from this window
+        throw err;
+      }
+      config = { ...config, background: true };
+    } else {
+      await service.uninstall();
+      config = { ...config, background: false };
+    }
+    configStore.save(CONFIG_FILE, config);
+    buildMenu();
+    await startServerMode(null);
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Run in the background',
+      message: on ? `${APP_NAME} now runs in the background.` : 'The background service was removed.',
+      detail: on ? 'You can close this window; the other PCs keep working. The service starts by itself when Windows starts.' : 'The server runs in this window again.',
+    });
+  } catch (err) {
+    log('Background service change failed', err);
+    buildMenu();
+    dialog.showErrorBox('Run in the background', err.message);
+  }
 }
 
 async function changeConnection() {
@@ -243,7 +298,9 @@ async function backupDatabase() {
   });
   if (canceled || !filePath) return;
   try {
-    await database.backup({ file: filePath, password: config.server.dbPassword, port: config.server.pgPort });
+    // the background service's database is reached the same way (127.0.0.1 and its port)
+    const db = database || new Database({ pgHome: path.join(RES, 'pgsql'), dataDir: path.join(USER_DIR, 'pgdata'), logDir: LOG_DIR, log });
+    await db.backup({ file: filePath, password: config.server.dbPassword, port: config.server.pgPort });
     dialog.showMessageBox(mainWindow, { type: 'info', title: 'Backup complete', message: 'The database was backed up.', detail: filePath });
   } catch (err) {
     log('Backup failed', err);
@@ -343,24 +400,17 @@ ipcMain.handle('sdm:open-logs', (event) => {
 
 // ---------- shutdown ----------
 async function shutdown() {
-  try {
-    if (backend) await backend.close();
-  } catch (err) {
-    log('Server stop failed', err);
-  }
-  backend = null;
-  try {
-    if (database) await database.stop();
-  } catch (err) {
-    log('Database stop failed', err);
-  }
+  if (running) await running.stop();
+  running = null;
   database = null;
+  if (awake !== null) powerSaveBlocker.stop(awake);
+  awake = null;
 }
 
 app.on('before-quit', (e) => {
   if (quitting) return;
   quitting = true;
-  if (backend || database) {
+  if (running) {
     e.preventDefault();
     shutdown().finally(() => app.quit());
   }

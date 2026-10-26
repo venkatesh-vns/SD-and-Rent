@@ -2,7 +2,7 @@
 // Same app as production, built as "SD and Rent UAT" (see lib/channel.js).
 const base = require('../package.json').build;
 
-const UAT_VERSION = process.env.UAT_VERSION || '2.0.0-uat.1';
+const UAT_VERSION = process.env.UAT_VERSION || '2.0.0-uat.2';
 
 module.exports = {
   ...base,

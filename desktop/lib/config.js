@@ -7,7 +7,7 @@ const path = require('path');
 
 function load(file) {
   try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
+    return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, '')); // a BOM (e.g. written by PowerShell) is ignored
   } catch {
     return {};
   }

@@ -29,6 +29,7 @@
     "files": [
       "main.js",
       "preload.js",
+      "service.js",
       "lib/**",
       "ui/**",
       "package.json",
@@ -66,6 +67,11 @@
       "shortcutName": "Security Deposit & Rent Management",
       "include": "build/installer.nsh",
       "deleteAppDataOnUninstall": false
-    }
+    },
+    "asarUnpack": [
+      "service.js",
+      "lib/**",
+      "package.json"
+    ]
   }
 }

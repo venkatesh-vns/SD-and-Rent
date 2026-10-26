@@ -229,3 +229,24 @@ Maintenance Charges (scope 3.3).
 - Worked out when the schedule is read, from the Rent Code's rules and waivers (which cannot
   change for generated months), so schedules already generated show it without regenerating.
   No migration. A year of all Rent Codes (151,200 lines) adds about 0.7 s to the export.
+
+## 15. UAT Release 2 — v2.0.0-uat.2 (desktop installer, 26/10/2026)
+
+- Installer: `desktop/dist/SD-and-Rent-UAT-Setup-2.0.0-uat.2.exe` (build: `cd desktop`, `npm run dist:uat`).
+  Package for the team: `release/UAT-2.0.0-uat.2/` (installer, Release Notes, Deployment
+  Instructions, database upgrade script, background-service scripts; sources in `docs/UAT2/`).
+- Update over UAT 1 keeps all data (%APPDATA%\SD and Rent UAT is never touched). On the first
+  start the app backs up the database to backups\pre-upgrade, reads the backup back, then applies
+  migrations 013-025 (all additive). If the backup fails nothing is changed (desktop/lib/server.js).
+- Background service (new): Settings > Run in the background registers the scheduled task
+  "SD and Rent UAT Server" (at start-up, S4U as the main PC's user, restart on failure, no time
+  limit) running `service.js` through the app's executable (ELECTRON_RUN_AS_NODE). Runs with the
+  screen locked, user signed out or window closed; keeps the PC awake (lib/keepAwake.js). The
+  window then only shows the screens. Stop request: <data>\service.stop (used by the app and the
+  installer before replacing files). IT scripts: docs/UAT2/service/*.ps1.
+- Upgrade test (scratch, not shipped): UAT 1 program + database with test data entered through the
+  UAT 1 API -> UAT 2 background service: backup verified, 13 migrations, 22 of 22 data tables
+  identical (only schema_migrations and the screens list change); upgrade script tested the same way
+  and is idempotent.
+- After the update: everyone logs in once; give non-admin users SD Document Upload (View, Upload)
+  and SD Negative Entry (Add) as needed.

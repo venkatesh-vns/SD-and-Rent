@@ -164,4 +164,12 @@ class Database {
   }
 }
 
+// Reads a backup file back (pg_restore --list); returns the number of tables in it
+Database.prototype.verifyBackup = async function verifyBackup(file) {
+  const list = await exec(this.bin('pg_restore'), ['--list', file]);
+  const tables = (list.match(/ TABLE DATA /g) || []).length;
+  if (!tables) throw new Error('The backup file could not be read back.');
+  return tables;
+};
+
 module.exports = { Database, freePort, performanceSettings, DB_USER, DB_NAME };
